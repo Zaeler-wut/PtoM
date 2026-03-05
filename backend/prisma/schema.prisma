@@ -12,3 +12,436 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id String @id @default(uuid())
+
+  name String?
+  email String @unique
+  phone String?
+  lineId String?
+
+  password String
+
+  roleUser Boolean @default(true)
+  roleAdmin Boolean @default(false)
+
+  isActive Boolean @default(true)
+  lastLogin DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicles Vehicle[]
+  bookings Booking[]
+  payments Payment[]
+  contracts Contract[]
+
+  managedProperties PropertyAdmin[]
+}
+
+
+
+model Vehicle {
+  id String @id @default(uuid())
+
+  userId String
+  plateNumber String
+  type String
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+
+
+model Property {
+  id String @id @default(uuid())
+
+  name String
+  address String
+  googleMap String?
+
+  description String?
+
+  priceMin Int
+  priceMax Int
+
+  contractTerm String?
+
+  bankName String
+  bankAccount String
+  bankHolder String
+
+  paymentQrUrl String?
+  logoUrl String?
+
+  createdAt DateTime @default(now())
+
+  roomTypes RoomType[]
+  rooms Room[]
+  bookings Booking[]
+
+  facilities PropertyFacility[]
+  images PropertyImage[]
+
+  admins PropertyAdmin[]
+}
+
+
+
+model PropertyImage {
+  id String @id @default(uuid())
+
+  propertyId String
+  url String
+  sortOrder Int?
+  isCover Boolean @default(false)
+
+  property Property @relation(fields: [propertyId], references: [id])
+}
+
+
+
+model PropertyAdmin {
+  id String @id @default(uuid())
+
+  propertyId String
+  userId String
+
+  property Property @relation(fields: [propertyId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([propertyId, userId])
+}
+
+
+
+model RoomType {
+  id String @id @default(uuid())
+
+  propertyId String
+
+  name String
+  description String?
+
+  size Float?
+  maxOccupants Int
+
+  roomPrice Int
+  furniturePrice Int?
+
+  bookingFee Int
+  advanceRent Int
+  deposit Int
+
+  waterRate Float
+  electricRate Float
+
+  allowOnlineBooking Boolean @default(true)
+
+  property Property @relation(fields: [propertyId], references: [id])
+
+  rooms Room[]
+  images RoomTypeImage[]
+  facilities RoomFacility[]
+  bookings Booking[]
+}
+
+
+
+model RoomTypeImage {
+  id String @id @default(uuid())
+
+  roomTypeId String
+  url String
+  sortOrder Int?
+
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+}
+
+
+
+model Room {
+  id String @id @default(uuid())
+
+  propertyId String
+  roomTypeId String
+
+  roomNumber String
+  floor Int?
+
+  status RoomStatus
+
+  property Property @relation(fields: [propertyId], references: [id])
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+
+  contracts Contract[]
+  bookings Booking[]
+  bills Bill[]
+  meters MeterReading[]
+}
+
+enum RoomStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  PREPARING
+  MAINTENANCE
+}
+
+
+
+model Facility {
+  id String @id @default(uuid())
+
+  name String
+
+  propertyFacilities PropertyFacility[]
+  roomFacilities RoomFacility[]
+}
+
+
+
+model PropertyFacility {
+  id String @id @default(uuid())
+
+  propertyId String
+  facilityId String
+
+  property Property @relation(fields: [propertyId], references: [id])
+  facility Facility @relation(fields: [facilityId], references: [id])
+}
+
+
+
+model RoomFacility {
+  id String @id @default(uuid())
+
+  roomTypeId String
+  facilityId String
+
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+  facility Facility @relation(fields: [facilityId], references: [id])
+}
+
+
+
+model Booking {
+  id String @id @default(uuid())
+
+  propertyId String
+  roomTypeId String
+  roomId String?
+
+  userId String
+
+  moveInDate DateTime
+
+  bookingFee Int
+  slipUrl String?
+
+  status BookingStatus
+
+  createdAt DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id])
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+  room Room? @relation(fields: [roomId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  contract Contract?
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CANCELLED
+}
+
+
+
+model Contract {
+  id String @id @default(uuid())
+
+  userId String
+  roomId String
+  bookingId String? @unique
+
+  startDate DateTime
+  endDate DateTime
+
+  deposit Int
+
+  contractType ContractType
+  status ContractStatus
+
+  pdfUrl String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  bills Bill[]
+}
+
+enum ContractStatus {
+  ACTIVE
+  MOVE_OUT_NOTICE
+  ENDED
+}
+
+enum ContractType {
+  ONLINE
+  OFFLINE
+}
+
+
+model MeterReading {
+  id String @id @default(uuid())
+
+  roomId String
+
+  month Int
+  year Int
+
+  waterMeter Float
+  electricMeter Float
+
+  createdAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id])
+
+  images MeterImage[]
+
+  @@unique([roomId, month, year])
+}
+
+model MeterImage {
+  id String @id @default(uuid())
+
+  meterReadingId String
+
+  url String
+  type MeterType
+
+  meterReading MeterReading @relation(fields: [meterReadingId], references: [id])
+}
+
+enum MeterType {
+  WATER
+  ELECTRIC
+}
+
+
+
+model Bill {
+  id String @id @default(uuid())
+
+  contractId String
+  roomId String
+
+  month Int
+  year Int
+
+  roomRent Int
+  furnitureRent Int?
+
+  waterCost Int
+  electricCost Int
+  otherCost Int?
+
+  total Int
+
+  status BillStatus
+
+  pdfUrl String?
+
+  createdAt DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+
+  payments Payment[]
+}
+
+enum BillStatus {
+  DRAFT
+  SENT
+  PENDING
+  VERIFYING
+  PAID
+}
+
+
+
+model Payment {
+  id String @id @default(uuid())
+
+  userId String
+  billId String?
+
+  amount Int
+
+  slipUrl String?
+
+  status PaymentStatus
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  bill Bill? @relation(fields: [billId], references: [id])
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFYING
+  CONFIRMED
+  REJECTED
+}
+
+
+
+model MoveOutBill {
+  id String @id @default(uuid())
+
+  contractId String
+  roomId String
+  userId String
+
+  moveOutDate DateTime
+
+  waterStart Float
+  waterEnd Float
+
+  electricStart Float
+  electricEnd Float
+
+  totalCharge Int
+  refundAmount Int
+
+  status MoveOutBillStatus
+
+  createdAt DateTime @default(now())
+
+  items MoveOutBillItem[]
+}
+
+model MoveOutBillItem {
+  id String @id @default(uuid())
+
+  moveOutBillId String
+
+  title String
+  amount Int
+
+  moveOutBill MoveOutBill @relation(fields: [moveOutBillId], references: [id])
+}
+
+enum MoveOutBillStatus {
+  DRAFT
+  CONFIRMED
+  COMPLETED
+}
