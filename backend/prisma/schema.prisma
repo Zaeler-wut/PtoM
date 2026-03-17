@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -16,7 +10,7 @@ datasource db {
 model User {
   id String @id @default(uuid())
 
-  name String?
+  name String
   email String @unique
   phone String?
   lineId String?
@@ -36,11 +30,11 @@ model User {
   bookings Booking[]
   payments Payment[]
   contracts Contract[]
+  bills Bill[]
+  moveOutBills MoveOutBill[]
 
   managedProperties PropertyAdmin[]
 }
-
-
 
 model Vehicle {
   id String @id @default(uuid())
@@ -51,8 +45,6 @@ model Vehicle {
 
   user User @relation(fields: [userId], references: [id])
 }
-
-
 
 model Property {
   id String @id @default(uuid())
@@ -65,8 +57,6 @@ model Property {
 
   priceMin Int
   priceMax Int
-
-  contractTerm String?
 
   bankName String
   bankAccount String
@@ -87,20 +77,15 @@ model Property {
   admins PropertyAdmin[]
 }
 
-
-
 model PropertyImage {
   id String @id @default(uuid())
 
   propertyId String
   url String
-  sortOrder Int?
   isCover Boolean @default(false)
 
   property Property @relation(fields: [propertyId], references: [id])
 }
-
-
 
 model PropertyAdmin {
   id String @id @default(uuid())
@@ -113,8 +98,6 @@ model PropertyAdmin {
 
   @@unique([propertyId, userId])
 }
-
-
 
 model RoomType {
   id String @id @default(uuid())
@@ -147,19 +130,14 @@ model RoomType {
   bookings Booking[]
 }
 
-
-
 model RoomTypeImage {
   id String @id @default(uuid())
 
   roomTypeId String
   url String
-  sortOrder Int?
 
   roomType RoomType @relation(fields: [roomTypeId], references: [id])
 }
-
-
 
 model Room {
   id String @id @default(uuid())
@@ -179,6 +157,9 @@ model Room {
   bookings Booking[]
   bills Bill[]
   meters MeterReading[]
+  moveOutBills MoveOutBill[]
+
+  @@unique([propertyId, roomNumber])
 }
 
 enum RoomStatus {
@@ -189,18 +170,14 @@ enum RoomStatus {
   MAINTENANCE
 }
 
-
-
 model Facility {
   id String @id @default(uuid())
 
-  name String
+  name String @unique
 
   propertyFacilities PropertyFacility[]
   roomFacilities RoomFacility[]
 }
-
-
 
 model PropertyFacility {
   id String @id @default(uuid())
@@ -210,9 +187,9 @@ model PropertyFacility {
 
   property Property @relation(fields: [propertyId], references: [id])
   facility Facility @relation(fields: [facilityId], references: [id])
+
+  @@unique([propertyId, facilityId])
 }
-
-
 
 model RoomFacility {
   id String @id @default(uuid())
@@ -222,9 +199,9 @@ model RoomFacility {
 
   roomType RoomType @relation(fields: [roomTypeId], references: [id])
   facility Facility @relation(fields: [facilityId], references: [id])
+
+  @@unique([roomTypeId, facilityId])
 }
-
-
 
 model Booking {
   id String @id @default(uuid())
@@ -250,6 +227,8 @@ model Booking {
   user User @relation(fields: [userId], references: [id])
 
   contract Contract?
+
+  @@unique([roomId, moveInDate])
 }
 
 enum BookingStatus {
@@ -258,8 +237,6 @@ enum BookingStatus {
   CHECKED_IN
   CANCELLED
 }
-
-
 
 model Contract {
   id String @id @default(uuid())
@@ -285,6 +262,7 @@ model Contract {
   booking Booking? @relation(fields: [bookingId], references: [id])
 
   bills Bill[]
+  moveOutBills MoveOutBill[]
 }
 
 enum ContractStatus {
@@ -297,7 +275,6 @@ enum ContractType {
   ONLINE
   OFFLINE
 }
-
 
 model MeterReading {
   id String @id @default(uuid())
@@ -335,23 +312,18 @@ enum MeterType {
   ELECTRIC
 }
 
-
-
 model Bill {
   id String @id @default(uuid())
 
   contractId String
   roomId String
+  userId String
 
-  month Int
-  year Int
+  month Int?
+  year Int?
 
   roomRent Int
   furnitureRent Int?
-
-  waterCost Int
-  electricCost Int
-  otherCost Int?
 
   total Int
 
@@ -363,8 +335,21 @@ model Bill {
 
   contract Contract @relation(fields: [contractId], references: [id])
   room Room @relation(fields: [roomId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
+  items BillItem[]
   payments Payment[]
+}
+
+model BillItem {
+  id String @id @default(uuid())
+
+  billId String
+
+  title String
+  amount Int
+
+  bill Bill @relation(fields: [billId], references: [id])
 }
 
 enum BillStatus {
@@ -375,13 +360,11 @@ enum BillStatus {
   PAID
 }
 
-
-
 model Payment {
   id String @id @default(uuid())
 
   userId String
-  billId String?
+  billId String
 
   amount Int
 
@@ -392,7 +375,7 @@ model Payment {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
-  bill Bill? @relation(fields: [billId], references: [id])
+  bill Bill @relation(fields: [billId], references: [id])
 }
 
 enum PaymentStatus {
@@ -401,8 +384,6 @@ enum PaymentStatus {
   CONFIRMED
   REJECTED
 }
-
-
 
 model MoveOutBill {
   id String @id @default(uuid())
@@ -425,6 +406,10 @@ model MoveOutBill {
   status MoveOutBillStatus
 
   createdAt DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   items MoveOutBillItem[]
 }

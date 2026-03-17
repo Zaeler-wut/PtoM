@@ -1,55 +1,19 @@
 import express from 'express';
-//import { prisma } from './lib/prisma';
+import { prisma } from './lib/prisma';
 import cors from "cors"
+import authRouter from "./modules/auth/authRouter"
 const app = express();
 const port = process.env.PORT || 8080;
 
+import cookieParser from "cookie-parser"
+
+
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser())
 
+app.use("/api/auth", authRouter)
 
-// authen
-app.post('/api/register', async(req, res) => {
-    const {email, password } = req.body;  // การ destucuringy
-    try {
-        // Validate body
-        if(!email){
-            return res.status(400).json({ error : 'Email is not'})
-        }
-        if(!password){
-            return res.status(400).json({ error : 'Password is not requrie'})
-        }
-
-    
-        // Check Email in DB already ?
-        
-        // const register = await prisma.register.create({
-
-        // })
-
-    }catch(error) {
-        console.error(error);
-        res.status(500).json({ error : ''})
-    }
-})
-
-app.post('/api/login', async (req, res) => {
-    try {
-
-    }catch(error) {
-        console.error(error);
-        res.status(500).json({ error : ''})
-    }
-})
-
-app.post('/api/current-user', async(req, res) => {
-    try {
-
-    }catch(error) {
-        console.error(error);
-        res.status(500).json({ error : ''})
-    }
-})
 
 // app.get('/', (req, res) => {
 //     res.send('Hello from Prisma API!');  
