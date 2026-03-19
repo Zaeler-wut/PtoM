@@ -7,18 +7,27 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id String @id @default(uuid())
 
-  name String
+  firstName String
+  lastName String
+
   email String @unique
   phone String?
   lineId String?
 
+  citizenId String?
+  address String?
+
   password String
 
-  roleUser Boolean @default(true)
-  roleAdmin Boolean @default(false)
+  role Role @default(USER)
 
   isActive Boolean @default(true)
   lastLogin DateTime?
@@ -57,6 +66,8 @@ model Property {
 
   priceMin Int
   priceMax Int
+
+  contractTerm String?
 
   bankName String
   bankAccount String
@@ -115,7 +126,8 @@ model RoomType {
 
   bookingFee Int
   advanceRent Int
-  deposit Int
+
+  securityDeposit Int
 
   waterRate Float
   electricRate Float
@@ -128,6 +140,19 @@ model RoomType {
   images RoomTypeImage[]
   facilities RoomFacility[]
   bookings Booking[]
+
+  fees RoomTypeFee[]
+}
+
+model RoomTypeFee {
+  id String @id @default(uuid())
+
+  roomTypeId String
+
+  title String
+  amount Int
+
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
 }
 
 model RoomTypeImage {
@@ -215,7 +240,7 @@ model Booking {
   moveInDate DateTime
 
   bookingFee Int
-  slipUrl String?
+  slipUrl String
 
   status BookingStatus
 
@@ -248,7 +273,7 @@ model Contract {
   startDate DateTime
   endDate DateTime
 
-  deposit Int
+  securityDeposit Int
 
   contractType ContractType
   status ContractStatus
@@ -354,7 +379,7 @@ model BillItem {
 
 enum BillStatus {
   DRAFT
-  SENT
+  READY
   PENDING
   VERIFYING
   PAID

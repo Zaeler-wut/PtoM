@@ -1,11 +1,15 @@
 import { prisma } from "../../lib/prisma"
 
 export const findByEmail = (email: string) => {
-  return prisma.user.findUnique({ where: { email } })
+  return prisma.user.findUnique({
+    where: { email }
+  })
 }
 
 export const createUser = (data: any) => {
-  return prisma.user.create({ data })
+  return prisma.user.create({
+    data
+  })
 }
 
 export const updateLastLogin = (id: string) => {

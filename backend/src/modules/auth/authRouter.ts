@@ -42,4 +42,5 @@ router.post("/logout", async (req, res) => {
   res.json({ message: "Logged out" })
 })
 
+
 export default router

@@ -2,6 +2,8 @@ import express from 'express';
 import { prisma } from './lib/prisma';
 import cors from "cors"
 import authRouter from "./modules/auth/authRouter"
+import adminRouter from "./modules/admin/adminRouter"
+
 const app = express();
 const port = process.env.PORT || 8080;
 
@@ -12,8 +14,9 @@ app.use(cors());
 app.use(express.json());
 app.use(cookieParser())
 
-// test git
+
 app.use("/api/auth", authRouter)
+app.use("/api/admin", adminRouter)
 
 
 // app.get('/', (req, res) => {

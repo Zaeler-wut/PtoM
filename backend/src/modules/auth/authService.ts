@@ -6,10 +6,11 @@ export const registerService = async (data: any, repo: any) => {
   const hashed = await hashPassword(data.password)
 
   return repo.createUser({
-    name: data.name,
+    firstName: data.firstName,
+    lastName: data.lastName,
     email: data.email,
     password: hashed,
-    roleUser: true
+    role: "USER"
   })
 }
 

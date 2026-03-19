@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from "express"
-import jwt from "jsonwebtoken"
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
 export const authenticate = (
   req: Request,
@@ -7,33 +7,42 @@ export const authenticate = (
   next: NextFunction
 ) => {
 
-  const authHeader = req.headers.authorization
-
-  const token = authHeader?.split(" ")[1]
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
 
   if (!token) {
     return res.status(401).json({
       error: "Access token required"
-    })
+    });
   }
 
   try {
 
-    const decoded = jwt.verify(
+    const decoded: any = jwt.verify(
       token,
       process.env.ACCESS_TOKEN_SECRET as string
-    )
+    );
 
-    ;(req as any).user = decoded
+    // 🔥 ใช้ any ไปเลย
+    (req as any).user = {
+      id: decoded.sub,
+      role: decoded.role
+    };
 
-    next()
+    next();
 
-  } catch {
+  } catch (err: any) {
+
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({
+        error: "Token expired"
+      });
+    }
 
     return res.status(401).json({
       error: "Invalid token"
-    })
-
+    });
   }
-
-}
+};

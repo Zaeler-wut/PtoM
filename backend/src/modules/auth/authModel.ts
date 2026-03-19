@@ -3,7 +3,7 @@ import * as service from "./authService"
 import jwt from "jsonwebtoken"
 import { generateAccessToken } from "../../utils/jwt"
 
-// validation
+// VALIDATE REGISTER
 function validateRegister(data: any) {
 
   if (!data.email || typeof data.email !== "string") {
@@ -14,8 +14,12 @@ function validateRegister(data: any) {
     throw new Error("Invalid email format")
   }
 
-  if (!data.name || typeof data.name !== "string") {
-    throw new Error("Name required")
+  if (!data.firstName || typeof data.firstName !== "string") {
+    throw new Error("First name required")
+  }
+
+  if (!data.lastName || typeof data.lastName !== "string") {
+    throw new Error("Last name required")
   }
 
   if (!data.password || data.password.length < 6) {
@@ -23,6 +27,7 @@ function validateRegister(data: any) {
   }
 }
 
+// VALIDATE LOGIN
 function validateLogin(data: any) {
 
   if (!data.email || typeof data.email !== "string") {
@@ -50,7 +55,9 @@ export const register = async (data: any) => {
 
   return {
     id: user.id,
-    email: user.email
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName
   }
 }
 
@@ -77,6 +84,8 @@ export const login = async (data: any) => {
   return tokens
 }
 
+
+// REFRESH TOKEN
 export const refreshToken = async (req: any) => {
 
   const token = req.cookies?.refreshToken
