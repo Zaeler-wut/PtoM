@@ -43,6 +43,7 @@ model User {
   moveOutBills MoveOutBill[]
 
   managedProperties PropertyAdmin[]
+  refreshTokens RefreshToken[]
 }
 
 model Vehicle {
@@ -454,4 +455,15 @@ enum MoveOutBillStatus {
   DRAFT
   CONFIRMED
   COMPLETED
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
