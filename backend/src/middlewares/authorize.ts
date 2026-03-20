@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express"
 import type { AuthenticatedRequest } from "./authenticate"
 
-// Role enum ตรงกับ Prisma schema
 type Role = "USER" | "ADMIN"
 
 export const authorize = (...roles: Role[]) => {

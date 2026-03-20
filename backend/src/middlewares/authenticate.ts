@@ -5,6 +5,7 @@ export interface AuthenticatedRequest extends Request {
   user: {
     id: string
     role: string
+    email: string
   }
 }
 
@@ -14,8 +15,9 @@ export const authenticate = (
   next: NextFunction
 ) => {
   const authHeader = req.headers.authorization
-  const token =
-    authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null
 
   if (!token) {
     return res.status(401).json({ error: "Access token required" })
@@ -31,9 +33,10 @@ export const authenticate = (
       return res.status(401).json({ error: "Invalid token payload" })
     }
 
-    (req as AuthenticatedRequest).user = {
+    ;(req as AuthenticatedRequest).user = {
       id: decoded.sub,
       role: decoded.role,
+      email: decoded.email ?? "",
     }
 
     next()

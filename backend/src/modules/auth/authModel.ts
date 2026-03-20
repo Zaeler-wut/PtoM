@@ -1,10 +1,8 @@
-// Req Input
 export interface RegisterInput {
   firstName: string
   lastName: string
   email: string
   password: string
-  birthdate?: string
 }
 
 export interface LoginInput {
@@ -13,7 +11,14 @@ export interface LoginInput {
 }
 
 
-// RESPONSES
+
+export interface RegisterResponse {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+}
+
 export interface AuthResponse {
   accessToken: string
   refreshToken: string
@@ -25,9 +30,6 @@ export interface AuthResponse {
   }
 }
 
-export interface RegisterResponse {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
+export interface RefreshTokenResponse {
+  accessToken: string
 }

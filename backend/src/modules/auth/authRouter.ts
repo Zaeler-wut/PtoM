@@ -4,10 +4,6 @@ import * as service from "./authService"
 
 const router = express.Router()
 
-// ─────────────────────────────────────────
-// Rate Limiter
-// ─────────────────────────────────────────
-
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -16,20 +12,12 @@ const loginLimiter = rateLimit({
   message: { error: "Too many login attempts, please try again later" },
 })
 
-// ─────────────────────────────────────────
-// Cookie Options
-// ─────────────────────────────────────────
-
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: "strict" as const,
   secure: process.env.NODE_ENV === "production",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 }
-
-// ─────────────────────────────────────────
-// Error → HTTP Status
-// ─────────────────────────────────────────
 
 const AUTH_ERRORS = new Set([
   "Invalid credentials",
@@ -47,9 +35,6 @@ function resolveStatus(message: string): number {
   return 400
 }
 
-// ─────────────────────────────────────────
-// ROUTES
-// ─────────────────────────────────────────
 
 router.post("/register", async (req, res) => {
   try {
@@ -64,7 +49,7 @@ router.post("/login", loginLimiter, async (req, res) => {
   try {
     const result = await service.login(req.body)
 
-    // web → เซ็ต cookie
+    // web  เซ็ต cookie
     res.cookie("refreshToken", result.refreshToken, REFRESH_COOKIE_OPTIONS)
 
     res.json({
@@ -77,12 +62,13 @@ router.post("/login", loginLimiter, async (req, res) => {
   }
 })
 
+
 router.post("/refresh-token", async (req, res) => {
   try {
     const token = req.cookies?.refreshToken ?? req.body?.refreshToken
     const result = await service.refreshToken(token)
 
-    // web → อัพเดท cookie ด้วย refreshToken ใหม่
+    // web อัพเดท cookie ด้วย refreshToken ใหม่
     res.cookie("refreshToken", result.refreshToken, REFRESH_COOKIE_OPTIONS)
 
     res.json({
@@ -94,10 +80,11 @@ router.post("/refresh-token", async (req, res) => {
   }
 })
 
+
 router.post("/logout", async (req, res) => {
   try {
-    // web  → ส่งมาใน cookie
-    // mobile → ส่งมาใน body
+    // web ส่งมาใน cookie
+    // mobile ส่งมาใน body
     const token = req.cookies?.refreshToken ?? req.body?.refreshToken
     await service.logout(token)
   } finally {
