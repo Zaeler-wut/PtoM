@@ -21,4 +21,20 @@ router.get(
   }
 )
 
+router.get(
+  "/properties/:propertyId/revenue",
+  authenticate,
+  authorize("ADMIN"),
+  authorizePropertyAdmin(),
+  async (req: any, res) => {
+    try {
+      const months = req.query.months ? parseInt(req.query.months as string) : 6
+      const data = await service.getRevenue(req.params.propertyId, months)
+      res.json(data)
+    } catch (err: any) {
+      res.status(400).json({ error: err.message })
+    }
+  }
+)
+
 export default router

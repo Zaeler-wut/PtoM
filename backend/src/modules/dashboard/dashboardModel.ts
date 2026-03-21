@@ -11,3 +11,18 @@ export interface DashboardData {
   unpaidBills: number
   monthlyRevenue: number
 }
+
+
+export interface RevenueMonthItem {
+  month: number
+  year: number
+  label: string
+  revenue: number // ยอดรวม Bill PAID
+  billCount: number
+}
+
+export interface RevenueResponse {
+  propertyId: string
+  months: RevenueMonthItem[]
+  totalRevenue: number
+}

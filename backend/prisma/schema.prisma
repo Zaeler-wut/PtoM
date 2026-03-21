@@ -78,6 +78,9 @@ model Property {
   logoUrl String?
   preparingDays Int @default(3)
 
+  lat           Float?
+  lng           Float?
+
   createdAt DateTime @default(now())
 
   roomTypes RoomType[]
