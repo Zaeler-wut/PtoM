@@ -14,8 +14,8 @@ const loginLimiter = rateLimit({
 
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  sameSite: "strict" as const,
-  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  secure: false,
   maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 
@@ -35,7 +35,6 @@ function resolveStatus(message: string): number {
   return 400
 }
 
-
 router.post("/register", async (req, res) => {
   try {
     const result = await service.register(req.body)
@@ -48,13 +47,10 @@ router.post("/register", async (req, res) => {
 router.post("/login", loginLimiter, async (req, res) => {
   try {
     const result = await service.login(req.body)
-
-    // web  เซ็ต cookie
     res.cookie("refreshToken", result.refreshToken, REFRESH_COOKIE_OPTIONS)
-
     res.json({
       accessToken: result.accessToken,
-      refreshToken: result.refreshToken, // mobile เอาไปเก็บใน SecureStore
+      refreshToken: result.refreshToken,
       user: result.user,
     })
   } catch (err: any) {
@@ -62,33 +58,25 @@ router.post("/login", loginLimiter, async (req, res) => {
   }
 })
 
-
 router.post("/refresh-token", async (req, res) => {
   try {
     const token = req.cookies?.refreshToken ?? req.body?.refreshToken
     const result = await service.refreshToken(token)
-
-    // web อัพเดท cookie ด้วย refreshToken ใหม่
     res.cookie("refreshToken", result.refreshToken, REFRESH_COOKIE_OPTIONS)
-
     res.json({
       accessToken: result.accessToken,
-      refreshToken: result.refreshToken, // mobile เอาไปเก็บใน SecureStore แทนตัวเก่า
+      refreshToken: result.refreshToken,
     })
   } catch (err: any) {
     res.status(resolveStatus(err.message)).json({ error: err.message })
   }
 })
 
-
 router.post("/logout", async (req, res) => {
   try {
-    // web ส่งมาใน cookie
-    // mobile ส่งมาใน body
     const token = req.cookies?.refreshToken ?? req.body?.refreshToken
     await service.logout(token)
   } finally {
-    // ล้าง cookie เสมอ (web)
     res.clearCookie("refreshToken", REFRESH_COOKIE_OPTIONS)
     res.json({ message: "Logged out" })
   }
