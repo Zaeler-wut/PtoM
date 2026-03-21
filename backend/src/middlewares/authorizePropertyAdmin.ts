@@ -21,18 +21,12 @@ export const authorizePropertyAdmin = () => {
       }
 
       if (user.role === "ADMIN") {
-        return next()
-      }
-
-      const admin = await prisma.propertyAdmin.findFirst({
-        where: {
-          userId: user.id,
-          propertyId: String(propertyId),
-        },
-      })
-
-      if (!admin) {
-        return res.status(403).json({ error: "You are not admin of this property" })
+        const admin = await prisma.propertyAdmin.findFirst({
+          where: { userId: user.id, propertyId: String(propertyId) },
+        })
+        if (!admin) {
+          return res.status(403).json({ error: "You are not admin of this property" })
+        }
       }
 
       next()
