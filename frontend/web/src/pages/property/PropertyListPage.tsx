@@ -27,7 +27,6 @@ export default function PropertyListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -36,7 +35,9 @@ export default function PropertyListPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900">ระบบจัดการห้องเช่ารายเดือน</h1>
-              <p className="text-sm text-violet-600">เลือกสถานที่ที่ต้องการจัดการ</p>
+              <p className="text-sm text-violet-600">
+                {user ? `สวัสดี, ${user.name}` : "เลือกสถานที่ที่ต้องการจัดการ"}
+              </p>
             </div>
           </div>
           <button
@@ -49,9 +50,7 @@ export default function PropertyListPage() {
         </div>
       </header>
 
-      {/* Content */}
       <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Search */}
         <div className="relative mb-8 max-w-sm">
           <RiSearchLine className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -63,7 +62,6 @@ export default function PropertyListPage() {
           />
         </div>
 
-        {/* Grid */}
         {isLoading ? (
           <div className="flex justify-center py-20">
             <span className="w-8 h-8 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
@@ -72,7 +70,13 @@ export default function PropertyListPage() {
           <p className="text-center text-gray-400 py-20 text-sm">ไม่พบสถานที่</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filtered.map((p) => <PropertyCard key={p.id} property={p} onClick={() => navigate(`/properties/${p.id}/dashboard`)} />)}
+            {filtered.map((p) => (
+              <PropertyCard
+                key={p.id}
+                property={p}
+                onClick={() => navigate(`/properties/${p.id}/dashboard`)}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -81,14 +85,17 @@ export default function PropertyListPage() {
 }
 
 function PropertyCard({ property, onClick }: { property: Property; onClick: () => void }) {
-  const coverImage = property.images?.find((img) => img.isCover)?.url ?? property.images?.[0]?.url;
+  const coverImage =
+    property.images?.find((img) => img.isCover)?.url ??
+    property.images?.[0]?.url ??
+    property.coverImage ??
+    null;
 
   return (
     <div
       onClick={onClick}
       className="bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer hover:shadow-lg transition-shadow group"
     >
-      {/* Cover */}
       <div
         className="h-40 bg-violet-50 flex items-center justify-center"
         style={coverImage ? { backgroundImage: `url(${coverImage})`, backgroundSize: "cover", backgroundPosition: "center" } : {}}
@@ -96,7 +103,6 @@ function PropertyCard({ property, onClick }: { property: Property; onClick: () =
         {!coverImage && <RiHome2Line className="text-violet-200 text-5xl" />}
       </div>
 
-      {/* Info */}
       <div className="p-5">
         <div className="flex items-start justify-between mb-1">
           <h3 className="font-bold text-violet-600 text-lg leading-tight">{property.name}</h3>
@@ -107,13 +113,12 @@ function PropertyCard({ property, onClick }: { property: Property; onClick: () =
           <p className="text-gray-400 text-xs leading-relaxed">{property.address}</p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-2 mb-4">
           {[
-            { label: "ทั้งหมด", value: 0 },
-            { label: "ว่าง", value: 0 },
-            { label: "จอง", value: 0 },
-            { label: "มีผู้เช่า", value: 0 },
+            { label: "ทั้งหมด",  value: property.totalRooms },
+            { label: "ว่าง",     value: property.available },
+            { label: "จอง",      value: property.reserved },
+            { label: "มีผู้เช่า", value: property.occupied },
           ].map((s) => (
             <div key={s.label} className="flex items-center gap-2 bg-violet-50 rounded-lg px-3 py-2">
               <RiHome2Line className="text-violet-400 text-sm" />
@@ -121,14 +126,6 @@ function PropertyCard({ property, onClick }: { property: Property; onClick: () =
               <span className="text-violet-600 text-sm font-semibold">{s.value}</span>
             </div>
           ))}
-        </div>
-
-        {/* Revenue */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-          <span className="text-gray-400 text-sm flex items-center gap-1">
-            <span className="text-violet-500">↗</span> รายได้/เดือน
-          </span>
-          <span className="text-violet-600 font-bold">฿{property.priceMax.toLocaleString()}</span>
         </div>
       </div>
     </div>

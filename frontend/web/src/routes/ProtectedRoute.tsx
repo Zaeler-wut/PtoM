@@ -1,12 +1,17 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAppSelector } from "../store/hooks";
+import { Navigate } from "react-router-dom"
+import { useSelector } from "react-redux"
+import type { RootState } from "../store"
 
-export default function ProtectedRoute() {
-  const { accessToken } = useAppSelector((s) => s.auth);
-
-  if (!accessToken) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
+interface Props {
+  children: React.ReactNode
 }
+
+const ProtectedRoute = ({ children }: Props) => {
+  const { accessToken } = useSelector((state: RootState) => state.auth)
+
+  if (!accessToken) return <Navigate to="/login" replace />
+
+  return <>{children}</>
+}
+
+export default ProtectedRoute

@@ -1,36 +1,19 @@
-import { axiosInstance } from "../axiosInstance";
-import { AUTH_ENDPOINTS } from "../endpoints";
-import type {
-  AuthResponse,
-  LoginPayload,
-  RegisterPayload,
-} from "../../types/auth.types";
+import api from "../axiosInstance"
+import { ENDPOINTS } from "../endpoints"
+import type { LoginPayload, LoginResponse, RegisterPayload, RegisterResponse } from "../../types/auth.types"
 
 export const authApi = {
-  login: async (payload: LoginPayload): Promise<AuthResponse> => {
-    const { data } = await axiosInstance.post<AuthResponse>(
-      AUTH_ENDPOINTS.LOGIN,
-      payload
-    );
-    return data;
+  login: async (data: LoginPayload): Promise<LoginResponse> => {
+    const res = await api.post(ENDPOINTS.auth.login, data)
+    return res.data
   },
 
-  register: async (payload: RegisterPayload): Promise<AuthResponse> => {
-    const { data } = await axiosInstance.post<AuthResponse>(
-      AUTH_ENDPOINTS.REGISTER,
-      payload
-    );
-    return data;
+  register: async (data: RegisterPayload): Promise<RegisterResponse> => {
+    const res = await api.post(ENDPOINTS.auth.register, data)
+    return res.data
   },
 
   logout: async (): Promise<void> => {
-    await axiosInstance.post(AUTH_ENDPOINTS.LOGOUT);
+    await api.post(ENDPOINTS.auth.logout)
   },
-
-  refreshToken: async (): Promise<{ accessToken: string }> => {
-    const { data } = await axiosInstance.post<{ accessToken: string }>(
-      AUTH_ENDPOINTS.REFRESH
-    );
-    return data;
-  },
-};
+}

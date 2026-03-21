@@ -1,143 +1,75 @@
-const A = "/admin/properties"; // shorthand
+export const ENDPOINTS = {
+  // AUTH
+  auth: {
+    login: "/auth/login",
+    register: "/auth/register",
+    logout: "/auth/logout",
+    refresh: "/auth/refresh-token",
+  },
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-export const AUTH_ENDPOINTS = {
-  LOGIN: "/auth/login",
-  REGISTER: "/auth/register",
-  LOGOUT: "/auth/logout",
-  REFRESH: "/auth/refresh-token",
-} as const;
+  // ADMIN
+  properties: {
+    list: "/admin/properties",
+    create: "/admin/properties",
+    detail: (id: string) => `/admin/properties/${id}`,
+    update: (id: string) => `/admin/properties/${id}`,
+    images: (id: string) => `/admin/properties/${id}/images`,
+    deleteImage: (id: string, imgId: string) => `/admin/properties/${id}/images/${imgId}`,
+    setCover: (id: string, imgId: string) => `/admin/properties/${id}/images/${imgId}/cover`,
+    roomTypes: (id: string) => `/admin/properties/${id}/room-types`,
+    roomType: (id: string, rtId: string) => `/admin/properties/${id}/room-types/${rtId}`,
+    roomTypeImages: (id: string, rtId: string) => `/admin/properties/${id}/room-types/${rtId}/images`,
+  },
 
-// ── Property ──────────────────────────────────────────────────────────────────
-export const PROPERTY_ENDPOINTS = {
-  LIST: "/admin/properties",
-  CREATE: "/admin/properties",
-  DETAIL: (propertyId: string) => `/admin/properties/${propertyId}`,
-  UPDATE: (propertyId: string) => `/admin/properties/${propertyId}`,
+  dashboard: {
+    summary: (propertyId: string) => `/admin/properties/${propertyId}/dashboard`,
+    revenue: (propertyId: string) => `/admin/properties/${propertyId}/revenue`,
+  },
 
-  ADD_IMAGE: (propertyId: string) => `${A}/${propertyId}/images`,
-  DELETE_IMAGE: (propertyId: string, imageId: string) =>
-    `${A}/${propertyId}/images/${imageId}`,
-  SET_COVER: (propertyId: string, imageId: string) =>
-    `${A}/${propertyId}/images/${imageId}/cover`,
+  rooms: {
+    list: (propertyId: string) => `/admin/properties/${propertyId}/rooms`,
+    create: (propertyId: string) => `/admin/properties/${propertyId}/rooms`,
+  },
 
-  CREATE_ROOM_TYPE: (propertyId: string) =>
-    `${A}/${propertyId}/room-types`,
-  ROOM_TYPE_DETAIL: (propertyId: string, roomTypeId: string) =>
-    `${A}/${propertyId}/room-types/${roomTypeId}`,
-  UPDATE_ROOM_TYPE: (propertyId: string, roomTypeId: string) =>
-    `${A}/${propertyId}/room-types/${roomTypeId}`,
-  ADD_ROOM_TYPE_IMAGE: (propertyId: string, roomTypeId: string) =>
-    `${A}/${propertyId}/room-types/${roomTypeId}/images`,
-  DELETE_ROOM_TYPE_IMAGE: (
-    propertyId: string,
-    roomTypeId: string,
-    imageId: string
-  ) => `${A}/${propertyId}/room-types/${roomTypeId}/images/${imageId}`,
-} as const;
+  tenants: {
+    list: (propertyId: string) => `/admin/properties/${propertyId}/tenants`,
+    detail: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/tenants/${contractId}`,
+  },
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
-export const DASHBOARD_ENDPOINTS = {
-  SUMMARY: (propertyId: string) => `${A}/${propertyId}/dashboards`,
-} as const;
+  bookings: {
+    list: (propertyId: string) => `/admin/properties/${propertyId}/bookings`,
+    detail: (propertyId: string, bookingId: string) => `/admin/properties/${propertyId}/bookings/${bookingId}`,
+    confirm: (propertyId: string, bookingId: string) => `/admin/properties/${propertyId}/bookings/${bookingId}/confirm`,
+    cancel: (propertyId: string, bookingId: string) => `/admin/properties/${propertyId}/bookings/${bookingId}/cancel`,
+    contractPrefill: (propertyId: string, bookingId: string) => `/admin/properties/${propertyId}/bookings/${bookingId}/contract-prefill`,
+  },
 
-// ── Room ──────────────────────────────────────────────────────────────────────
-export const ROOM_ENDPOINTS = {
-  LIST: (propertyId: string) => `${A}/${propertyId}/rooms`,
-  CREATE: (propertyId: string) => `${A}/${propertyId}/rooms`,
-} as const;
+  contracts: {
+    list: (propertyId: string) => `/admin/properties/${propertyId}/contracts`,
+    detail: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/contracts/${contractId}`,
+    update: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/contracts/${contractId}`,
+    uploadPdf: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/contracts/${contractId}/pdf`,
+    createOnline: (propertyId: string) => `/admin/properties/${propertyId}/contracts/online`,
+    createOffline: (propertyId: string) => `/admin/properties/${propertyId}/contracts/offline`,
+  },
 
-// ── Booking ───────────────────────────────────────────────────────────────────
-export const BOOKING_ENDPOINTS = {
-  LIST: (propertyId: string) => `${A}/${propertyId}/bookings`,
-  DETAIL: (propertyId: string, bookingId: string) =>
-    `${A}/${propertyId}/bookings/${bookingId}`,
-  CONTRACT_PREFILL: (propertyId: string, bookingId: string) =>
-    `${A}/${propertyId}/bookings/${bookingId}/contract-prefill`,
-  CONFIRM: (propertyId: string, bookingId: string) =>
-    `${A}/${propertyId}/bookings/${bookingId}/confirm`,
-  CANCEL: (propertyId: string, bookingId: string) =>
-    `${A}/${propertyId}/bookings/${bookingId}/cancel`,
-} as const;
+  billing: {
+    summary: (propertyId: string) => `/admin/properties/${propertyId}/billing/summary`,
+    fees: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/billing/${contractId}/fees`,
+    invoice: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/billing/${contractId}/invoice`,
+    updateMeter: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/billing/${contractId}/meter`,
+    sendBill: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/billing/${contractId}/send`,
+    sendAll: (propertyId: string) => `/admin/properties/${propertyId}/billing/send-all`,
+    payments: (propertyId: string) => `/admin/properties/${propertyId}/billing/payments`,
+    paymentDetail: (propertyId: string, paymentId: string) => `/admin/properties/${propertyId}/billing/payments/${paymentId}`,
+    confirmPayment: (propertyId: string, paymentId: string) => `/admin/properties/${propertyId}/billing/payments/${paymentId}/confirm`,
+    rejectPayment: (propertyId: string, paymentId: string) => `/admin/properties/${propertyId}/billing/payments/${paymentId}/reject`,
+  },
 
-// ── Contract ──────────────────────────────────────────────────────────────────
-export const CONTRACT_ENDPOINTS = {
-  LIST: (propertyId: string) => `${A}/${propertyId}/contracts`,
-  DETAIL: (propertyId: string, contractId: string) =>
-    `${A}/${propertyId}/contracts/${contractId}`,
-  UPDATE: (propertyId: string, contractId: string) =>
-    `${A}/${propertyId}/contracts/${contractId}`,
-  UPLOAD_PDF: (propertyId: string, contractId: string) =>
-    `${A}/${propertyId}/contracts/${contractId}/pdf`,
-  CREATE_ONLINE: (propertyId: string) =>
-    `${A}/${propertyId}/contracts/online`,
-  CREATE_OFFLINE: (propertyId: string) =>
-    `${A}/${propertyId}/contracts/offline`,
-} as const;
-
-// ── Tenant ────────────────────────────────────────────────────────────────────
-export const TENANT_ENDPOINTS = {
-  LIST: (propertyId: string) => `${A}/${propertyId}/tenants`,
-  DETAIL: (propertyId: string, contractId: string) =>
-    `${A}/${propertyId}/tenants/${contractId}`,
-} as const;
-
-// ── Billing ───────────────────────────────────────────────────────────────────
-export const BILLING_ENDPOINTS = {
-  SUMMARY: (propertyId: string, month: number, year: number) =>
-    `${A}/${propertyId}/billing/summary?month=${month}&year=${year}`,
-  FEES: (propertyId: string, contractId: string) =>
-    `${A}/${propertyId}/billing/${contractId}/fees`,
-  INVOICE: (
-    propertyId: string,
-    contractId: string,
-    month: number,
-    year: number
-  ) =>
-    `${A}/${propertyId}/billing/${contractId}/invoice?month=${month}&year=${year}`,
-  UPDATE_METER: (
-    propertyId: string,
-    contractId: string,
-    month: number,
-    year: number
-  ) =>
-    `${A}/${propertyId}/billing/${contractId}/meter?month=${month}&year=${year}`,
-  SEND_BILL: (
-    propertyId: string,
-    contractId: string,
-    month: number,
-    year: number
-  ) =>
-    `${A}/${propertyId}/billing/${contractId}/send?month=${month}&year=${year}`,
-  SEND_ALL: (propertyId: string, month: number, year: number) =>
-    `${A}/${propertyId}/billing/send-all?month=${month}&year=${year}`,
-  PAYMENTS: (
-    propertyId: string,
-    month: number,
-    year: number,
-    status?: string
-  ) =>
-    `${A}/${propertyId}/billing/payments?month=${month}&year=${year}${
-      status ? `&status=${status}` : ""
-    }`,
-  PAYMENT_DETAIL: (propertyId: string, paymentId: string) =>
-    `${A}/${propertyId}/billing/payments/${paymentId}`,
-  CONFIRM_PAYMENT: (propertyId: string, paymentId: string) =>
-    `${A}/${propertyId}/billing/payments/${paymentId}/confirm`,
-  REJECT_PAYMENT: (propertyId: string, paymentId: string) =>
-    `${A}/${propertyId}/billing/payments/${paymentId}/reject`,
-} as const;
-
-// ── Move Out ──────────────────────────────────────────────────────────────────
-export const MOVEOUT_ENDPOINTS = {
-  LIST: (propertyId: string, year: number, status?: string) =>
-    `${A}/${propertyId}/move-out?year=${year}${
-      status ? `&status=${status}` : ""
-    }`,
-  PREVIEW: (propertyId: string, contractId: string) =>
-    `${A}/${propertyId}/move-out/${contractId}/preview`,
-  CREATE_BILL: (propertyId: string, contractId: string) =>
-    `${A}/${propertyId}/move-out/${contractId}/bill`,
-  BILL_DETAIL: (propertyId: string, moveOutBillId: string) =>
-    `${A}/${propertyId}/move-out/bills/${moveOutBillId}`,
-} as const;
+  moveout: {
+    list: (propertyId: string) => `/admin/properties/${propertyId}/move-out`,
+    preview: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/move-out/${contractId}/preview`,
+    createBill: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/move-out/${contractId}/bill`,
+    billDetail: (propertyId: string, moveOutBillId: string) => `/admin/properties/${propertyId}/move-out/bills/${moveOutBillId}`,
+  },
+}

@@ -25,22 +25,28 @@ export interface Property {
 }
 
 export interface PropertyImage {
-  id: string;
-  propertyId: string;
-  url: string;
-  isCover: boolean;
+  id: string
+  url: string
+  isCover: boolean
 }
 
-export interface PropertyAdmin {
-  id: string;
-  propertyId: string;
-  userId: string;
+export interface Property {
+  id: string
+  name: string
+  address: string
+  priceMin: number
+  priceMax: number
+  totalRooms: number
+  available: number
+  occupied: number
+  reserved: number
+  bookingCount: number
+  images?: PropertyImage[]
+  coverImage?: string | null
 }
 
-export interface Facility {
-  id: string;
-  name: string;
-}
+// alias สำหรับ list
+export type PropertyListItem = Property
 
 export interface PropertyFacility {
   id: string;

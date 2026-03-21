@@ -1,96 +1,81 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import type { AuthState, LoginPayload, RegisterPayload } from "../../types/auth.types";
-import { authApi } from "../../api/auth/authApi";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+import { authApi } from "../../api/auth/authApi"
+import type { AuthState, LoginPayload } from "../../types/auth.types"
 
-const initialState: AuthState = {
-  accessToken: null,
-  user: null,
-  isLoading: false,
-  error: null,
-};
+// ─────────────────────────────────────────
+// THUNKS
+// ─────────────────────────────────────────
 
-// ── Thunks ────────────────────────────────────────────────────────────────────
 export const loginThunk = createAsyncThunk(
   "auth/login",
-  async (payload: LoginPayload, { rejectWithValue }) => {
+  async (data: LoginPayload, { rejectWithValue }) => {
     try {
-      return await authApi.login(payload);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? "Login failed");
+      const res = await authApi.login(data)
+      sessionStorage.setItem("accessToken", res.accessToken)
+      return res
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? "Login failed")
     }
   }
-);
+)
 
-export const registerThunk = createAsyncThunk(
-  "auth/register",
-  async (payload: RegisterPayload, { rejectWithValue }) => {
+export const logoutThunk = createAsyncThunk(
+  "auth/logout",
+  async (_, { rejectWithValue }) => {
     try {
-      return await authApi.register(payload);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? "Register failed");
+      await authApi.logout()
+      sessionStorage.removeItem("accessToken")
+    } catch (err: any) {
+      sessionStorage.removeItem("accessToken")
+      return rejectWithValue(err.response?.data?.error ?? "Logout failed")
     }
   }
-);
+)
 
-export const logoutThunk = createAsyncThunk("auth/logout", async () => {
-  await authApi.logout();
-});
+// ─────────────────────────────────────────
+// SLICE
+// ─────────────────────────────────────────
 
-// ── Slice ─────────────────────────────────────────────────────────────────────
+const initialState: AuthState = {
+  user: null,
+  accessToken: sessionStorage.getItem("accessToken"),
+  isLoading: false,
+  error: null,
+}
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setTokens(state, action) {
-      state.accessToken = action.payload.accessToken;
-    },
-    logout(state) {
-      state.accessToken = null;
-      state.user = null;
-    },
-    clearError(state) {
-      state.error = null;
-    },
+    clearError: (state) => { state.error = null },
+    setAccessToken: (state, action) => { state.accessToken = action.payload },
   },
   extraReducers: (builder) => {
+    // LOGIN
     builder
       .addCase(loginThunk.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
+        state.isLoading = true
+        state.error = null
       })
       .addCase(loginThunk.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.accessToken = action.payload.accessToken;
-        state.user = action.payload.user;
+        state.isLoading = false
+        state.accessToken = action.payload.accessToken
+        state.user = action.payload.user
       })
       .addCase(loginThunk.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-      });
+        state.isLoading = false
+        state.error = action.payload as string
+      })
 
+    // LOGOUT
     builder
-      .addCase(registerThunk.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
+      .addCase(logoutThunk.fulfilled, (state) => {
+        state.user = null
+        state.accessToken = null
+        state.error = null
       })
-      .addCase(registerThunk.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.accessToken = action.payload.accessToken;
-        state.user = action.payload.user;
-      })
-      .addCase(registerThunk.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-      });
-
-    builder.addCase(logoutThunk.fulfilled, (state) => {
-      state.accessToken = null;
-      state.user = null;
-    });
   },
-});
+})
 
-export const { setTokens, logout, clearError } = authSlice.actions;
-export default authSlice.reducer;
+export const { clearError, setAccessToken } = authSlice.actions
+export default authSlice.reducer

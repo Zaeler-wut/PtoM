@@ -3,18 +3,19 @@ import jwt from "jsonwebtoken"
 const ACCESS_SECRET = process.env.ACCESS_TOKEN_SECRET as string
 const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET as string
 
-export function generateAccessToken(user: any) {
+if (!process.env.ACCESS_TOKEN_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
+  throw new Error("Missing JWT secrets: ACCESS_TOKEN_SECRET and REFRESH_TOKEN_SECRET must be set")
+}
+
+export function generateAccessToken(user: { id: string; role: string }) {
   return jwt.sign(
-    {
-      sub: user.id,
-      role: user.roleAdmin ? "admin" : "user"
-    },
+    { sub: user.id, role: user.role },
     ACCESS_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "7d" }
   )
 }
 
-export function generateRefreshToken(user: any) {
+export function generateRefreshToken(user: { id: string }) {
   return jwt.sign(
     { sub: user.id },
     REFRESH_SECRET,

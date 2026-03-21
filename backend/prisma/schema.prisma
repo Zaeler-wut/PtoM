@@ -7,18 +7,27 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id String @id @default(uuid())
 
-  name String
+  firstName String
+  lastName String
+
   email String @unique
   phone String?
   lineId String?
 
+  citizenId String?
+  address String?
+
   password String
 
-  roleUser Boolean @default(true)
-  roleAdmin Boolean @default(false)
+  role Role @default(USER)
 
   isActive Boolean @default(true)
   lastLogin DateTime?
@@ -34,6 +43,7 @@ model User {
   moveOutBills MoveOutBill[]
 
   managedProperties PropertyAdmin[]
+  refreshTokens RefreshToken[]
 }
 
 model Vehicle {
@@ -58,12 +68,18 @@ model Property {
   priceMin Int
   priceMax Int
 
+  contractTerm String?
+
   bankName String
   bankAccount String
   bankHolder String
 
   paymentQrUrl String?
   logoUrl String?
+  preparingDays Int @default(3)
+
+  lat           Float?
+  lng           Float?
 
   createdAt DateTime @default(now())
 
@@ -115,7 +131,8 @@ model RoomType {
 
   bookingFee Int
   advanceRent Int
-  deposit Int
+
+  securityDeposit Int
 
   waterRate Float
   electricRate Float
@@ -128,6 +145,19 @@ model RoomType {
   images RoomTypeImage[]
   facilities RoomFacility[]
   bookings Booking[]
+
+  fees RoomTypeFee[]
+}
+
+model RoomTypeFee {
+  id String @id @default(uuid())
+
+  roomTypeId String
+
+  title String
+  amount Int
+
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
 }
 
 model RoomTypeImage {
@@ -215,11 +245,12 @@ model Booking {
   moveInDate DateTime
 
   bookingFee Int
-  slipUrl String?
+  slipUrl String
 
   status BookingStatus
 
   createdAt DateTime @default(now())
+  assignedAt DateTime?
 
   property Property @relation(fields: [propertyId], references: [id])
   roomType RoomType @relation(fields: [roomTypeId], references: [id])
@@ -248,13 +279,15 @@ model Contract {
   startDate DateTime
   endDate DateTime
 
-  deposit Int
+  securityDeposit Int
 
   contractType ContractType
   status ContractStatus
 
   pdfUrl String?
+  moveOutNoticeDate DateTime?
 
+  updatedAt         DateTime  @updatedAt
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
@@ -354,7 +387,7 @@ model BillItem {
 
 enum BillStatus {
   DRAFT
-  SENT
+  READY
   PENDING
   VERIFYING
   PAID
@@ -371,7 +404,10 @@ model Payment {
   slipUrl String?
 
   status PaymentStatus
+  verifiedAt DateTime?
+  verifiedBy String?
 
+  updatedAt  DateTime  @updatedAt
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
@@ -402,7 +438,8 @@ model MoveOutBill {
 
   totalCharge Int
   refundAmount Int
-
+  billingStartDay Int?
+  billingEndDay   Int?
   status MoveOutBillStatus
 
   createdAt DateTime @default(now())
@@ -429,4 +466,15 @@ enum MoveOutBillStatus {
   DRAFT
   CONFIRMED
   COMPLETED
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
