@@ -21,6 +21,7 @@ export interface Property {
   images?: PropertyImage[];
   facilities?: PropertyFacility[];
   admins?: PropertyAdmin[];
+  amenities?: string[];
 }
 
 export interface PropertyImage {
@@ -107,7 +108,9 @@ export interface CreatePropertyPayload {
   facilityIds?: string[];
 }
 
-export interface UpdatePropertyPayload extends Partial<CreatePropertyPayload> {}
+export interface UpdatePropertyPayload extends Partial<CreatePropertyPayload> {
+  amenities?: string[];
+}
 
 export interface CreateRoomTypePayload {
   name: string;
