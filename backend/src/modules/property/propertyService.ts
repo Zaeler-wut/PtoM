@@ -28,6 +28,8 @@ export const getMyProperties = async (userId: string) => {
 export const getPropertyDetail = async (propertyId: string) => {
   const p = await repo.getPropertyById(propertyId)
   if (!p) throw new Error("Property not found")
+  console.log("raw facilities:", JSON.stringify(p.facilities))
+  console.log("raw googleMap:", p.googleMap)
   return {
     id: p.id, name: p.name, address: p.address, googleMap: p.googleMap,
     description: p.description, priceMin: p.priceMin, priceMax: p.priceMax,
@@ -40,14 +42,20 @@ export const getPropertyDetail = async (propertyId: string) => {
 }
 
 export const updateProperty = async (propertyId: string, data: any) => {
+  console.log("updateProperty payload:", JSON.stringify(data))
   const p = await repo.getPropertyById(propertyId)
   if (!p) throw new Error("Property not found")
   if (data.priceMin !== undefined && data.priceMax !== undefined && data.priceMin > data.priceMax) {
     throw new Error("priceMin must not be greater than priceMax")
   }
-  const updated = await repo.updateProperty(propertyId, data)
-  if (Array.isArray(data.facilities)) await repo.updatePropertyFacilities(propertyId, data.facilities)
-  return updated
+  await repo.updateProperty(propertyId, data)
+  if (Array.isArray(data.facilities)) {
+    console.log("saving facilities:", data.facilities)
+    await repo.updatePropertyFacilities(propertyId, data.facilities)
+  } else {
+    console.log("facilities not array:", data.facilities)
+  }
+  return getPropertyDetail(propertyId)
 }
 
 export const addPropertyImages = async (propertyId: string, urls: string[]) => {

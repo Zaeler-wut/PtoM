@@ -1,18 +1,24 @@
 import axios from "axios"
 
 const api = axios.create({
-  baseURL: "/api",  // ผ่าน Vite proxy
+  baseURL: "/api",
   withCredentials: true,
 })
 
-// ── Request interceptor — แนบ accessToken ──
+// ── Request interceptor — แนบ accessToken จาก memory ──
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem("accessToken")
+  const token = getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
+
+// ── In-memory token store ──
+let _accessToken: string | null = null
+
+export const getAccessToken = () => _accessToken
+export const setAccessToken = (token: string | null) => { _accessToken = token }
 
 // ── Response interceptor — auto refresh token ──
 let isRefreshing = false
@@ -52,14 +58,14 @@ api.interceptors.response.use(
         })
 
         const newToken = res.data.accessToken
-        sessionStorage.setItem("accessToken", newToken)
+        setAccessToken(newToken)
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`
         original.headers.Authorization = `Bearer ${newToken}`
         processQueue(null, newToken)
         return api(original)
       } catch (err) {
         processQueue(err, null)
-        sessionStorage.removeItem("accessToken")
+        setAccessToken(null)
         window.location.href = "/login"
         return Promise.reject(err)
       } finally {

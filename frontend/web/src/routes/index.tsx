@@ -3,6 +3,7 @@ import ProtectedRoute from "./ProtectedRoute"
 import LoginPage from "../pages/auth/LoginPage"
 import PropertyListPage from "../pages/property/PropertyListPage"
 import DashboardPage from "../pages/dashboard/DashboardPage"
+import PropertySettingsPage from "../pages/property/PropertySettingsPage"
 import MainLayout from "../components/layout/MainLayout"
 
 export const router = createBrowserRouter([
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="dashboard" replace /> },
       { path: "dashboard", element: <DashboardPage /> },
+      { path: "settings", element: <PropertySettingsPage /> },
       // { path: "rooms", element: <RoomListPage /> },
       // { path: "tenants", element: <TenantListPage /> },
       // { path: "bookings", element: <BookingListPage /> },

@@ -12,6 +12,8 @@ import tenantRouter from "./modules/tenant/tenantRouter"
 import billingRouter from "./modules/billing/billingRouter"
 import moveOutRouter from "./modules/moveout/moveOutRouter"
 import dashboardRouter from "./modules/dashboard/dashboardRouter"
+import uploadRouter from "./modules/upload/uploadRouter"
+
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -22,6 +24,13 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(cookieParser())
+
+console.log("uploadRouter loaded:", uploadRouter)  // ← เพิ่ม
+app.use("/api/upload", uploadRouter)
+
+app.get("/api/upload/test", (req, res) => {
+  res.json({ ok: true })
+})
  
 app.use("/api/auth",  authRouter)
 app.use("/api/admin", propertyRouter)

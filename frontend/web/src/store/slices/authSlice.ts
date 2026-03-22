@@ -1,17 +1,14 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 import { authApi } from "../../api/auth/authApi"
+import { setAccessToken } from "../../api/axiosInstance"
 import type { AuthState, LoginPayload } from "../../types/auth.types"
-
-// ─────────────────────────────────────────
-// THUNKS
-// ─────────────────────────────────────────
 
 export const loginThunk = createAsyncThunk(
   "auth/login",
   async (data: LoginPayload, { rejectWithValue }) => {
     try {
       const res = await authApi.login(data)
-      sessionStorage.setItem("accessToken", res.accessToken)
+      setAccessToken(res.accessToken)  // เก็บใน memory
       return res
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? "Login failed")
@@ -24,21 +21,17 @@ export const logoutThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await authApi.logout()
-      sessionStorage.removeItem("accessToken")
     } catch (err: any) {
-      sessionStorage.removeItem("accessToken")
       return rejectWithValue(err.response?.data?.error ?? "Logout failed")
+    } finally {
+      setAccessToken(null)  // clear memory
     }
   }
 )
 
-// ─────────────────────────────────────────
-// SLICE
-// ─────────────────────────────────────────
-
 const initialState: AuthState = {
   user: null,
-  accessToken: sessionStorage.getItem("accessToken"),
+  accessToken: null,
   isLoading: false,
   error: null,
 }
@@ -48,15 +41,15 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     clearError: (state) => { state.error = null },
-    setAccessToken: (state, action) => { state.accessToken = action.payload },
+    setUser: (state, action) => {
+      state.user = action.payload.user
+      state.accessToken = action.payload.accessToken
+      setAccessToken(action.payload.accessToken)
+    },
   },
   extraReducers: (builder) => {
-    // LOGIN
     builder
-      .addCase(loginThunk.pending, (state) => {
-        state.isLoading = true
-        state.error = null
-      })
+      .addCase(loginThunk.pending, (state) => { state.isLoading = true; state.error = null })
       .addCase(loginThunk.fulfilled, (state, action) => {
         state.isLoading = false
         state.accessToken = action.payload.accessToken
@@ -67,15 +60,13 @@ const authSlice = createSlice({
         state.error = action.payload as string
       })
 
-    // LOGOUT
     builder
       .addCase(logoutThunk.fulfilled, (state) => {
         state.user = null
         state.accessToken = null
-        state.error = null
       })
   },
 })
 
-export const { clearError, setAccessToken } = authSlice.actions
+export const { clearError, setUser } = authSlice.actions
 export default authSlice.reducer
