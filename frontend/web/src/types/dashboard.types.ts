@@ -1,37 +1,33 @@
+// ── Dashboard Summary (GET properties/:propertyId/dashboard) ──────────────────
 export interface DashboardSummary {
-  totalRooms: number
-  available: number
-  preparing: number
-  bookableRooms: number
-  reserved: number
-  occupied: number
-  maintenance: number
-  pendingBookings: number
-  verifyingBills: number
-  unpaidBills: number
-  monthlyRevenue: number
-  // alias สำหรับ component เดิม
-  currentMonthRevenue?: number
-  pendingPayments?: number
+  // Rooms
+  totalRooms: number;
+  availableRooms: number;
+  occupiedRooms: number;
+  reservedRooms: number;
+  preparingRooms: number;
+  maintenanceRooms: number;
+
+  // Contracts
+  activeContracts: number;
+  moveOutNoticeContracts: number;
+
+  // Bookings
+  pendingBookings: number;
+  confirmedBookings: number;
+
+  // Revenue (current month)
+  currentMonthRevenue: number;
+  pendingPayments: number;
+  overduePayments: number;
+
+  // Move outs
+  upcomingMoveOuts: number;
 }
 
-export interface RevenueMonthItem {
-  month: number
-  year: number
-  label: string
-  revenue: number
-  billCount: number
-}
-
-export interface RevenueResponse {
-  propertyId: string
-  months: RevenueMonthItem[]
-  totalRevenue: number
-}
-
+// ── Redux State ───────────────────────────────────────────────────────────────
 export interface DashboardState {
-  summary: DashboardSummary | null
-  revenue: RevenueResponse | null
-  isLoading: boolean
-  error: string | null
+  summary: DashboardSummary | null;
+  isLoading: boolean;
+  error: string | null;
 }

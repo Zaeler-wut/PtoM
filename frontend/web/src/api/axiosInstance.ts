@@ -1,74 +1,67 @@
-import axios from "axios"
+import axios from "axios";
+import { store } from "../store";
+import { logout, setTokens } from "../store/slices/authSlice";
 
-const api = axios.create({
-  baseURL: "/api",  // ผ่าน Vite proxy
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+export const axiosInstance = axios.create({
+  baseURL: BASE_URL,
   withCredentials: true,
-})
+  headers: { "Content-Type": "application/json" },
+});
 
-// ── Request interceptor — แนบ accessToken ──
-api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem("accessToken")
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
+// ── Request: attach accessToken ───────────────────────────────────────────────
+axiosInstance.interceptors.request.use((config) => {
+  const token = store.getState().auth.accessToken;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-// ── Response interceptor — auto refresh token ──
-let isRefreshing = false
-let failedQueue: { resolve: (token: string) => void; reject: (err: any) => void }[] = []
+// ── Response: 401 → refresh token rotation ────────────────────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: string) => void;
+  reject: (reason?: unknown) => void;
+}> = [];
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((p) => {
-    if (error) p.reject(error)
-    else p.resolve(token!)
-  })
-  failedQueue = []
-}
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token!)));
+  failedQueue = [];
+};
 
-api.interceptors.response.use(
-  (response) => response,
+axiosInstance.interceptors.response.use(
+  (res) => res,
   async (error) => {
-    const original = error.config
-
+    const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
-        })
-          .then((token) => {
-            original.headers.Authorization = `Bearer ${token}`
-            return api(original)
-          })
-          .catch((err) => Promise.reject(err))
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          original.headers.Authorization = `Bearer ${token}`;
+          return axiosInstance(original);
+        });
       }
-
-      original._retry = true
-      isRefreshing = true
-
+      original._retry = true;
+      isRefreshing = true;
       try {
-        const res = await axios.post("/api/auth/refresh-token", {}, {
-          withCredentials: true,
-        })
-
-        const newToken = res.data.accessToken
-        sessionStorage.setItem("accessToken", newToken)
-        api.defaults.headers.common.Authorization = `Bearer ${newToken}`
-        original.headers.Authorization = `Bearer ${newToken}`
-        processQueue(null, newToken)
-        return api(original)
-      } catch (err) {
-        processQueue(err, null)
-        sessionStorage.removeItem("accessToken")
-        window.location.href = "/login"
-        return Promise.reject(err)
+        const { data } = await axios.post(
+          `${BASE_URL}/auth/refresh-token`,
+          {},
+          { withCredentials: true }
+        );
+        store.dispatch(setTokens({ accessToken: data.accessToken }));
+        processQueue(null, data.accessToken);
+        original.headers.Authorization = `Bearer ${data.accessToken}`;
+        return axiosInstance(original);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        store.dispatch(logout());
+        return Promise.reject(refreshError);
       } finally {
-        isRefreshing = false
+        isRefreshing = false;
       }
     }
-
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
-
-export default api
+);
