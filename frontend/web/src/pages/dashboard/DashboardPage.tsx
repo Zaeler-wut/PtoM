@@ -85,7 +85,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-purple-900 mb-1">DASHBOARD</h1>
-        <p className="text-sm text-gray-600">{property?.name ?? ""}</p>
+        <p className="text-sm text-purple-600">{property?.name ?? "หอพักสวนสยาม"}</p>
       </div>
  
       {/* แถว 1-2: 4 การ์ด */}
@@ -96,14 +96,14 @@ export default function DashboardPage() {
       </div>
  
       {/* แถว 3: 2 การ์ดกว้าง */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {statsCards.slice(8).map((card, i) => (
           <SummaryCard key={i} {...card} />
         ))}
       </div>
  
       {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 max-w-6xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 max-w-8xl">
         {/* Area Chart */}
         <div className="bg-white rounded-xl p-5 pl-8 shadow-sm border border-gray-100">
           <h3 className="text-base font-semibold text-purple-900 mb-4">รายได้ 7 เดือนย้อนหลัง</h3>
