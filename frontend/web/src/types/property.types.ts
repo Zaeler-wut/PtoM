@@ -45,6 +45,8 @@ export interface UpdatePropertyPayload {
   bankHolder?: string
   amenities?: string[]
   facilities?: string[]
+  logoUrl?: string | null
+  paymentQrUrl?: string | null
 }
 
 export interface PropertyState {

@@ -59,16 +59,18 @@ router.post("/login", loginLimiter, async (req, res) => {
 })
 
 router.post("/refresh-token", async (req, res) => {
+  const token = req.cookies?.refreshToken ?? req.body?.refreshToken
+  if (!token) {
+    return res.json({ accessToken: null })
+  }
   try {
-    const token = req.cookies?.refreshToken ?? req.body?.refreshToken
     const result = await service.refreshToken(token)
     res.cookie("refreshToken", result.refreshToken, REFRESH_COOKIE_OPTIONS)
-    res.json({
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    })
-  } catch (err: any) {
-    res.status(resolveStatus(err.message)).json({ error: err.message })
+    res.json({ accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user })
+  } catch {
+    // ไม่ clearCookie เพราะ token rotation revoke server-side แล้ว
+    // การ clear cookie จะทำให้ request คู่ขนานที่สำเร็จถูกลบทับ
+    res.json({ accessToken: null })
   }
 })
 

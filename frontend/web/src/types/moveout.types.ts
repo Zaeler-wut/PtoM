@@ -1,78 +1,87 @@
-// import type { User } from "./auth.types";
-// import type { Room } from "./room.types";
-// import type { Contract } from "./contract.types";
+export type MoveOutBillStatus = "DRAFT" | "CONFIRMED" | "COMPLETED"
 
-// // ── Enums ─────────────────────────────────────────────────────────────────────
-// export type MoveOutBillStatus = "DRAFT" | "CONFIRMED" | "COMPLETED";
+export interface MoveOutPendingItem {
+  contractId: string
+  firstName: string
+  lastName: string
+  phone: string | null
+  roomNumber: string
+  roomType: string
+  status: string
+  moveOutDate: string
+}
 
-// // ── Move Out Bill ─────────────────────────────────────────────────────────────
-// export interface MoveOutBillItem {
-//   id: string;
-//   moveOutBillId: string;
-//   title: string;
-//   amount: number;
-// }
+export interface MoveOutCompletedItem {
+  moveOutBillId: string
+  firstName: string
+  lastName: string
+  roomNumber: string
+  roomType: string
+  moveOutDate: string
+  refundAmount: number
+  status: MoveOutBillStatus
+}
 
-// export interface MoveOutBill {
-//   id: string;
-//   contractId: string;
-//   roomId: string;
-//   userId: string;
-//   moveOutDate: string;
-//   waterStart: number;
-//   waterEnd: number;
-//   electricStart: number;
-//   electricEnd: number;
-//   totalCharge: number;
-//   refundAmount: number;
-//   billingStartDay: number | null;
-//   billingEndDay: number | null;
-//   status: MoveOutBillStatus;
-//   createdAt: string;
+export interface MoveOutListResponse {
+  pending: MoveOutPendingItem[]
+  completed: MoveOutCompletedItem[]
+}
 
-//   // relations
-//   items?: MoveOutBillItem[];
-//   contract?: Contract;
-//   room?: Room;
-//   user?: User;
-// }
+export interface MoveOutBillInput {
+  moveOutDate: string
+  billingStartDay: number
+  billingEndDay: number
+  waterStart: number
+  waterEnd: number
+  electricStart: number
+  electricEnd: number
+  damageItems?: { title: string; amount: number }[]
+  additionalItems?: { title: string; amount: number }[]
+}
 
-// // ── Preview (POST move-out/:contractId/preview) ───────────────────────────────
-// export interface MoveOutPreview {
-//   contractId: string;
-//   moveOutDate: string;
-//   waterStart: number;
-//   waterEnd: number;
-//   electricStart: number;
-//   electricEnd: number;
-//   waterCharge: number;
-//   electricCharge: number;
-//   proRatedRent: number;
-//   damages: number;
-//   totalCharge: number;
-//   securityDeposit: number;
-//   refundAmount: number;
-//   items: { title: string; amount: number }[];
-// }
+export interface MoveOutPreviewResponse {
+  tenant: {
+    firstName: string
+    lastName: string
+    roomNumber: string
+    roomType: string
+  }
+  contract: {
+    startDate: string
+    endDate: string
+    securityDeposit: number
+  }
+  roomDetails: {
+    roomPrice: number
+    furniturePrice: number
+    waterRate: number
+    electricRate: number
+  }
+  completion: {
+    isComplete: boolean
+    actualMonths: number
+    expectedMonths: number
+  } | null
+  finalBill: {
+    billingPeriod: string
+    daysInMonth: number
+    days: number
+    items: { title: string; amount: number }[]
+    total: number
+  }
+  damageItems: { title: string; amount: number }[]
+  damageTotal: number
+  summary: {
+    securityDeposit: number
+    deductFinalBill: number
+    deductDamage: number
+    refundAmount: number
+  }
+}
 
-// // ── Payloads ──────────────────────────────────────────────────────────────────
-// export interface MoveOutPreviewPayload {
-//   moveOutDate: string;
-//   waterEnd: number;
-//   electricEnd: number;
-//   damages?: number;
-//   damageNote?: string;
-// }
-
-// export interface CreateMoveOutBillPayload extends MoveOutPreviewPayload {}
-
-// // ── Redux State ───────────────────────────────────────────────────────────────
-// export interface MoveOutState {
-//   list: MoveOutBill[];
-//   selected: MoveOutBill | null;
-//   preview: MoveOutPreview | null;
-//   year: number;
-//   statusFilter: MoveOutBillStatus | "ALL";
-//   isLoading: boolean;
-//   error: string | null;
-// }
+export interface CreateMoveOutBillResponse {
+  moveOutBillId: string
+  refundAmount: number
+  totalCharge: number
+  status: MoveOutBillStatus
+}

@@ -131,6 +131,28 @@ export const createRoomType = async (propertyId: string, data: any) => {
   })
 }
 
+export const getRoomTypesByProperty = async (propertyId: string) => {
+  return prisma.roomType.findMany({
+    where: { propertyId },
+    include: {
+      images: true,
+      fees: true,
+      facilities: { include: { facility: true } },
+      rooms: { select: { id: true } },
+    },
+    orderBy: { id: "asc" },
+  })
+}
+
+export const deleteRoomType = async (roomTypeId: string) => {
+  await prisma.$transaction([
+    prisma.roomTypeImage.deleteMany({ where: { roomTypeId } }),
+    prisma.roomTypeFee.deleteMany({ where: { roomTypeId } }),
+    prisma.roomFacility.deleteMany({ where: { roomTypeId } }),
+  ])
+  return prisma.roomType.delete({ where: { id: roomTypeId } })
+}
+
 export const getRoomTypeById = async (roomTypeId: string) => {
   return prisma.roomType.findUnique({
     where: { id: roomTypeId },
@@ -138,6 +160,7 @@ export const getRoomTypeById = async (roomTypeId: string) => {
       images: true,
       fees: true,
       facilities: { include: { facility: true } },
+      rooms: { select: { id: true } },
     },
   })
 }

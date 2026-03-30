@@ -117,6 +117,7 @@ export const updateContract = async (
     startDate?: Date
     endDate?: Date
     roomId?: string
+    moveOutNoticeDate?: Date
   }
 ) => {
   return prisma.contract.update({
@@ -126,6 +127,7 @@ export const updateContract = async (
       startDate: data.startDate,
       endDate: data.endDate,
       roomId: data.roomId,
+      moveOutNoticeDate: data.moveOutNoticeDate,
     },
   })
 }

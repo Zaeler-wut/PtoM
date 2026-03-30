@@ -58,6 +58,7 @@ api.interceptors.response.use(
         })
 
         const newToken = res.data.accessToken
+        if (!newToken) throw new Error("No token")
         setAccessToken(newToken)
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`
         original.headers.Authorization = `Bearer ${newToken}`

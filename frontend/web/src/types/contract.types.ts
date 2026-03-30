@@ -1,58 +1,75 @@
-// import type { User } from "./auth.types";
-// import type { Room } from "./room.types";
+export type ContractStatus = "ACTIVE" | "MOVE_OUT_NOTICE" | "ENDED"
+export type ContractType = "ONLINE" | "OFFLINE"
 
-// // ── Enums ─────────────────────────────────────────────────────────────────────
-// export type ContractStatus = "ACTIVE" | "MOVE_OUT_NOTICE" | "ENDED";
-// export type ContractType = "ONLINE" | "OFFLINE";
+export interface ContractListItem {
+  contractId: string
+  firstName: string
+  lastName: string
+  roomNumber: string
+  contractType: ContractType
+  status: ContractStatus
+  startDate: string
+  endDate: string
+  duration: string
+  pdfUrl: string | null
+}
 
-// // ── Contract ──────────────────────────────────────────────────────────────────
-// export interface Contract {
-//   id: string;
-//   userId: string;
-//   roomId: string;
-//   bookingId: string | null;
-//   startDate: string;
-//   endDate: string;
-//   securityDeposit: number;
-//   contractType: ContractType;
-//   status: ContractStatus;
-//   pdfUrl: string | null;
-//   moveOutNoticeDate: string | null;
-//   createdAt: string;
-//   updatedAt: string;
+export interface ContractDetail {
+  contractId: string
+  contractType: ContractType
+  status: ContractStatus
+  startDate: string
+  endDate: string
+  createdAt: string
+  moveOutNoticeDate: string | null
+  duration: string
+  pdfUrl: string | null
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    phone: string | null
+  }
+  room: {
+    roomNumber: string
+    roomType: string
+    roomPrice: number
+  }
+  vehicles: { plateNumber: string; type: string }[]
+  financial: {
+    securityDeposit: number
+    advanceRent: number
+    waterRate: number
+    electricRate: number
+    furniturePrice: number | null
+  }
+}
 
-//   // relations
-//   user?: User;
-//   room?: Room;
-// }
+export interface CreateContractInput {
+  bookingId?: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  lineId?: string
+  houseNumber?: string
+  soi?: string
+  road?: string
+  subDistrict?: string
+  district?: string
+  province?: string
+  roomId: string
+  startDate: string
+  endDate: string
+  securityDeposit: number
+  vehicles?: { plateNumber: string; type: string }[]
+}
 
-// // ── Payloads ──────────────────────────────────────────────────────────────────
-// export interface CreateOnlineContractPayload {
-//   bookingId: string;
-//   startDate: string;
-//   endDate: string;
-//   securityDeposit: number;
-// }
-
-// export interface CreateOfflineContractPayload {
-//   userId: string;
-//   roomId: string;
-//   startDate: string;
-//   endDate: string;
-//   securityDeposit: number;
-// }
-
-// export interface UpdateContractPayload {
-//   startDate?: string;
-//   endDate?: string;
-//   securityDeposit?: number;
-//   status?: ContractStatus;
-// }
-
-// // ── Redux State ───────────────────────────────────────────────────────────────
-// export interface ContractState {
-//   list: Contract[];
-//   selected: Contract | null;
-//   isLoading: boolean;
-//   error: string | null;
-// }
+export interface UpdateContractInput {
+  status?: ContractStatus
+  moveOutNoticeDate?: string
+  firstName?: string
+  lastName?: string
+  startDate?: string
+  endDate?: string
+}

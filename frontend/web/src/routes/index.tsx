@@ -4,6 +4,11 @@ import LoginPage from "../pages/auth/LoginPage"
 import PropertyListPage from "../pages/property/PropertyListPage"
 import DashboardPage from "../pages/dashboard/DashboardPage"
 import PropertySettingsPage from "../pages/property/PropertySettingsPage"
+import RoomTypePage from "../pages/property/RoomTypePage"
+import RoomListPage from "../pages/room/RoomListPage"
+import TenantListPage from "../pages/tenant/TenantListPage"
+import MoveOutListPage from "../pages/moveout/MoveOutListPage"
+import ContractListPage from "../pages/contract/ContractListPage"
 import MainLayout from "../components/layout/MainLayout"
 
 export const router = createBrowserRouter([
@@ -31,12 +36,13 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="dashboard" replace /> },
       { path: "dashboard", element: <DashboardPage /> },
       { path: "settings", element: <PropertySettingsPage /> },
-      // { path: "rooms", element: <RoomListPage /> },
-      // { path: "tenants", element: <TenantListPage /> },
+      { path: "room-types", element: <RoomTypePage /> },
+      { path: "rooms", element: <RoomListPage /> },
+      { path: "tenants", element: <TenantListPage /> },
       // { path: "bookings", element: <BookingListPage /> },
-      // { path: "contracts", element: <ContractListPage /> },
+      { path: "contracts", element: <ContractListPage /> },
       // { path: "billing", element: <BillingSummaryPage /> },
-      // { path: "move-out", element: <MoveOutListPage /> },
+      { path: "move-out", element: <MoveOutListPage /> },
       // { path: "edit", element: <PropertyEditPage /> },
     ],
   },

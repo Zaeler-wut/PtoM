@@ -22,4 +22,12 @@ router.post("/properties/:propertyId/rooms", authenticate, authorize("ADMIN"), a
   }
 })
 
+router.put("/properties/:propertyId/rooms/:roomId", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
+  try {
+    res.json(await service.updateRoom(req.params.roomId, req.body))
+  } catch (err: any) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 export default router

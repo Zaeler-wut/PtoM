@@ -9,18 +9,19 @@ import type { LoginPayload } from "../../types/auth.types";
 export default function LoginPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, accessToken } = useAppSelector((s) => s.auth);
+  const { isLoading, error } = useAppSelector((s) => s.auth);
   const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginPayload>();
 
-  useEffect(() => {
-    if (accessToken) navigate("/properties", { replace: true });
-  }, [accessToken, navigate]);
-
   useEffect(() => { return () => { dispatch(clearError()); }; }, [dispatch]);
 
-  const onSubmit = (data: LoginPayload) => { dispatch(loginThunk(data)); };
+  const onSubmit = async (data: LoginPayload) => {
+    const result = await dispatch(loginThunk(data));
+    if (loginThunk.fulfilled.match(result)) {
+      navigate("/properties", { replace: true });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">

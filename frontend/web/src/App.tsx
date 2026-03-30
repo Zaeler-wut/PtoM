@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Provider } from "react-redux"
 import { RouterProvider } from "react-router-dom"
 import axios from "axios"
@@ -9,20 +9,22 @@ import { setAccessToken } from "./api/axiosInstance"
 
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false)
+  const fetched = useRef(false)
 
   useEffect(() => {
-    // ตอน app load → ลอง refresh token อัตโนมัติ
-    // ถ้ามี refreshToken cookie อยู่ → ได้ accessToken ใหม่
-    // ถ้าไม่มี → ไป login
+    // ป้องกัน React StrictMode รัน effect 2 รอบ → ส่ง request ซ้ำ
+    if (fetched.current) return
+    fetched.current = true
+
     axios.post("/api/auth/refresh-token", {}, { withCredentials: true })
       .then((res) => {
         const { accessToken, user } = res.data
-        setAccessToken(accessToken)
-        store.dispatch(setUser({ accessToken, user }))
+        if (accessToken) {
+          setAccessToken(accessToken)
+          store.dispatch(setUser({ accessToken, user }))
+        }
       })
-      .catch(() => {
-        // ไม่มี cookie หรือ expired → ไม่ต้องทำอะไร ProtectedRoute จะ redirect ไป login เอง
-      })
+      .catch(() => {})
       .finally(() => setReady(true))
   }, [])
 

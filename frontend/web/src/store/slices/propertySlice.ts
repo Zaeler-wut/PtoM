@@ -44,9 +44,20 @@ export const updateProperty = createAsyncThunk(
   }
 )
 
+const SELECTED_KEY = "ptom_selected_property"
+
+const loadSelected = (): PropertyState["selected"] => {
+  try {
+    const raw = localStorage.getItem(SELECTED_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 const initialState: PropertyState = {
   list: [],
-  selected: null,
+  selected: loadSelected(),
   isLoading: false,
   error: null,
 }
@@ -60,6 +71,7 @@ const propertySlice = createSlice({
     },
     clearSelected: (state) => {
       state.selected = null
+      try { localStorage.removeItem(SELECTED_KEY) } catch {}
     },
   },
   extraReducers: (builder) => {
@@ -70,7 +82,11 @@ const propertySlice = createSlice({
 
     builder
       .addCase(fetchPropertyDetail.pending, (state) => { state.isLoading = true; state.error = null })
-      .addCase(fetchPropertyDetail.fulfilled, (state, action) => { state.isLoading = false; state.selected = action.payload })
+      .addCase(fetchPropertyDetail.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.selected = action.payload
+        try { localStorage.setItem(SELECTED_KEY, JSON.stringify(action.payload)) } catch {}
+      })
       .addCase(fetchPropertyDetail.rejected, (state, action) => { state.isLoading = false; state.error = action.payload as string })
 
     builder
@@ -78,6 +94,7 @@ const propertySlice = createSlice({
       .addCase(updateProperty.fulfilled, (state, action) => {
         state.isLoading = false
         state.selected = action.payload
+        try { localStorage.setItem(SELECTED_KEY, JSON.stringify(action.payload)) } catch {}
         const idx = state.list.findIndex((p) => p.id === action.payload.id)
         if (idx !== -1) state.list[idx] = action.payload
       })

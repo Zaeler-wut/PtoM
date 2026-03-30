@@ -10,9 +10,10 @@ import { logoutThunk } from "../../store/slices/authSlice";
 interface SidebarProps {
   propertyId: string;
   propertyName?: string;
+  propertyLogoUrl?: string | null;
 }
 
-export function Sidebar({ propertyId, propertyName }: SidebarProps) {
+export function Sidebar({ propertyId, propertyName, propertyLogoUrl }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
@@ -26,7 +27,7 @@ export function Sidebar({ propertyId, propertyName }: SidebarProps) {
     { icon: RiFileTextLine, label: "สัญญาเช่า", path: `/properties/${propertyId}/contracts` },
     { icon: RiReceiptLine, label: "ออกบิลรายเดือน", path: `/properties/${propertyId}/billing` },
     { icon: RiDoorOpenLine, label: "บิลแจ้งออก", path: `/properties/${propertyId}/move-out` },
-    { icon: RiPriceTag3Line, label: "ประเภทห้องและราคา", path: `/properties/${propertyId}/edit` },
+    { icon: RiPriceTag3Line, label: "ประเภทห้องและราคา", path: `/properties/${propertyId}/room-types` },
     { icon: RiSettings3Line, label: "ตั้งค่าระบบและเลือกสาขา", path: `/properties/${propertyId}/settings` },
   ];
 
@@ -40,9 +41,14 @@ export function Sidebar({ propertyId, propertyName }: SidebarProps) {
       {/* Logo */}
       <div className="p-6 border-b border-slate-700 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="bg-purple-600 p-2 rounded-lg">
-            <RiBuilding2Line size={24} />
-          </div>
+          {propertyLogoUrl ? (
+            <img src={propertyLogoUrl} alt="logo"
+              className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+          ) : (
+            <div className="bg-purple-600 p-2 rounded-lg">
+              <RiBuilding2Line size={24} />
+            </div>
+          )}
           <span className="font-bold text-lg">PtoM</span>
         </div>
         <button
@@ -68,7 +74,7 @@ export function Sidebar({ propertyId, propertyName }: SidebarProps) {
           <div>
             <p className="text-xs text-gray-400">ผู้จัดการ</p>
             <p className="text-sm font-medium">
-              {user ? `${user.firstName} ${user.lastName}` : "Wutthipong"}
+              {user?.name ?? "-"}
             </p>
           </div>
         </div>

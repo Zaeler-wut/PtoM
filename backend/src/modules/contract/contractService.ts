@@ -111,6 +111,7 @@ export const getContractDetail = async (contractId: string, propertyId: string) 
     startDate: c.startDate,
     endDate: c.endDate,
     createdAt: c.createdAt,
+    moveOutNoticeDate: c.moveOutNoticeDate ?? null,
     duration: `${months} เดือน`,
     pdfUrl: c.pdfUrl,
     user: {
@@ -218,11 +219,16 @@ export const updateContract = async (
     await repo.updateRoomStatus(c.roomId, "AVAILABLE")
   }
 
+  const moveOutNoticeDate = data.moveOutNoticeDate
+    ? new Date(data.moveOutNoticeDate)
+    : undefined
+
   const updated = await repo.updateContract(contractId, {
     status: data.status,
     startDate,
     endDate,
     roomId: data.roomId,
+    moveOutNoticeDate,
   })
 
   return {

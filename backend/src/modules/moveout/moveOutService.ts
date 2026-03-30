@@ -25,13 +25,6 @@ function checkContractCompletion(
   }
 }
 
-// parse ระยะเวลาสัญญาจาก contractTerm string → จำนวนเดือน
-// เช่น "6 เดือนขึ้นไป" → 6, "12 เดือน" → 12
-function parseContractTermMonths(contractTerm: string | null): number {
-  if (!contractTerm) return 0
-  const match = contractTerm.match(/(\d+)/)
-  return match ? parseInt(match[1]) : 0
-}
 
 // คำนวณบิลสุดท้าย (คิดตามรายวัน)
 function calculateFinalBill(data: {
@@ -189,13 +182,12 @@ export const getMoveOutPreview = async (
   if (isNaN(moveOutDate.getTime())) throw new Error("moveOutDate is invalid")
 
   // ── ตรวจสอบว่าอยู่ครบตามระยะสัญญา ──
-  // ดึง contractTerm จาก property
-  const { prisma } = await import("../../lib/prisma")
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    select: { contractTerm: true },
-  })
-  const contractTermMonths = parseContractTermMonths(property?.contractTerm ?? null)
+  // คำนวณจาก startDate และ endDate ของสัญญาจริง
+  const contractStart = new Date(contract.startDate)
+  const contractEnd = new Date(contract.endDate)
+  const contractTermMonths =
+    (contractEnd.getFullYear() - contractStart.getFullYear()) * 12 +
+    (contractEnd.getMonth() - contractStart.getMonth())
   const completion = contractTermMonths > 0
     ? checkContractCompletion(contract.startDate, moveOutDate, contractTermMonths)
     : null
@@ -251,6 +243,13 @@ export const getMoveOutPreview = async (
     },
     // ตรวจสอบครบสัญญา
     completion,
+    // ราคาต่อหน่วยของห้อง
+    roomDetails: {
+      roomPrice: rt.roomPrice,
+      furniturePrice: rt.furniturePrice ?? 0,
+      waterRate: rt.waterRate,
+      electricRate: rt.electricRate,
+    },
     // บิลสุดท้าย
     finalBill: {
       billingPeriod: `${data.billingStartDay} - ${data.billingEndDay}`,

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { fetchPropertyDetail, updateProperty, clearSelected } from "../../store/slices/propertySlice";
+import { fetchPropertyDetail, updateProperty } from "../../store/slices/propertySlice";
+import { useToast } from "../../components/shared/Toast";
 import {
   RiImageAddLine, RiQrCodeLine, RiMapPinLine, RiMoneyDollarCircleLine,
   RiFileTextLine, RiAddLine, RiCloseLine, RiCheckLine, RiSaveLine,
@@ -27,14 +28,14 @@ export default function PropertySettingsPage() {
 
   const [amenities, setAmenities] = useState<string[]>([]);
   const [amenityInput, setAmenityInput] = useState("");
+  const { toast } = useToast();
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<SettingsForm>();
   const googleMapValue = watch("googleMap");
 
-  // ── ดึงข้อมูลตอนเปิดหน้า ──
+  // ── ดึงข้อมูลตอนเปิดหน้า (ถ้า MainLayout ยังไม่ได้โหลดหรือเป็น property อื่น) ──
   useEffect(() => {
-    if (propertyId) {
-      dispatch(clearSelected())
+    if (propertyId && property?.id !== propertyId) {
       dispatch(fetchPropertyDetail(propertyId))
     }
   }, [propertyId, dispatch]);
@@ -59,7 +60,7 @@ export default function PropertySettingsPage() {
   // ── บันทึก ──
   const onSubmit = async (data: SettingsForm) => {
     if (!propertyId) return;
-    await dispatch(updateProperty({
+    const result = await dispatch(updateProperty({
       propertyId,
       payload: {
         ...data,
@@ -68,6 +69,11 @@ export default function PropertySettingsPage() {
         priceMax: Number(data.priceMax),
       },
     }));
+    if (updateProperty.fulfilled.match(result)) {
+      toast("บันทึกการตั้งค่าสำเร็จ");
+    } else {
+      toast("เกิดข้อผิดพลาด ไม่สามารถบันทึกได้", "error");
+    }
   };
 
   const addAmenity = () => {
@@ -92,7 +98,7 @@ export default function PropertySettingsPage() {
 
   return (
     <div className="bg-purple-50 min-h-screen">
-      <div className="px-2 py-8 max-w-7xl mx-auto">
+      <div className="px-2 py-8 max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">ตั้งค่ารายละเอียดสถานที่</h1>
           <p className="text-sm text-gray-500 mt-1">จัดการข้อมูลสถานที่และการตั้งค่าต่างๆ</p>
@@ -101,7 +107,7 @@ export default function PropertySettingsPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
           {/* ช่วงราคา + สิ่งอำนวยความสะดวก */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 ">
             {/* ช่วงราคา */}
             <div className="bg-white rounded-2xl pt-5 pl-6 p-8 border border-gray-100 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
@@ -160,7 +166,7 @@ export default function PropertySettingsPage() {
           </div>
 
           {/* ระยะเวลาสัญญาเช่า */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm max-w-4xl">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm ">
             <div className="flex items-center gap-2 mb-4">
               <RiFileTextLine className="text-purple-500" size={18} />
               <h3 className="text-sm font-semibold text-gray-700">ระยะเวลาสัญญาเช่า</h3>
@@ -171,7 +177,7 @@ export default function PropertySettingsPage() {
           </div>
 
           {/* รายละเอียดหอพัก */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm max-w-4xl">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm ">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">รายละเอียดหอพัก</h3>
             <textarea rows={5} placeholder="อธิบายรายละเอียดของหอพัก..." {...register("description")}
               className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 resize-none" />
@@ -179,7 +185,7 @@ export default function PropertySettingsPage() {
           </div>
 
           {/* ที่อยู่และแผนที่ */}
-          <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm max-w-4xl">
+          <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm ">
             <div className="flex items-center gap-2 mb-4">
               <RiMapPinLine className="text-purple-500" size={18} />
               <h3 className="text-sm font-semibold text-gray-700">ที่อยู่และแผนที่</h3>
@@ -207,7 +213,7 @@ export default function PropertySettingsPage() {
           </div>
 
           {/* รูปภาพโปรโมท */}
-          <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm max-w-4xl">
+          <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm ">
             <div className="flex items-center gap-2 mb-4">
               <RiImageAddLine className="text-purple-500" size={18} />
               <h3 className="text-sm font-semibold text-gray-700">รูปภาพโปรโมท</h3>
@@ -268,7 +274,7 @@ export default function PropertySettingsPage() {
           </div>
 
           {/* โลโก้หอพัก + QR Code */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 ">
             <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <RiImageAddLine className="text-purple-500" size={18} />
@@ -340,7 +346,7 @@ export default function PropertySettingsPage() {
           </div>
 
           {/* ข้อมูลธนาคาร */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 ">
             <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">ชื่อธนาคาร</h3>
               <input type="text" {...register("bankName")}
@@ -353,7 +359,7 @@ export default function PropertySettingsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 ">
             <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">ชื่อบัญชี</h3>
               <input type="text" {...register("bankHolder")}
@@ -362,7 +368,7 @@ export default function PropertySettingsPage() {
           </div>
 
           {/* Save Button */}
-          <div className="flex justify-end pb-8 max-w-4xl">
+          <div className="flex justify-end pb-8 ">
             <button type="submit" disabled={isLoading}
               className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 disabled:opacity-60 transition-colors">
               <RiSaveLine size={16} />

@@ -8,14 +8,28 @@ export const getRooms = async (propertyId: string) => {
       id: room.id,
       roomNumber: room.roomNumber,
       floor: room.floor,
+      roomTypeId: room.roomType.id,
       roomType: room.roomType.name,
       price: room.roomType.roomPrice,
+      securityDeposit: room.roomType.securityDeposit,
+      advanceRent: room.roomType.advanceRent,
       status: room.status,
       tenant: activeContract
         ? `${activeContract.user.firstName} ${activeContract.user.lastName}`
         : null,
     }
   })
+}
+
+export const updateRoom = async (roomId: string, data: any) => {
+  const room = await repo.getRoomById(roomId)
+  if (!room) throw new Error("Room not found")
+  if (data.status && room.status === "OCCUPIED") throw new Error("ห้องมีผู้เช่าอยู่ ไม่สามารถเปลี่ยนสถานะได้")
+  if (data.roomNumber && data.roomNumber !== room.roomNumber) {
+    const existing = await repo.getRoomByNumberInProperty(room.propertyId, data.roomNumber)
+    if (existing) throw new Error(`เลขห้อง "${data.roomNumber}" มีอยู่แล้วในสถานที่นี้`)
+  }
+  return repo.updateRoom(roomId, data)
 }
 
 export const createRoom = async (propertyId: string, data: any) => {

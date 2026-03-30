@@ -84,6 +84,36 @@ export const createRoomType = async (propertyId: string, data: any) => {
   return repo.createRoomType(propertyId, data)
 }
 
+export const getRoomTypes = async (propertyId: string) => {
+  const roomTypes = await repo.getRoomTypesByProperty(propertyId)
+  return roomTypes.map((rt) => ({
+    id: rt.id,
+    name: rt.name,
+    description: rt.description,
+    size: rt.size,
+    maxOccupants: rt.maxOccupants,
+    roomPrice: rt.roomPrice,
+    furniturePrice: rt.furniturePrice,
+    waterRate: rt.waterRate,
+    electricRate: rt.electricRate,
+    bookingFee: rt.bookingFee,
+    advanceRent: rt.advanceRent,
+    securityDeposit: rt.securityDeposit,
+    allowOnlineBooking: rt.allowOnlineBooking,
+    roomCount: rt.rooms.length,
+    fees: rt.fees.map((f) => ({ id: f.id, name: f.title, price: f.amount })),
+    facilities: rt.facilities.map((f) => f.facility.name),
+    images: rt.images.map((i) => ({ id: i.id, url: i.url })),
+  }))
+}
+
+export const deleteRoomType = async (roomTypeId: string) => {
+  const rt = await repo.getRoomTypeById(roomTypeId)
+  if (!rt) throw new Error("RoomType not found")
+  if (rt.rooms.length > 0) throw new Error("ไม่สามารถลบได้ มีห้องที่ใช้ประเภทนี้อยู่")
+  return repo.deleteRoomType(roomTypeId)
+}
+
 export const getRoomTypeDetail = async (roomTypeId: string) => {
   const rt = await repo.getRoomTypeById(roomTypeId)
   if (!rt) throw new Error("RoomType not found")

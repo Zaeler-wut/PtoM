@@ -110,7 +110,7 @@ export const login = async (data: LoginInput): Promise<AuthResponse> => {
 
 // REFRESH TOKEN
 
-export const refreshToken = async (token: string): Promise<{ accessToken: string, refreshToken: string }> => {
+export const refreshToken = async (token: string): Promise<{ accessToken: string, refreshToken: string, user: { id: string, name: string, email: string, role: string } }> => {
   if (!token) {
     throw new Error("No refresh token")
   }
@@ -145,7 +145,13 @@ export const refreshToken = async (token: string): Promise<{ accessToken: string
 
   return {
     accessToken: generateAccessToken(user),
-    refreshToken: newRefreshToken, // ส่งกลับไปให้ client เก็บแทนตัวเก่า
+    refreshToken: newRefreshToken,
+    user: {
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      role: user.role,
+    },
   }
 }
 

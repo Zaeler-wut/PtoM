@@ -41,6 +41,11 @@ router.patch("/properties/:propertyId/images/:imageId/cover", authenticate, auth
   catch (err: any) { res.status(400).json({ error: err.message }) }
 })
 
+router.get("/properties/:propertyId/room-types", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
+  try { res.json(await service.getRoomTypes(req.params.propertyId)) }
+  catch (err) { res.status(500).json({ error: "Internal server error" }) }
+})
+
 router.post("/properties/:propertyId/room-types", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
   try { res.status(201).json(await service.createRoomType(req.params.propertyId, req.body)) }
   catch (err: any) { res.status(400).json({ error: err.message }) }
@@ -49,6 +54,11 @@ router.post("/properties/:propertyId/room-types", authenticate, authorize("ADMIN
 router.get("/properties/:propertyId/room-types/:roomTypeId", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
   try { res.json(await service.getRoomTypeDetail(req.params.roomTypeId)) }
   catch (err: any) { res.status(404).json({ error: err.message }) }
+})
+
+router.delete("/properties/:propertyId/room-types/:roomTypeId", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
+  try { res.json(await service.deleteRoomType(req.params.roomTypeId)) }
+  catch (err: any) { res.status(400).json({ error: err.message }) }
 })
 
 router.put("/properties/:propertyId/room-types/:roomTypeId", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {

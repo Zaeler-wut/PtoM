@@ -22,8 +22,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!propertyId) return
-    dispatch(fetchDashboardSummary(propertyId))
-    dispatch(fetchRevenue({ propertyId, months: 6 }))
+    Promise.all([
+      dispatch(fetchDashboardSummary(propertyId)),
+      dispatch(fetchRevenue({ propertyId, months: 6 })),
+    ])
   }, [propertyId, dispatch])
 
   // ── Revenue chart data จาก API ──
@@ -139,7 +141,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="px-2 py-8 bg-gray-50 min-h-screen max-w-7xl mx-auto">
+    <div className="bg-purple-50 min-h-screen">
+    <div className="px-8 py-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-purple-900 mb-1">DASHBOARD</h1>
@@ -149,20 +152,20 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4 max-w-6xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
         {statsCards.slice(0, 8).map((card, i) => (
           <SummaryCard key={i} {...card} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 max-w-6xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {statsCards.slice(8).map((card, i) => (
           <SummaryCard key={i} {...card} />
         ))}
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 max-w-6xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {/* Revenue Area Chart — ดึงจาก API */}
         <div className="bg-white rounded-xl p-5 pl-8 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4">
@@ -256,6 +259,7 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
+    </div>
     </div>
   )
 }

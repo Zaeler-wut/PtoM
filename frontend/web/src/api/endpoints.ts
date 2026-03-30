@@ -19,6 +19,7 @@ export const ENDPOINTS = {
     roomTypes: (id: string) => `/admin/properties/${id}/room-types`,
     roomType: (id: string, rtId: string) => `/admin/properties/${id}/room-types/${rtId}`,
     roomTypeImages: (id: string, rtId: string) => `/admin/properties/${id}/room-types/${rtId}/images`,
+    deleteRoomTypeImage: (id: string, rtId: string, imgId: string) => `/admin/properties/${id}/room-types/${rtId}/images/${imgId}`,
   },
 
   dashboard: {
@@ -29,6 +30,7 @@ export const ENDPOINTS = {
   rooms: {
     list: (propertyId: string) => `/admin/properties/${propertyId}/rooms`,
     create: (propertyId: string) => `/admin/properties/${propertyId}/rooms`,
+    update: (propertyId: string, roomId: string) => `/admin/properties/${propertyId}/rooms/${roomId}`,
   },
 
   tenants: {
