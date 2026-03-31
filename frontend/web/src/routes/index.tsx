@@ -6,6 +6,7 @@ import RoomListPage from "../pages/room/RoomListPage";
 import PropertySettingsPage from "../pages/property/PropertySettingsPage";
 import RoomTypePage from "../pages/property/RoomTypePage";
 import MoveOutListPage from "../pages/moveout/MoveOutListPage";
+import BillingSummaryPage from "../pages/billing/BillingSummaryPage";
 
 const PROPERTY_ID = "test-id";
 
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       { path: "settings", element: <PropertySettingsPage /> },
       { path: "edit", element: <RoomTypePage /> },
       { path: "move-out", element: <MoveOutListPage /> },
+      { path: "billing", element: <BillingSummaryPage /> },
     ],
   },
   { path: "/", element: <Navigate to={`/properties/${PROPERTY_ID}/dashboard`} replace /> },

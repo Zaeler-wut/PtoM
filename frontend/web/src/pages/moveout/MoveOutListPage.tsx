@@ -45,19 +45,18 @@ export default function MoveOutListPage() {
         </div>
 
         {/* Info Banner */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6 flex items-start gap-3 max-w-6xl">
-          {/* ✏️ วงกลมเล็กลง */}
-          <div className="w-4 h-4 rounded-full border-2 border-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <div className="bg-white rounded-2xl border border-blue-300 shadow-sm p-6 mb-6 flex items-start gap-3 max-w-6xl">
+          <div className="w-5 h-5 rounded-full border-2 border-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
             <span className="text-blue-600 text-xs font-bold leading-none">!</span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-800">ขั้นตอนการแจ้งออก</p>
-            <p className="text-xs text-gray-500 mt-0.5">บันทึกค่าเสียหาย (ถ้ามี) และระบบจะคำนวณเงินคืนมัดจำโดยอัตโนมัติ</p>
+            <p className="text-base font-semibold text-gray-800">ขั้นตอนการแจ้งออก</p>
+            <p className="text-sm text-gray-600 mt-0.5">บันทึกค่าเสียหาย (ถ้ามี) และระบบจะคำนวณเงินคืนมัดจำโดยอัตโนมัติ</p>
           </div>
         </div>
 
         {/* Create Button */}
-        <button onClick={() => setCreateModal(true)}
+        <button onClick={() => setSelectedTenant(MOCK_TENANTS[0])}
           className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm rounded-xl hover:bg-gray-800 transition-colors mb-6">
           <RiAddLine size={16} /> สร้างบิลแจ้งออก
         </button>
@@ -153,14 +152,13 @@ function MoveOutBillModal({ open, onClose, tenant }: {
 }) {
   const [damageItems, setDamageItems] = useState<DamageItem[]>([]);
   const [extraItems, setExtraItems] = useState<ExtraItem[]>([]);
-  const [waterPrev, setWaterPrev] = useState("1250");
-  const [waterCurr, setWaterCurr] = useState("1268");
-  const [electricPrev, setElectricPrev] = useState("5420");
-  const [electricCurr, setElectricCurr] = useState("5542");
+  const [waterPrev, setWaterPrev] = useState("1580");
+  const [waterCurr, setWaterCurr] = useState("1580");
+  const [electricPrev, setElectricPrev] = useState("6240");
+  const [electricCurr, setElectricCurr] = useState("6240");
   const [billStart, setBillStart] = useState("1");
-  const [billEnd, setBillEnd] = useState("");
+  const [billEnd, setBillEnd] = useState("15");
 
-  // คำนวณ
   const roomPrice = 3000;
   const furniturePrice = 500;
   const commonFee = 200;
@@ -184,157 +182,194 @@ function MoveOutBillModal({ open, onClose, tenant }: {
   return (
     <Modal open={open} onOpenChange={(o) => !o && onClose()}
       title="สร้างบิลแจ้งออก" description="บันทึกข้อมูลการแจ้งออกและคำนวณเงินคืนมัดจำ" size="xl">
-      <div className="flex gap-6 max-h-[75vh] overflow-y-auto">
+      <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
 
-        {/* Left Column */}
-        <div className="flex-1 space-y-5 min-w-0">
-
-          {/* เลือกผู้เช่า + วันที่ */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">เลือกผู้เช่า</label>
-              <select className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 bg-white">
-                <option>เลือกผู้เช่าที่แจ้งออก</option>
-                <option selected>{tenant.name}</option>
-              </select>
-            </div>
-            <FormInput label="วันที่แจ้งออก" type="text" placeholder="วัน/เดือน/ปี" />
+        {/* เลือกผู้เช่า + วันที่แจ้งออก */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">เลือกผู้เช่า</label>
+            <select className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 bg-white">
+              <option>เลือกผู้เช่าที่แจ้งออก</option>
+              <option selected>{tenant.name} (ห้อง {tenant.room})</option>
+            </select>
           </div>
+          <FormInput label="วันที่แจ้งออก" type="text" defaultValue="15/2/2026" />
+        </div>
 
-          <FormInput label="เงินประกัน + ล่วงหน้า 1 เดือน (บาท)" type="number" defaultValue="3000" />
-
-          {/* บิลเดือนล่าสุด */}
-          <div className="border border-blue-200 rounded-xl p-4 space-y-4 bg-blue-50">
-            <div className="flex items-center gap-2">
-              <RiCalendarLine className="text-blue-500" size={16} />
-              <h4 className="text-sm font-bold text-blue-800">บิลเดือนล่าสุด (มีนาคม 2026)</h4>
+        {/* สถานะสัญญา + ระยะเวลาที่อยู่ */}
+        <div className="border border-blue-200 rounded-xl p-4 space-y-4 bg-blue-50">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">สถานะสัญญา</label>
+              <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
+                อยู่ระหว่างสัญญา
+              </span>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput label="วันเริ่มรอบบิล" type="text" value={billStart}
-                inputClassName="border-blue-200 focus:border-blue-400"
-                onChange={(e) => setBillStart(e.target.value)} />
-              <FormInput label="วันสิ้นสุดรอบบิล" type="text" value={billEnd}
-                inputClassName="border-blue-200 focus:border-blue-400"
-                onChange={(e) => setBillEnd(e.target.value)} />
-            </div>
-
-            {/* warning */}
-            <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
-              <span className="text-orange-500 text-xs">⚠</span>
-              <span className="text-xs text-orange-700">จำนวนวันที่อยู่จริง (15 วัน จาก 31 วัน)</span>
-            </div>
-
-            {/* ค่าห้อง + เฟอร์นิเจอร์ */}
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput label="ค่าห้อง (บาท)" type="number" defaultValue={String(roomPrice)}
-                inputClassName="border-blue-200 focus:border-blue-400" />
-              <FormInput label="ค่าเฟอร์นิเจอร์ (บาท)" type="number" defaultValue={String(furniturePrice)}
-                inputClassName="border-blue-200 focus:border-blue-400" />
-            </div>
-
-            {/* มิเตอร์น้ำ */}
-            <div className="grid grid-cols-3 gap-3">
-              <FormInput label="มิเตอร์น้ำเดิม" type="number" value={waterPrev}
-                inputClassName="border-blue-200 focus:border-blue-400"
-                onChange={(e) => setWaterPrev(e.target.value)} />
-              <FormInput label="มิเตอร์น้ำใหม่ *" type="number" value={waterCurr}
-                inputClassName="border-blue-200 focus:border-blue-400"
-                onChange={(e) => setWaterCurr(e.target.value)} />
-              <FormInput label="ราคาต่อหน่วย" type="number" defaultValue={String(waterRate)}
-                inputClassName="border-blue-200 focus:border-blue-400" />
-            </div>
-
-            {/* มิเตอร์ไฟ */}
-            <div className="grid grid-cols-3 gap-3">
-              <FormInput label="มิเตอร์ไฟเดิม" type="number" value={electricPrev}
-                inputClassName="border-blue-200 focus:border-blue-400"
-                onChange={(e) => setElectricPrev(e.target.value)} />
-              <FormInput label="มิเตอร์ไฟใหม่ *" type="number" value={electricCurr}
-                inputClassName="border-blue-200 focus:border-blue-400"
-                onChange={(e) => setElectricCurr(e.target.value)} />
-              <FormInput label="ราคาต่อหน่วย" type="number" defaultValue={String(electricRate)}
-                inputClassName="border-blue-200 focus:border-blue-400" />
-            </div>
-
-            {/* รายการบิล */}
-            <div className="bg-white rounded-xl p-3 space-y-1.5 border border-blue-100">
-              <SummaryRow label="ค่าห้อง (คำนวณรายวัน)" value={`฿${roomPrice.toLocaleString()}`} />
-              <SummaryRow label="ค่าเฟอร์นิเจอร์ (คำนวณรายวัน)" value={`฿${furniturePrice}`} />
-              <SummaryRow label="ค่าส่วนกลาง" value={`฿${commonFee}`} />
-              <SummaryRow label="ค่าขยะ" value={`฿${trashFee}`} />
-              <SummaryRow label={`ค่าน้ำ (${waterUsed} หน่วย)`} value={`฿${waterCost}`} />
-              <SummaryRow label={`ค่าไฟ (${electricUsed} หน่วย)`} value={`฿${electricCost}`} />
-              <SummaryRow label="รวมบิลเดือนล่าสุด" value={`฿${totalBill.toLocaleString()}`}
-                bold borderTop valueColor="text-blue-700" />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">ระยะเวลาที่อยู่</label>
+              12 เดือน
           </div>
         </div>
 
-        {/* Right Column */}
-        <div className="w-72 flex-shrink-0 space-y-5">
+        {/* เงินประกัน */}
+        <FormInput label="เงินประกัน + ล่วงหน้า 1 เดือน (บาท)" type="number" defaultValue="6000" />
 
-          {/* ค่าน้ำ ค่าไฟ summary */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-1.5">
+        {/* บิลเดือนล่าสุด */}
+        <div className="border border-blue-200 rounded-xl p-4 space-y-4 bg-blue-50">
+          <div className="flex items-center gap-2">
+            <RiCalendarLine className="text-blue-500" size={16} />
+            <h4 className="text-sm font-bold text-blue-800">บิลเดือนล่าสุด (มีนาคม 2026)</h4>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormInput label="วันที่เริ่มรอบบิล" type="text" value={billStart}
+              inputClassName="border-blue-200 focus:border-blue-400"
+              onChange={(e) => setBillStart(e.target.value)} />
+            <FormInput label="วันสิ้นสุดรอบบิล" type="text" value={billEnd}
+              inputClassName="border-blue-200 focus:border-blue-400"
+              onChange={(e) => setBillEnd(e.target.value)} />
+          </div>
+
+          <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+            <span className="text-yellow-500 text-xs">⚠</span>
+            <span className="text-xs text-yellow-700">คำนวณเป็นรายวัน (15 วัน จาก 31 วัน)</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormInput label="ค่าห้อง (บาท)" type="number" defaultValue={String(roomPrice)}
+              inputClassName="border-blue-200 focus:border-blue-400" />
+            <FormInput label="ค่าเฟอร์นิเจอร์ (บาท)" type="number" defaultValue={String(furniturePrice)}
+              inputClassName="border-blue-200 focus:border-blue-400" />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <FormInput label="มิเตอร์น้ำเดิม" type="number" value={waterPrev}
+              inputClassName="border-blue-200 focus:border-blue-400"
+              onChange={(e) => setWaterPrev(e.target.value)} />
+            <FormInput label="มิเตอร์น้ำใหม่ *" type="number" value={waterCurr}
+              inputClassName="border-blue-200 focus:border-blue-400"
+              onChange={(e) => setWaterCurr(e.target.value)} />
+            <FormInput label="ราคาต่อหน่วย" type="number" defaultValue={String(waterRate)}
+              inputClassName="border-blue-200 focus:border-blue-400" />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <FormInput label="มิเตอร์ไฟเดิม" type="number" value={electricPrev}
+              inputClassName="border-blue-200 focus:border-blue-400"
+              onChange={(e) => setElectricPrev(e.target.value)} />
+            <FormInput label="มิเตอร์ไฟใหม่ *" type="number" value={electricCurr}
+              inputClassName="border-blue-200 focus:border-blue-400"
+              onChange={(e) => setElectricCurr(e.target.value)} />
+            <FormInput label="ราคาต่อหน่วย" type="number" defaultValue={String(electricRate)}
+              inputClassName="border-blue-200 focus:border-blue-400" />
+          </div>
+
+          <div className="bg-white rounded-xl p-3 space-y-1.5 border border-blue-100">
+            <SummaryRow label="ค่าห้อง (คำนวณรายวัน)" value={`฿${roomPrice.toLocaleString()}`} />
+            <SummaryRow label="ค่าเฟอร์นิเจอร์ (คำนวณรายวัน)" value={`฿${furniturePrice}`} />
+            <SummaryRow label="ค่าส่วนกลาง" value={`฿${commonFee}`} />
+            <SummaryRow label="ค่าขยะ" value={`฿${trashFee}`} />
             <SummaryRow label={`ค่าน้ำ (${waterUsed} หน่วย)`} value={`฿${waterCost}`} />
             <SummaryRow label={`ค่าไฟ (${electricUsed} หน่วย)`} value={`฿${electricCost}`} />
             <SummaryRow label="รวมบิลเดือนล่าสุด" value={`฿${totalBill.toLocaleString()}`}
-              bold borderTop valueColor="text-gray-900" />
-          </div>
-
-          {/* รายการหักค่าเสียหาย */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <AddItemSection
-              title="รายการหักค่าเสียหาย"
-              items={damageItems}
-              onAdd={addDamage}
-              emptyText="ไม่มีค่าเสียหาย"
-            />
-          </div>
-
-          {/* รายการค่าใช้จ่ายเพิ่มเติม */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <AddItemSection
-              title="รายการค่าใช้จ่ายเพิ่มเติม"
-              items={extraItems}
-              onAdd={addExtra}
-              emptyText="ไม่มีรายการค่าใช้จ่ายเพิ่มเติม"
-            />
-          </div>
-
-          {/* สรุปยอดเงินคืน */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
-            <h4 className="text-sm font-bold text-gray-800 mb-3">สรุปยอดเงินคืน</h4>
-            <SummaryRow label="เงินมัดจำ" value={`฿${deposit.toLocaleString()}`} valueColor="text-green-600" bold />
-            <SummaryRow label="หักบิลเดือนล่าสุด" value={`-฿${totalBill.toLocaleString()}`} valueColor="text-red-500" />
-            {totalDamage > 0 && (
-              <SummaryRow label="หักค่าเสียหาย" value={`-฿${totalDamage.toLocaleString()}`} valueColor="text-red-500" />
-            )}
-            {totalExtra > 0 && (
-              <SummaryRow label="หักค่าใช้จ่ายเพิ่มเติม" value={`-฿${totalExtra.toLocaleString()}`} valueColor="text-red-500" />
-            )}
-            <div className="border-t-2 border-gray-200 pt-3 mt-2">
-              <div className="flex items-center justify-between">
-                <span className="text-base font-bold text-gray-900">ยอดเงินคืน</span>
-                <span className={`text-2xl font-bold ${refund >= 0 ? "text-green-600" : "text-red-500"}`}>
-                  ฿{refund.toLocaleString()}.00
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button onClick={onClose}
-              className="flex-1 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
-              ยกเลิก
-            </button>
-            <button
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-900 text-white text-sm rounded-xl hover:bg-gray-800 transition-colors">
-              <RiCheckboxCircleLine size={16} /> คืนเงินแจ้งออก
-            </button>
+              bold borderTop valueColor="text-blue-700" />
           </div>
         </div>
+
+        {/* รายการหักค่าเสียหาย */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-800">รายการหักค่าเสียหาย</span>
+            <button type="button" onClick={addDamage}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+              <RiAddLine size={13} /> เพิ่มรายการ
+            </button>
+          </div>
+          {damageItems.length === 0 ? (
+            <div className="border border-dashed border-gray-200 rounded-lg px-4 py-4 text-center">
+              <p className="text-xs text-gray-400">ไม่มีค่าเสียหาย</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {damageItems.map((item, i) => (
+                <div key={i} className="flex gap-2">
+                  <input defaultValue={item.name}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
+                  <input type="number" defaultValue={item.amount}
+                    className="w-24 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
+                  <button type="button" onClick={() => setDamageItems((p) => p.filter((_, j) => j !== i))}
+                    className="text-red-400 hover:text-red-600 px-1">
+                    <RiDeleteBinLine size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* รายการค่าใช้จ่ายเพิ่มเติม */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-800">รายการค่าใช้จ่ายเพิ่มเติม</span>
+            <button type="button" onClick={addExtra}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+              <RiAddLine size={13} /> เพิ่มรายการ
+            </button>
+          </div>
+          {extraItems.length === 0 ? (
+            <div className="border border-dashed border-gray-200 rounded-lg px-4 py-4 text-center">
+              <p className="text-xs text-gray-400">ไม่มีรายการค่าใช้จ่ายเพิ่มเติม</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {extraItems.map((item, i) => (
+                <div key={i} className="flex gap-2">
+                  <input defaultValue={item.name}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
+                  <input type="number" defaultValue={item.amount}
+                    className="w-24 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
+                  <button type="button" onClick={() => setExtraItems((p) => p.filter((_, j) => j !== i))}
+                    className="text-red-400 hover:text-red-600 px-1">
+                    <RiDeleteBinLine size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* สรุปยอดเงินคืน */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
+          <h4 className="text-sm font-bold text-gray-800 mb-3">สรุปยอดเงินคืน</h4>
+          <SummaryRow label="เงินมัดจำ" value={`฿${deposit.toLocaleString()}`} valueColor="text-green-600" bold />
+          <SummaryRow label="หักบิลเดือนล่าสุด" value={`-฿${totalBill.toLocaleString()}`} valueColor="text-red-500" />
+          {totalDamage > 0 && (
+            <SummaryRow label="หักค่าเสียหาย" value={`-฿${totalDamage.toLocaleString()}`} valueColor="text-red-500" />
+          )}
+          {totalExtra > 0 && (
+            <SummaryRow label="หักค่าใช้จ่ายเพิ่มเติม" value={`-฿${totalExtra.toLocaleString()}`} valueColor="text-red-500" />
+          )}
+          <div className="border-t-2 border-gray-200 pt-3 mt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-base font-bold text-gray-900">ยอดเงินคืน</span>
+              <span className={`text-2xl font-bold ${refund >= 0 ? "text-green-600" : "text-red-500"}`}>
+                ฿{refund.toLocaleString()}.00
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+            ยกเลิก
+          </button>
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm rounded-xl hover:bg-gray-800 transition-colors">
+            <RiCheckboxCircleLine size={16} /> ยืนยันแจ้งออก
+          </button>
+        </div>
+
       </div>
     </Modal>
   );
