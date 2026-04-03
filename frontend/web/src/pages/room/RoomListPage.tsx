@@ -6,8 +6,8 @@ import { FormInput } from "../../components/shared/FormInput";
 import { StatusBadge } from "../../components/shared/StatusBadge";
 import { SelectInput } from "../../components/shared/SelectInput";
 import { useToast } from "../../components/shared/Toast";
-import { RiAddLine, RiSearchLine, RiFilterLine, RiEditLine } from "react-icons/ri";
-import { getRooms, createRoom, updateRoom, type Room, type RoomStatus } from "../../api/room/roomApi";
+import { RiAddLine, RiSearchLine, RiFilterLine, RiEditLine, RiLineChartLine, RiDropLine, RiFlashlightLine } from "react-icons/ri";
+import { getRooms, createRoom, updateRoom, getMeterHistory, type Room, type RoomStatus, type MeterReading } from "../../api/room/roomApi";
 import { getRoomTypes, type RoomType } from "../../api/room/roomTypeApi";
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -16,14 +16,14 @@ const STATUS_FILTER_OPTIONS = [
   { value: "AVAILABLE", label: "ว่าง" },
   { value: "OCCUPIED", label: "มีผู้เช่า" },
   { value: "RESERVED", label: "จอง" },
-  { value: "PREPARING", label: "เตรียมห้อง" },
+  { value: "PREPARING", label: "เตรียมว่าง" },
   { value: "MAINTENANCE", label: "ปรับปรุง" },
 ];
 
 const STATUS_EDIT_OPTIONS = [
   { value: "AVAILABLE", label: "ว่าง" },
   { value: "RESERVED", label: "จอง" },
-  { value: "PREPARING", label: "เตรียมห้อง" },
+  { value: "PREPARING", label: "เตรียมว่าง" },
   { value: "MAINTENANCE", label: "ปรับปรุง" },
 ];
 
@@ -43,6 +43,7 @@ export default function RoomListPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [addModal, setAddModal] = useState(false);
   const [editRoom, setEditRoom] = useState<Room | null>(null);
+  const [meterRoom, setMeterRoom] = useState<Room | null>(null);
 
   const fetchAll = async () => {
     if (!propertyId) return;
@@ -61,11 +62,13 @@ export default function RoomListPage() {
 
   useEffect(() => { fetchAll(); }, [propertyId]);
 
-  const filtered = rooms.filter((r) => {
-    const matchSearch = r.roomNumber.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "ALL" || r.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const filtered = rooms
+    .filter((r) => {
+      const matchSearch = r.roomNumber.toLowerCase().includes(search.toLowerCase());
+      const matchStatus = statusFilter === "ALL" || r.status === statusFilter;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }));
 
   return (
     <div className="bg-purple-50 min-h-screen">
@@ -129,10 +132,16 @@ export default function RoomListPage() {
                     <td className="px-5 py-3.5"><StatusBadge status={room.status} /></td>
                     <td className="px-5 py-3.5 text-sm text-gray-600">{room.tenant ?? "-"}</td>
                     <td className="px-5 py-3.5">
-                      <button onClick={() => setEditRoom(room)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-                        <RiEditLine size={13} /> แก้ไข
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setEditRoom(room)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+                          <RiEditLine size={13} /> แก้ไข
+                        </button>
+                        <button onClick={() => setMeterRoom(room)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+                          <RiLineChartLine size={13} /> ประวัติมิเตอร์
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -151,7 +160,77 @@ export default function RoomListPage() {
           onClose={() => setEditRoom(null)}
           onSuccess={() => { setEditRoom(null); fetchAll(); toast("แก้ไขห้องสำเร็จ"); }} />
       )}
+
+      {meterRoom && propertyId && (
+        <MeterHistoryModal
+          room={meterRoom}
+          propertyId={propertyId}
+          onClose={() => setMeterRoom(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// ── Meter History Modal ────────────────────────────────────────────────────
+const THAI_MONTHS = [
+  "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค.",
+];
+
+function MeterHistoryModal({ room, propertyId, onClose }: {
+  room: Room; propertyId: string; onClose: () => void;
+}) {
+  const [readings, setReadings] = useState<MeterReading[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    getMeterHistory(propertyId, room.id)
+      .then(setReadings)
+      .finally(() => setIsLoading(false));
+  }, [propertyId, room.id]);
+
+  return (
+    <Modal open onOpenChange={(v) => { if (!v) onClose(); }}
+      title={`ประวัติมิเตอร์ — ห้อง ${room.roomNumber}`} size="lg">
+      {isLoading ? (
+        <div className="py-10 text-center text-sm text-gray-400">กำลังโหลด...</div>
+      ) : readings.length === 0 ? (
+        <div className="py-10 text-center text-sm text-gray-400">ยังไม่มีข้อมูลมิเตอร์</div>
+      ) : (
+        <div className="max-h-[65vh] overflow-y-auto rounded-xl border border-gray-200">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+              <tr>
+                {["เดือน/ปี", "มิเตอร์น้ำ", "มิเตอร์ไฟ"].map((h) => (
+                  <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {readings.map((r) => (
+                <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-5 py-3.5 text-sm font-medium text-gray-700">
+                    {THAI_MONTHS[r.month - 1]} {r.year + 543}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-sm text-blue-700">
+                      <RiDropLine size={13} /> {r.waterMeter.toLocaleString()} หน่วย
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-sm text-yellow-600">
+                      <RiFlashlightLine size={13} /> {r.electricMeter.toLocaleString()} หน่วย
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Modal>
   );
 }
 

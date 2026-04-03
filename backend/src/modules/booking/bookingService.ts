@@ -30,6 +30,8 @@ export const getBookingDetail = async (bookingId: string, propertyId: string) =>
     bookingDate: booking.createdAt,
     moveInDate: booking.moveInDate,
     bookingFee: booking.bookingFee,
+    advanceRent: booking.roomType.advanceRent,
+    securityDeposit: booking.roomType.securityDeposit,
     slipUrl: booking.slipUrl,
     status: booking.status,
   }

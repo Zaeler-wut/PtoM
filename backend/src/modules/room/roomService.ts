@@ -32,6 +32,19 @@ export const updateRoom = async (roomId: string, data: any) => {
   return repo.updateRoom(roomId, data)
 }
 
+export const getMeterHistory = async (roomId: string, propertyId: string) => {
+  const readings = await repo.getMeterHistory(roomId, propertyId)
+  if (!readings) throw new Error("Room not found")
+  return readings.map((r) => ({
+    id: r.id,
+    month: r.month,
+    year: r.year,
+    waterMeter: r.waterMeter,
+    electricMeter: r.electricMeter,
+    createdAt: r.createdAt,
+  }))
+}
+
 export const createRoom = async (propertyId: string, data: any) => {
   if (!data.roomNumber) throw new Error("roomNumber is required")
   if (!data.roomTypeId) throw new Error("roomTypeId is required")

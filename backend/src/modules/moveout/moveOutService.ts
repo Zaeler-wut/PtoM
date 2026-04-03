@@ -123,7 +123,7 @@ export const getMoveOutList = async (
     roomNumber: c.room.roomNumber,
     roomType: c.room.roomType.name,
     status: c.status,
-    moveOutDate: c.endDate,
+    moveOutDate: c.moveOutNoticeDate ?? c.endDate,
   }))
 
   let completed = bills.map((b) => ({
@@ -199,6 +199,10 @@ export const getMoveOutPreview = async (
   const month = moveOutDate.getMonth() + 1
   const year = moveOutDate.getFullYear()
 
+  // ── ดึงมิเตอร์: เดือนก่อน = start, เดือนปัจจุบัน = end ──
+  const prevMeter = await repo.getPreviousMeterReading(contract.roomId, month, year)
+  const currentMeter = await repo.getMeterReading(contract.roomId, month, year)
+
   const extraFees = rt.fees.map((f) => ({ title: f.title, amount: f.amount }))
 
   const bill = calculateFinalBill({
@@ -211,21 +215,19 @@ export const getMoveOutPreview = async (
     electricStart: data.electricStart,
     electricEnd: data.electricEnd,
     extraFees,
-    additionalItems: data.additionalItems ?? [],
+    additionalItems: [],   // รายการเพิ่มเติมไม่รวมในบิลเดือน แต่หักจากเงินประกันโดยตรง
     billingStartDay: data.billingStartDay,
     billingEndDay: data.billingEndDay,
     month,
     year,
   })
 
-  // ── ค่าเสียหาย ──
-  const damageTotal = (data.damageItems ?? []).reduce(
-    (sum, i) => sum + i.amount,
-    0
-  )
+  // ── ค่าเสียหาย + รายการเพิ่มเติม (หักจากเงินประกัน) ──
+  const damageTotal = (data.damageItems ?? []).reduce((sum, i) => sum + i.amount, 0)
+  const additionalTotal = (data.additionalItems ?? []).reduce((sum, i) => sum + i.amount, 0)
 
   // ── ยอดคืนเงิน ──
-  const refundAmount = securityDeposit - bill.total - damageTotal
+  const refundAmount = securityDeposit - bill.total - damageTotal - additionalTotal
 
   return {
     // ข้อมูลผู้เช่า
@@ -261,12 +263,21 @@ export const getMoveOutPreview = async (
     // ค่าเสียหาย
     damageItems: data.damageItems ?? [],
     damageTotal,
+    // รายการเพิ่มเติม (หักจากเงินประกัน ไม่ใช่บิลเดือน)
+    additionalItems: data.additionalItems ?? [],
+    additionalTotal,
     // สรุปเงินคืน
     summary: {
       securityDeposit,
       deductFinalBill: -bill.total,
       deductDamage: -damageTotal,
+      deductAdditional: -additionalTotal,
       refundAmount,
+    },
+    // มิเตอร์สำหรับ pre-fill: prevMeter = start, currentMeter = end
+    lastMeter: {
+      prev: prevMeter ? { waterMeter: prevMeter.waterMeter, electricMeter: prevMeter.electricMeter } : null,
+      current: currentMeter ? { waterMeter: currentMeter.waterMeter, electricMeter: currentMeter.electricMeter } : null,
     },
   }
 }
@@ -319,7 +330,7 @@ export const createMoveOutBill = async (
     electricStart: data.electricStart,
     electricEnd: data.electricEnd,
     extraFees,
-    additionalItems: data.additionalItems ?? [],
+    additionalItems: [],   // รายการเพิ่มเติมหักจากเงินประกัน ไม่รวมในบิลเดือน
     billingStartDay: data.billingStartDay,
     billingEndDay: data.billingEndDay,
     month,
@@ -327,13 +338,16 @@ export const createMoveOutBill = async (
   })
 
   const damageItems = data.damageItems ?? []
+  const additionalItems = data.additionalItems ?? []
   const damageTotal = damageItems.reduce((sum, i) => sum + i.amount, 0)
-  const refundAmount = contract.securityDeposit - bill.total - damageTotal
+  const additionalTotal = additionalItems.reduce((sum, i) => sum + i.amount, 0)
+  const refundAmount = contract.securityDeposit - bill.total - damageTotal - additionalTotal
 
-  // รวม items ทั้งหมด (บิลสุดท้าย + ค่าเสียหาย)
+  // รวม items ทั้งหมด (บิลสุดท้าย + ค่าเสียหาย + รายการเพิ่มเติม)
   const allItems = [
     ...bill.items,
     ...damageItems.map((i) => ({ title: `[ค่าเสียหาย] ${i.title}`, amount: i.amount })),
+    ...additionalItems.map((i) => ({ title: `[รายการเพิ่มเติม] ${i.title}`, amount: i.amount })),
   ]
 
   const moveOutBill = await repo.createMoveOutBill({
@@ -345,7 +359,7 @@ export const createMoveOutBill = async (
     waterEnd: data.waterEnd,
     electricStart: data.electricStart,
     electricEnd: data.electricEnd,
-    totalCharge: bill.total + damageTotal,
+    totalCharge: bill.total + damageTotal + additionalTotal,
     refundAmount,
     items: allItems,
   })
@@ -377,24 +391,37 @@ export const getMoveOutBillDetail = async (
   const waterUsed = Math.max(0, bill.waterEnd - bill.waterStart)
   const electricUsed = Math.max(0, bill.electricEnd - bill.electricStart)
 
-  // แยก items ออกเป็น บิลสุดท้าย vs ค่าเสียหาย
+  // แยก items ออกเป็น 3 กลุ่ม
   const finalBillItems = bill.items.filter(
-    (item) => !item.title.startsWith("[ค่าเสียหาย]")
+    (item) => !item.title.startsWith("[ค่าเสียหาย]") && !item.title.startsWith("[รายการเพิ่มเติม]")
   )
   const damageItems = bill.items
     .filter((item) => item.title.startsWith("[ค่าเสียหาย]"))
-    .map((item) => ({
-      title: item.title.replace("[ค่าเสียหาย] ", ""),
-      amount: item.amount,
-    }))
+    .map((item) => ({ title: item.title.replace("[ค่าเสียหาย] ", ""), amount: item.amount }))
+  const additionalItems = bill.items
+    .filter((item) => item.title.startsWith("[รายการเพิ่มเติม]"))
+    .map((item) => ({ title: item.title.replace("[รายการเพิ่มเติม] ", ""), amount: item.amount }))
 
   const finalBillTotal = finalBillItems.reduce((sum, i) => sum + i.amount, 0)
   const damageTotal = damageItems.reduce((sum, i) => sum + i.amount, 0)
+  const additionalTotal = additionalItems.reduce((sum, i) => sum + i.amount, 0)
+
+  const property = bill.room.property
 
   return {
     moveOutBillId: bill.id,
     status: bill.status,
     createdAt: bill.createdAt,
+    // ข้อมูล property
+    property: {
+      name: property.name,
+      address: property.address,
+      bankName: property.bankName,
+      bankAccount: property.bankAccount,
+      bankHolder: property.bankHolder,
+      paymentQrUrl: property.paymentQrUrl,
+      logoUrl: property.logoUrl,
+    },
     // ข้อมูลผู้เช่า
     tenant: {
       firstName: bill.user.firstName,
@@ -422,11 +449,17 @@ export const getMoveOutBillDetail = async (
       items: damageItems,
       total: damageTotal,
     },
+    // รายการเพิ่มเติม (หักจากเงินประกัน)
+    additional: {
+      items: additionalItems,
+      total: additionalTotal,
+    },
     // สรุปเงินคืน
     summary: {
       securityDeposit: bill.contract.securityDeposit,
       deductFinalBill: -finalBillTotal,
       deductDamage: -damageTotal,
+      deductAdditional: -additionalTotal,
       refundAmount: bill.refundAmount,
     },
   }

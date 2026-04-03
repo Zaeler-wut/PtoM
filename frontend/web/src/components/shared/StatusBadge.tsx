@@ -16,7 +16,7 @@ const STATUS_MAP: Record<Status, { label: string; className: string }> = {
   AVAILABLE:        { label: "ว่าง",            className: "bg-green-50 text-green-700 border-green-200" },
   RESERVED:         { label: "จอง",             className: "bg-blue-50 text-blue-700 border-blue-200" },
   OCCUPIED:         { label: "มีผู้เช่า",        className: "bg-purple-50 text-purple-700 border-purple-200" },
-  PREPARING:        { label: "เตรียมห้อง",       className: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  PREPARING:        { label: "เตรียมว่าง",       className: "bg-yellow-50 text-yellow-700 border-yellow-200" },
   MAINTENANCE:      { label: "ปรับปรุง",         className: "bg-red-50 text-red-700 border-red-200" },
   DRAFT:            { label: "ร่าง",            className: "bg-gray-50 text-gray-600 border-gray-200" },
   READY:            { label: "พร้อม",           className: "bg-blue-50 text-blue-700 border-blue-200" },

@@ -38,6 +38,16 @@ export const updateRoom = async (roomId: string, data: {
   })
 }
 
+export const getMeterHistory = async (roomId: string, propertyId: string) => {
+  // ตรวจสอบว่า room อยู่ใน property นี้
+  const room = await prisma.room.findFirst({ where: { id: roomId, propertyId } })
+  if (!room) return null
+  return prisma.meterReading.findMany({
+    where: { roomId },
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+  })
+}
+
 export const createRoom = async (data: {
   propertyId: string
   roomTypeId: string

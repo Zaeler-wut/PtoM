@@ -29,3 +29,15 @@ export const updateRoom = (
   data: { roomNumber?: string; roomTypeId?: string; floor?: number | null; status?: RoomStatus }
 ) =>
   api.put<Room>(ENDPOINTS.rooms.update(propertyId, roomId), data).then((r) => r.data)
+
+export interface MeterReading {
+  id: string
+  month: number
+  year: number
+  waterMeter: number
+  electricMeter: number
+  createdAt: string
+}
+
+export const getMeterHistory = (propertyId: string, roomId: string) =>
+  api.get<MeterReading[]>(ENDPOINTS.rooms.meterHistory(propertyId, roomId)).then((r) => r.data)

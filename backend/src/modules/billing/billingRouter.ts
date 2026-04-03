@@ -169,7 +169,30 @@ router.post(
 )
 
 // ─────────────────────────────────────────
-// 7. ตรวจสอบการชำระเงิน
+// 7. อัพโหลดสลิปแทนผู้เช่า (admin)
+// POST /properties/:propertyId/billing/bills/:billId/payment
+// ─────────────────────────────────────────
+
+router.post(
+  "/properties/:propertyId/billing/bills/:billId/payment",
+  authenticate,
+  authorize("ADMIN"),
+  authorizePropertyAdmin(),
+  async (req: any, res) => {
+    try {
+      res.json(await service.submitPaymentByAdmin(
+        req.params.billId,
+        req.params.propertyId,
+        req.body
+      ))
+    } catch (err: any) {
+      res.status(400).json({ error: err.message })
+    }
+  }
+)
+
+// ─────────────────────────────────────────
+// 8. ตรวจสอบการชำระเงิน
 // GET /properties/:propertyId/billing/payments?month=3&year=2026&status=VERIFYING
 // ─────────────────────────────────────────
 

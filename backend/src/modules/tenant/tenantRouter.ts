@@ -22,4 +22,12 @@ router.get("/properties/:propertyId/tenants/:contractId", authenticate, authoriz
   }
 })
 
+router.patch("/properties/:propertyId/tenants/:contractId", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
+  try {
+    res.json(await service.updateTenantPersonalInfo(req.params.contractId, req.params.propertyId, req.body))
+  } catch (err: any) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 export default router

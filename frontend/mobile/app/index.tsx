@@ -1,10 +1,5 @@
-import "./global.css"
-import { Text, View } from "react-native";
+import { Redirect } from "expo-router"
 
 export default function Index() {
-  return (
-    <View className="flex-1 justify-center items-center bg-blue-500">
-      <Text className="text-white text-lg font-bold">Hello Nativewind Tyscript!</Text>
-    </View>
-  );
+  return <Redirect href={"/(auth)/login" as any} />
 }

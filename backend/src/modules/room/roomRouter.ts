@@ -30,4 +30,12 @@ router.put("/properties/:propertyId/rooms/:roomId", authenticate, authorize("ADM
   }
 })
 
+router.get("/properties/:propertyId/rooms/:roomId/meters", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
+  try {
+    res.json(await service.getMeterHistory(req.params.roomId, req.params.propertyId))
+  } catch (err: any) {
+    res.status(404).json({ error: err.message })
+  }
+})
+
 export default router

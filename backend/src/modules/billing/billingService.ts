@@ -15,21 +15,40 @@ function getBillingDays(
   year: number
 ) {
   const daysInMonth = getDaysInMonth(month, year)
+
+  // Normalize เป็น local midnight เพื่อตัด time component ออก
+  const normalize = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+  const today = normalize(new Date())
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month - 1
+
   const monthStart = new Date(year, month - 1, 1)
   const monthEnd = new Date(year, month - 1, daysInMonth)
 
-  const effectiveStart =
-    contract.startDate > monthStart ? contract.startDate : monthStart
-  const effectiveEnd =
-    contract.endDate < monthEnd ? contract.endDate : monthEnd
+  // เดือนปัจจุบันที่ยังไม่จบ → ใช้วันนี้เป็น effective end
+  const billingEnd = isCurrentMonth && today < monthEnd ? today : monthEnd
 
-  const days =
-    Math.floor(
-      (effectiveEnd.getTime() - effectiveStart.getTime()) /
-        (1000 * 60 * 60 * 24)
-    ) + 1
+  const contractStart = normalize(contract.startDate)
+  const contractEnd = normalize(contract.endDate)
 
-  return { days, daysInMonth, isFullMonth: days === daysInMonth }
+  const effectiveStart = contractStart > monthStart ? contractStart : monthStart
+  const effectiveEnd = contractEnd < billingEnd ? contractEnd : billingEnd
+
+  if (effectiveEnd < effectiveStart) {
+    return { days: 0, daysInMonth, isFullMonth: false, startDay: 0, endDay: 0 }
+  }
+
+  const days = Math.round(
+    (effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24)
+  ) + 1
+
+  return {
+    days,
+    daysInMonth,
+    isFullMonth: days === daysInMonth,
+    startDay: effectiveStart.getDate(),
+    endDay: effectiveEnd.getDate(),
+  }
 }
 
 // คำนวณยอดบิลจากข้อมูลที่มี
@@ -44,13 +63,18 @@ function calculateBill(data: {
   additionalItems: { title: string; amount: number }[]
   days: number
   daysInMonth: number
+  isFullMonth: boolean
 }) {
-  const ratio = data.days / data.daysInMonth
+  // เต็มเดือน → คิดราคารายเดือนปกติ
+  // ไม่เต็มเดือน → เฉลี่ยรายวัน (นับรวมวันแรก)
+  const ratio = data.days / 30
 
-  const roomRent = Math.round(data.roomPrice * ratio)
-  const furnitureRent = data.furniturePrice
-    ? Math.round(data.furniturePrice * ratio)
-    : 0
+  const roomRent = data.isFullMonth
+    ? data.roomPrice
+    : Math.round(data.roomPrice * ratio)
+  const furnitureRent = data.isFullMonth
+    ? (data.furniturePrice ?? 0)
+    : data.furniturePrice ? Math.round(data.furniturePrice * ratio) : 0
   const waterCharge = Math.round(data.waterUsed * data.waterRate)
   const electricCharge = Math.round(data.electricUsed * data.electricRate)
   const extraTotal = data.extraFees.reduce((sum, f) => sum + f.amount, 0)
@@ -97,34 +121,23 @@ export const getBillingSummary = async (
   month: number,
   year: number
 ) => {
-  const contracts = await repo.getActiveContractsByProperty(propertyId)
+  // เดือนปัจจุบัน → active only | เดือนที่ผ่านมา → รวม ENDED (แสดงบิลย้อนหลัง)
+  const now = new Date()
+  const isCurrentMonth = now.getFullYear() === year && now.getMonth() === month - 1
+  const contracts = await repo.getContractsByPropertyForMonth(propertyId, month, year, isCurrentMonth)
   const existingBills = await repo.getBillsByProperty(propertyId, month, year)
+  const billMap = new Map(existingBills.map((b) => [b.contractId, b]))
 
-  const billMap = new Map(
-    existingBills.map((b) => [b.contractId, b])
-  )
-
-  let incomplete = 0
-  let sent = 0
-  let meterRecorded = 0
   let estimatedRevenue = 0
 
   const rows = await Promise.all(
     contracts.map(async (contract) => {
       const rt = contract.room.roomType
       const meter = await repo.getMeterReading(contract.roomId, month, year)
-      const prevMeter = await repo.getPreviousMeterReading(
-        contract.roomId,
-        month,
-        year
-      )
+      const prevMeter = await repo.getPreviousMeterReading(contract.roomId, month, year)
       const existingBill = billMap.get(contract.id)
 
-      const { days, daysInMonth, isFullMonth } = getBillingDays(
-        contract,
-        month,
-        year
-      )
+      const { days, daysInMonth, isFullMonth, startDay, endDay } = getBillingDays(contract, month, year)
 
       const waterPrev = prevMeter?.waterMeter ?? null
       const electricPrev = prevMeter?.electricMeter ?? null
@@ -132,23 +145,13 @@ export const getBillingSummary = async (
       const electricCurrent = meter?.electricMeter ?? null
 
       const waterUsed =
-        waterPrev !== null && waterCurrent !== null
-          ? Math.max(0, waterCurrent - waterPrev)
-          : null
+        waterPrev !== null && waterCurrent !== null ? Math.max(0, waterCurrent - waterPrev) : null
       const electricUsed =
-        electricPrev !== null && electricCurrent !== null
-          ? Math.max(0, electricCurrent - electricPrev)
-          : null
+        electricPrev !== null && electricCurrent !== null ? Math.max(0, electricCurrent - electricPrev) : null
 
       const hasMeter = waterCurrent !== null && electricCurrent !== null
-      if (hasMeter) meterRecorded++
 
-      // คำนวณยอด
-      const extraFees = rt.fees.map((f) => ({
-        title: f.title,
-        amount: f.amount,
-      }))
-
+      const extraFees = rt.fees.map((f) => ({ title: f.title, amount: f.amount }))
       const { total } = calculateBill({
         roomPrice: rt.roomPrice,
         furniturePrice: rt.furniturePrice,
@@ -160,23 +163,23 @@ export const getBillingSummary = async (
         additionalItems: [],
         days,
         daysInMonth,
+        isFullMonth,
       })
 
       estimatedRevenue += total
 
-      const billStatus = existingBill?.status ?? "DRAFT"
-      if (billStatus === "PENDING" || billStatus === "VERIFYING" || billStatus === "PAID") {
-        sent++
-      }
-      if (!hasMeter) incomplete++
+      // ไม่มี bill ใน DB → DRAFT (ยังไม่ครบ) หรือ READY (กรอกมิเตอร์ครบแล้ว พร้อมส่ง)
+      const billStatus = existingBill?.status ?? (hasMeter ? "READY" : "DRAFT")
 
       return {
         contractId: contract.id,
+        contractStatus: contract.status,
+        moveOutBillId: (contract as any).moveOutBills?.[0]?.id ?? null,
         roomNumber: contract.room.roomNumber,
         tenantName: `${contract.user.firstName} ${contract.user.lastName}`,
         billingCycle: isFullMonth
           ? `เต็มเดือน (${daysInMonth} วัน)`
-          : `${days} วัน`,
+          : `${startDay}-${endDay} (${days} วัน)`,
         waterPrev,
         waterCurrent,
         waterUsed,
@@ -190,19 +193,28 @@ export const getBillingSummary = async (
     })
   )
 
+  const sortedRows = rows.sort((a, b) =>
+    a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true })
+  )
+
+  // นับจาก rows ที่แสดงจริงในตาราง เพื่อให้การ์ดตรงกับตาราง
+  const incomplete = sortedRows.filter((r) => r.billStatus === "DRAFT").length
+  const meterRecorded = sortedRows.filter((r) => r.billStatus === "READY").length
+  const sent = sortedRows.filter(
+    (r) => r.billStatus === "PENDING" || r.billStatus === "VERIFYING" || r.billStatus === "PAID"
+  ).length
+  const meterTotal = sortedRows.length
+
   return {
     summary: {
       incomplete,
       sent,
       meterRecorded,
-      meterTotal: contracts.length,
-      meterPercent:
-        contracts.length > 0
-          ? Math.round((meterRecorded / contracts.length) * 100)
-          : 0,
+      meterTotal,
+      meterPercent: meterTotal > 0 ? Math.round((meterRecorded / meterTotal) * 100) : 0,
       estimatedRevenue,
     },
-    bills: rows,
+    bills: sortedRows,
   }
 }
 
@@ -261,7 +273,7 @@ export const getInvoice = async (
     year
   )
 
-  const { days, daysInMonth, isFullMonth } = getBillingDays(
+  const { days, daysInMonth, isFullMonth, startDay, endDay } = getBillingDays(
     contract,
     month,
     year
@@ -289,7 +301,7 @@ export const getInvoice = async (
       )
       .map((item) => ({ title: item.title, amount: item.amount })) ?? []
 
-  const { roomRent, furnitureRent, total, items } = calculateBill({
+  const { total, items } = calculateBill({
     roomPrice: rt.roomPrice,
     furniturePrice: rt.furniturePrice,
     waterRate: rt.waterRate,
@@ -300,13 +312,30 @@ export const getInvoice = async (
     additionalItems,
     days,
     daysInMonth,
+    isFullMonth,
   })
 
-  const monthNames = [
+  const monthNamesFull = [
     "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
     "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
     "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
   ]
+  const monthNamesShort = [
+    "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.",
+    "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.",
+    "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค.",
+  ]
+
+  const beYear = year + 543
+  const beYearShort = beYear % 100  // e.g. 2569 → 69
+
+  let billingPeriod: string
+  if (isFullMonth) {
+    billingPeriod = `${monthNamesFull[month - 1]} ${beYear}`
+  } else {
+    const monthShort = monthNamesShort[month - 1]
+    billingPeriod = `${startDay}-${endDay} ${monthShort} ${beYearShort}`
+  }
 
   return {
     // ข้อมูล property
@@ -323,8 +352,8 @@ export const getInvoice = async (
     roomNumber: contract.room.roomNumber,
     roomType: rt.name,
     tenantName: `${contract.user.firstName} ${contract.user.lastName}`,
-    billingPeriod: `${monthNames[month - 1]} ${year + 543}`,
-    billingCycle: isFullMonth ? `เต็มเดือน (${daysInMonth} วัน)` : `${days} วัน`,
+    billingPeriod,
+    billingCycle: isFullMonth ? `เต็มเดือน (${daysInMonth} วัน)` : `${startDay}-${endDay} (${days} วัน)`,
     // รายการ
     items,
     total,
@@ -352,6 +381,8 @@ export const updateMeter = async (
   data: {
     waterMeter: number
     electricMeter: number
+    waterPrev?: number
+    electricPrev?: number
     additionalItems?: { title: string; amount: number }[]
   }
 ) => {
@@ -362,11 +393,22 @@ export const updateMeter = async (
   if (data.electricMeter < 0)
     throw new Error("electricMeter must not be negative")
 
-  // บันทึก/อัพเดทมิเตอร์
+  // บันทึก/อัพเดทมิเตอร์เดือนปัจจุบัน
   await repo.upsertMeterReading(contract.roomId, month, year, {
     waterMeter: data.waterMeter,
     electricMeter: data.electricMeter,
   })
+
+  // บันทึก/อัพเดทมิเตอร์เดือนก่อนหน้า (ถ้ามี)
+  if (data.waterPrev != null || data.electricPrev != null) {
+    const prevMonth = month === 1 ? 12 : month - 1
+    const prevYear = month === 1 ? year - 1 : year
+    const prevReading = await repo.getPreviousMeterReading(contract.roomId, month, year)
+    await repo.upsertMeterReading(contract.roomId, prevMonth, prevYear, {
+      waterMeter: data.waterPrev ?? prevReading?.waterMeter ?? 0,
+      electricMeter: data.electricPrev ?? prevReading?.electricMeter ?? 0,
+    })
+  }
 
   // ถ้ามี bill อยู่แล้ว → อัพเดท items ใหม่
   const existingBill = await repo.getBillByContract(contractId, month, year)
@@ -422,7 +464,7 @@ export const sendBill = async (
 
   if (!meter) throw new Error("Meter reading not found for this month")
 
-  const { days, daysInMonth } = getBillingDays(contract, month, year)
+  const { days, daysInMonth, isFullMonth } = getBillingDays(contract, month, year)
 
   const waterUsed = Math.max(
     0,
@@ -458,6 +500,7 @@ export const sendBill = async (
     additionalItems,
     days,
     daysInMonth,
+    isFullMonth,
   })
 
   if (existingBill) {
@@ -508,7 +551,33 @@ export const sendAllBills = async (
 }
 
 // ─────────────────────────────────────────
-// 7. ตรวจสอบการชำระเงิน
+// 7. อัพโหลดสลิปแทนผู้เช่า (admin)
+// ─────────────────────────────────────────
+
+export const submitPaymentByAdmin = async (
+  billId: string,
+  propertyId: string,
+  data: { slipUrl?: string }
+) => {
+  const { prisma } = await import("../../lib/prisma")
+  const bill = await prisma.bill.findFirst({
+    where: { id: billId, room: { propertyId } },
+  })
+  if (!bill) throw new Error("Bill not found")
+  if (bill.status !== "PENDING") throw new Error("Bill is not in PENDING status")
+
+  await repo.createPaymentForBill({
+    billId,
+    userId: bill.userId,
+    amount: bill.total,
+    slipUrl: data.slipUrl,
+  })
+  await repo.updateBillStatus(billId, "VERIFYING")
+  return { success: true }
+}
+
+// ─────────────────────────────────────────
+// 8. ตรวจสอบการชำระเงิน
 // ─────────────────────────────────────────
 
 export const getPayments = async (
@@ -517,13 +586,24 @@ export const getPayments = async (
   year: number,
   statusFilter?: string
 ) => {
-  const payments = await repo.getPaymentsByProperty(propertyId, month, year)
+  const [payments, pendingBills] = await Promise.all([
+    repo.getPaymentsByProperty(propertyId, month, year),
+    repo.getPendingBillsWithoutPayment(propertyId, month, year),
+  ])
 
-  const filtered = statusFilter
-    ? payments.filter((p) => p.status === statusFilter)
-    : payments
+  // บิล PENDING (ส่งแล้ว รอผู้เช่าชำระ) → แสดงเป็นแถวใน payment tab
+  const pendingRows = pendingBills.map((b) => ({
+    paymentId: b.id,          // ใช้ billId แทน (ไม่มี payment record)
+    roomNumber: b.room.roomNumber,
+    tenantName: `${b.user.firstName} ${b.user.lastName}`,
+    amount: b.total,
+    slipUrl: null,
+    paidAt: null,
+    status: "PENDING" as const,
+  }))
 
-  return filtered.map((p) => ({
+  // Payment records (ผู้เช่าส่งสลิปแล้ว)
+  const paymentRows = payments.map((p) => ({
     paymentId: p.id,
     roomNumber: p.bill.room.roomNumber,
     tenantName: `${p.user.firstName} ${p.user.lastName}`,
@@ -532,6 +612,10 @@ export const getPayments = async (
     paidAt: p.createdAt,
     status: p.status,
   }))
+
+  const all = [...pendingRows, ...paymentRows]
+  const filtered = statusFilter ? all.filter((p) => p.status === statusFilter) : all
+  return filtered
 }
 
 // ─────────────────────────────────────────

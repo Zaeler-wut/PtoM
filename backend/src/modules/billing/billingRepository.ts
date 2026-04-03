@@ -1,6 +1,6 @@
 import { prisma } from "../../lib/prisma"
 
-// ดึงสัญญา active ในเดือนนั้นๆ
+// ดึงสัญญา active ในเดือนนั้นๆ (สำหรับ sendAll ที่ต้องการเฉพาะปัจจุบัน)
 export const getActiveContractsByProperty = async (propertyId: string) => {
   return prisma.contract.findMany({
     where: {
@@ -10,6 +10,33 @@ export const getActiveContractsByProperty = async (propertyId: string) => {
     include: {
       user: true,
       room: { include: { roomType: { include: { fees: true } } } },
+    },
+  })
+}
+
+// ดึงสัญญาที่ overlap กับเดือน/ปีที่ระบุ
+// activeOnly=true  → เฉพาะ ACTIVE/MOVE_OUT_NOTICE (ใช้กับเดือนปัจจุบัน)
+// activeOnly=false → รวม ENDED ด้วย (ใช้กับเดือนที่ผ่านมา เพื่อแสดงบิลย้อนหลัง)
+export const getContractsByPropertyForMonth = async (
+  propertyId: string,
+  month: number,
+  year: number,
+  activeOnly: boolean
+) => {
+  const monthStart = new Date(year, month - 1, 1)
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const monthEnd = new Date(year, month - 1, daysInMonth, 23, 59, 59)
+  return prisma.contract.findMany({
+    where: {
+      room: { propertyId },
+      startDate: { lte: monthEnd },
+      endDate: { gte: monthStart },
+      ...(activeOnly ? { status: { in: ["ACTIVE", "MOVE_OUT_NOTICE"] } } : {}),
+    },
+    include: {
+      user: true,
+      room: { include: { roomType: { include: { fees: true } } } },
+      moveOutBills: { select: { id: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
   })
 }
@@ -127,6 +154,23 @@ export const createBill = async (data: {
   })
 }
 
+export const createPaymentForBill = async (data: {
+  billId: string
+  userId: string
+  amount: number
+  slipUrl?: string
+}) => {
+  return prisma.payment.create({
+    data: {
+      billId: data.billId,
+      userId: data.userId,
+      amount: data.amount,
+      slipUrl: data.slipUrl ?? null,
+      status: "VERIFYING",
+    },
+  })
+}
+
 export const updateBillStatus = async (billId: string, status: string) => {
   return prisma.bill.update({
     where: { id: billId },
@@ -162,6 +206,28 @@ export const getPaymentsByProperty = async (
           room: true,
         },
       },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
+// บิลที่ส่งแล้ว (PENDING) แต่ยังไม่มีการชำระเงิน
+export const getPendingBillsWithoutPayment = async (
+  propertyId: string,
+  month: number,
+  year: number
+) => {
+  return prisma.bill.findMany({
+    where: {
+      month,
+      year,
+      room: { propertyId },
+      status: "PENDING",
+      payments: { none: {} },
+    },
+    include: {
+      user: true,
+      room: true,
     },
     orderBy: { createdAt: "desc" },
   })

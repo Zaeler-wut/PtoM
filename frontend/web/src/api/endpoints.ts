@@ -31,11 +31,13 @@ export const ENDPOINTS = {
     list: (propertyId: string) => `/admin/properties/${propertyId}/rooms`,
     create: (propertyId: string) => `/admin/properties/${propertyId}/rooms`,
     update: (propertyId: string, roomId: string) => `/admin/properties/${propertyId}/rooms/${roomId}`,
+    meterHistory: (propertyId: string, roomId: string) => `/admin/properties/${propertyId}/rooms/${roomId}/meters`,
   },
 
   tenants: {
     list: (propertyId: string) => `/admin/properties/${propertyId}/tenants`,
     detail: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/tenants/${contractId}`,
+    update: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/tenants/${contractId}`,
   },
 
   bookings: {
@@ -62,6 +64,7 @@ export const ENDPOINTS = {
     updateMeter: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/billing/${contractId}/meter`,
     sendBill: (propertyId: string, contractId: string) => `/admin/properties/${propertyId}/billing/${contractId}/send`,
     sendAll: (propertyId: string) => `/admin/properties/${propertyId}/billing/send-all`,
+    submitPayment: (propertyId: string, billId: string) => `/admin/properties/${propertyId}/billing/bills/${billId}/payment`,
     payments: (propertyId: string) => `/admin/properties/${propertyId}/billing/payments`,
     paymentDetail: (propertyId: string, paymentId: string) => `/admin/properties/${propertyId}/billing/payments/${paymentId}`,
     confirmPayment: (propertyId: string, paymentId: string) => `/admin/properties/${propertyId}/billing/payments/${paymentId}/confirm`,

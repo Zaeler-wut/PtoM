@@ -118,9 +118,13 @@ export const getContractDetail = async (contractId: string, propertyId: string) 
       id: c.user.id,
       firstName: c.user.firstName,
       lastName: c.user.lastName,
+      email: c.user.email,
       phone: c.user.phone,
+      lineId: c.user.lineId,
+      address: c.user.address,
     },
     room: {
+      roomId: c.room.id,
       roomNumber: c.room.roomNumber,
       roomType: rt.name,
       roomPrice: rt.roomPrice,
@@ -158,6 +162,10 @@ export const updateContract = async (
     moveOutNoticeDate?: string
     firstName?: string
     lastName?: string
+    email?: string
+    phone?: string
+    lineId?: string
+    address?: string
     roomId?: string
     startDate?: string
     endDate?: string
@@ -168,16 +176,19 @@ export const updateContract = async (
   if (!c) throw new Error("Contract not found")
 
   if (data.status) {
-    const allowedTransitions: Record<string, string[]> = {
-      ACTIVE: ["MOVE_OUT_NOTICE", "ENDED"],
-      MOVE_OUT_NOTICE: ["ACTIVE", "ENDED"],
-      ENDED: [],
-    }
-    if (!allowedTransitions[c.status]?.includes(data.status)) {
-      throw new Error(`Cannot change status from ${c.status} to ${data.status}`)
-    }
-    if (data.status === "MOVE_OUT_NOTICE" && !data.moveOutNoticeDate) {
-      throw new Error("moveOutNoticeDate is required when status is MOVE_OUT_NOTICE")
+    const isStatusChanging = data.status !== c.status
+    if (isStatusChanging) {
+      const allowedTransitions: Record<string, string[]> = {
+        ACTIVE: ["MOVE_OUT_NOTICE", "ENDED"],
+        MOVE_OUT_NOTICE: ["ACTIVE", "ENDED"],
+        ENDED: [],
+      }
+      if (!allowedTransitions[c.status]?.includes(data.status)) {
+        throw new Error(`Cannot change status from ${c.status} to ${data.status}`)
+      }
+      if (data.status === "MOVE_OUT_NOTICE" && !data.moveOutNoticeDate) {
+        throw new Error("moveOutNoticeDate is required when status is MOVE_OUT_NOTICE")
+      }
     }
   }
 
@@ -195,13 +206,14 @@ export const updateContract = async (
     throw new Error("endDate must be after startDate")
   }
 
-  if (data.firstName || data.lastName) {
-    await repo.updateUserInfo(c.userId, {
-      firstName: data.firstName?.trim() ?? c.user.firstName,
-      lastName: data.lastName?.trim() ?? c.user.lastName,
-      email: c.user.email,
-    })
-  }
+  await repo.updateUserInfo(c.userId, {
+    firstName: data.firstName?.trim() ?? c.user.firstName,
+    lastName: data.lastName?.trim() ?? c.user.lastName,
+    email: data.email?.trim() ?? c.user.email,
+    phone: data.phone?.trim() ?? c.user.phone ?? undefined,
+    lineId: data.lineId?.trim() ?? c.user.lineId ?? undefined,
+    address: data.address?.trim() ?? c.user.address ?? undefined,
+  })
 
   if (Array.isArray(data.vehicles)) {
     await repo.replaceVehicles(c.userId, data.vehicles)

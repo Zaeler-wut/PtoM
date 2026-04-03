@@ -14,6 +14,27 @@ export const getTenants = async (propertyId: string) => {
   }))
 }
 
+export const updateTenantPersonalInfo = async (
+  contractId: string,
+  propertyId: string,
+  data: {
+    firstName: string
+    lastName: string
+    email: string
+    phone?: string
+    lineId?: string
+    vehicles?: { plateNumber: string; type: string }[]
+  }
+) => {
+  const contract = await repo.getTenantDetail(contractId, propertyId)
+  if (!contract) throw new Error("Tenant not found")
+  await repo.updateUserInfo(contract.user.id, data)
+  if (Array.isArray(data.vehicles)) {
+    await repo.replaceVehicles(contract.user.id, data.vehicles)
+  }
+  return { success: true }
+}
+
 export const getTenantDetail = async (contractId: string, propertyId: string) => {
   const contract = await repo.getTenantDetail(contractId, propertyId)
   if (!contract) throw new Error("Tenant not found")

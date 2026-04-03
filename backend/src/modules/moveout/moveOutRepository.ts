@@ -149,7 +149,7 @@ export const getMoveOutBillById = async (
     where: { id: moveOutBillId, room: { propertyId } },
     include: {
       user: true,
-      room: { include: { roomType: true } },
+      room: { include: { roomType: true, property: true } },
       contract: true,
       items: true,
     },
