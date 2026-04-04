@@ -2,12 +2,12 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -15,24 +15,9 @@ import { router } from 'expo-router'
 
 import FormInput from '../../components/form/FormInput'
 import Button from '../../components/ui/Button'
-
-// TODO: เพิ่ม registerThunk ใน authSlice แล้ว import มาใช้แทน
-// import { useAppDispatch, useAppSelector } from '@/store/hooks'
-// import { registerThunk, clearError } from '@/store/slices/authSlice'
-
-// ─── Schema ────────────────────────────────────────────────────────────────
-const registerSchema = z
-  .object({
-    firstName: z.string().min(1, 'กรุณากรอกชื่อ'),
-    lastName: z.string().min(1, 'กรุณากรอกนามสกุล'),
-    email: z.string().email('อีเมลไม่ถูกต้อง'),
-    password: z.string().min(8, 'รหัสผ่านอย่างน้อย 8 ตัวอักษร'),
-    confirmPassword: z.string(),
-  })
-  .refine(data => data.password === data.confirmPassword, {
-    message: 'รหัสผ่านไม่ตรงกัน',
-    path: ['confirmPassword'],
-  })
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { registerThunk } from '../../store/slices/authSlice'
+import { registerSchema } from '../../schemas/auth.schema'
 
 type RegisterForm = z.infer<typeof registerSchema>
 
@@ -51,14 +36,12 @@ const strengthColor = ['#22222C', '#F87171', '#FBBF24', '#34D399', '#34D399']
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export default function RegisterScreen() {
-  // TODO: uncomment เมื่อมี registerThunk
-  // const dispatch = useAppDispatch()
-  // const { isLoading, error } = useAppSelector(state => state.auth)
+  const dispatch = useAppDispatch()
+  const { isLoading, error } = useAppSelector(state => state.auth)
 
   const {
     control,
     handleSubmit,
-    formState: { isSubmitting },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -75,14 +58,10 @@ export default function RegisterScreen() {
 
   const onSubmit = async (data: RegisterForm) => {
     const { confirmPassword, ...payload } = data
-
-    // TODO: แทนที่ด้วย dispatch(registerThunk(payload)) เมื่อมี thunk
-    // const result = await dispatch(registerThunk(payload))
-    // if (registerThunk.fulfilled.match(result)) {
-    //   router.replace('/(app)/properties')
-    // }
-
-    console.log('register payload:', payload)
+    const result = await dispatch(registerThunk(payload))
+    if (registerThunk.fulfilled.match(result)) {
+      router.replace('/(app)/properties' as any)
+    }
   }
 
   return (
@@ -173,10 +152,12 @@ export default function RegisterScreen() {
             secureToggle
           />
 
+          {error && <Text style={styles.apiError}>{error}</Text>}
+
           <Button
             label="สร้างบัญชี"
             onPress={handleSubmit(onSubmit)}
-            loading={isSubmitting}
+            loading={isLoading}
             style={{ marginTop: 4 }}
           />
 
@@ -228,6 +209,7 @@ const styles = StyleSheet.create({
     marginTop: -8, marginBottom: 14, paddingHorizontal: 6,
   },
   strengthBar: { flex: 1, height: 3, borderRadius: 2 },
+  apiError: { fontSize: 12, color: '#F87171', textAlign: 'center', marginBottom: 12 },
   terms: { fontSize: 11, color: '#8B8A9B', textAlign: 'center', marginTop: 10, lineHeight: 18 },
   termsLink: { color: '#A78BFA' },
   switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 12 },

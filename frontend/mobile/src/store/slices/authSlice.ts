@@ -1,8 +1,22 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 import * as SecureStore from "expo-secure-store"
-import { authApi } from "../../api/auth/authApi"
+import { authApi, type RegisterPayload } from "../../api/auth/authApi"
 import { setAccessToken } from "../../api/axiosInstance"
 import type { AuthState, LoginPayload } from "../../types/auth.types"
+
+export const registerThunk = createAsyncThunk(
+  "auth/register",
+  async (data: RegisterPayload, { rejectWithValue }) => {
+    try {
+      const res = await authApi.register(data)
+      setAccessToken(res.accessToken)
+      await SecureStore.setItemAsync("refreshToken", res.refreshToken)
+      return res
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? "สมัครสมาชิกไม่สำเร็จ")
+    }
+  }
+)
 
 export const loginThunk = createAsyncThunk(
   "auth/login",
@@ -52,6 +66,7 @@ const initialState: AuthState = {
   user: null,
   accessToken: null,
   isLoading: false,
+  isRestored: false,
   error: null,
 }
 
@@ -62,6 +77,19 @@ const authSlice = createSlice({
     clearError: (state) => { state.error = null },
   },
   extraReducers: (builder) => {
+    builder
+      .addCase(registerThunk.pending, (state) => { state.isLoading = true; state.error = null })
+      .addCase(registerThunk.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.accessToken = action.payload.accessToken
+        state.user = action.payload.user
+        state.isRestored = true
+      })
+      .addCase(registerThunk.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload as string
+      })
+
     builder
       .addCase(loginThunk.pending, (state) => { state.isLoading = true; state.error = null })
       .addCase(loginThunk.fulfilled, (state, action) => {
@@ -78,10 +106,12 @@ const authSlice = createSlice({
       .addCase(restoreAuthThunk.fulfilled, (state, action) => {
         state.accessToken = action.payload.accessToken
         state.user = action.payload.user
+        state.isRestored = true
       })
       .addCase(restoreAuthThunk.rejected, (state) => {
         state.user = null
         state.accessToken = null
+        state.isRestored = true
       })
 
     builder

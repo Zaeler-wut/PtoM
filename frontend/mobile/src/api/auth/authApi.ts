@@ -2,7 +2,19 @@ import api from "../axiosInstance"
 import { ENDPOINTS } from "../endpoints"
 import type { LoginPayload, LoginResponse, AuthUser } from "../../types/auth.types"
 
+export interface RegisterPayload {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+}
+
 export const authApi = {
+  register: async (data: RegisterPayload): Promise<LoginResponse> => {
+    const res = await api.post(ENDPOINTS.auth.register, data)
+    return res.data
+  },
+
   login: async (data: LoginPayload): Promise<LoginResponse> => {
     const res = await api.post(ENDPOINTS.auth.login, data)
     return res.data

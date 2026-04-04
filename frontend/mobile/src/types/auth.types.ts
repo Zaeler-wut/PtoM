@@ -20,5 +20,6 @@ export interface AuthState {
   user: AuthUser | null
   accessToken: string | null
   isLoading: boolean
+  isRestored: boolean
   error: string | null
 }
