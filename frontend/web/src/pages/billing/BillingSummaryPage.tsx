@@ -547,7 +547,7 @@ export default function BillingPage() {
 
                           {/* ยอดรวม */}
                           <td className="px-3 py-3 text-left whitespace-nowrap">
-                            <span className="text-sm font-bold text-gray-900">{fmtCurrency(bill.total)}</span>
+                            <span className="text-sm font-semibold text-gray-900">{fmtCurrency(bill.total)}</span>
                           </td>
 
                           {/* สถานะ */}

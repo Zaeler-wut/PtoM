@@ -77,22 +77,22 @@ export default function RoomListPage() {
           <div className="px-6 py-4">
             <p className="text-base font-semibold text-gray-700">รายการห้องทั้งหมด ({filtered.length})</p>
           </div>
-          <div className="overflow-x-auto mx-7 mb-4 rounded-xl border border-gray-300 mt-3">
+          <div className="mx-6 mb-5 mt-4 rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full">
-              <thead className="border-b border-gray-300">
+              <thead className="bg-gray-50/50 border-b border-gray-200">
                 <tr>
                   {["เลขห้อง", "ชั้น", "ประเภทห้อง", "ราคา/เดือน", "สถานะ", "ชื่อ", "จัดการ"].map((h) => (
                     <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-300">
+              <tbody className="divide-y divide-gray-100">
                 {filtered.map((room) => (
                   <tr key={room.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3.5 text-sm font-medium text-gray-600">{room.roomNumber}</td>
+                    <td className="px-5 py-3.5 text-sm font-semibold text-gray-600">{room.roomNumber}</td>
                     <td className="px-5 py-3.5 text-sm text-gray-600">{room.floor}</td>
                     <td className="px-5 py-3.5 text-sm text-gray-600">{room.roomType.name}</td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">{room.price}</td>
+                    <td className="px-5 py-3.5 text-sm font-semibold text-gray-900">{room.price}</td>
                     <td className="px-5 py-3.5"><StatusBadge status={room.status} /></td>
                     <td className="px-5 py-3.5 text-sm text-gray-900">-</td>
                     <td className="px-5 py-3.5">
