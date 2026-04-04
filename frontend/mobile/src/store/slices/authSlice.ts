@@ -9,11 +9,14 @@ export const registerThunk = createAsyncThunk(
   async (data: RegisterPayload, { rejectWithValue }) => {
     try {
       const res = await authApi.register(data)
+      console.log("Register response:", JSON.stringify(res))
+      if (!res.accessToken || !res.refreshToken) throw new Error("Invalid response from server")
       setAccessToken(res.accessToken)
       await SecureStore.setItemAsync("refreshToken", res.refreshToken)
       return res
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error ?? "สมัครสมาชิกไม่สำเร็จ")
+      console.error("Register error:", JSON.stringify(err?.response?.data), err?.message, err?.code)
+      return rejectWithValue(err.response?.data?.error ?? err?.message ?? "สมัครสมาชิกไม่สำเร็จ")
     }
   }
 )
@@ -39,6 +42,7 @@ export const restoreAuthThunk = createAsyncThunk(
       const refreshToken = await SecureStore.getItemAsync("refreshToken")
       if (!refreshToken) throw new Error("No token")
       const res = await authApi.refresh(refreshToken)
+      if (!res.accessToken) throw new Error("No token")
       setAccessToken(res.accessToken)
       await SecureStore.setItemAsync("refreshToken", res.refreshToken)
       const user = await authApi.me()
@@ -51,7 +55,7 @@ export const restoreAuthThunk = createAsyncThunk(
 
 export const logoutThunk = createAsyncThunk(
   "auth/logout",
-  async (_, { rejectWithValue }) => {
+  async () => {
     try {
       await authApi.logout()
     } catch {}
@@ -75,6 +79,10 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     clearError: (state) => { state.error = null },
+    clearAuth: (state) => {
+      state.user = null
+      state.accessToken = null
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -122,5 +130,5 @@ const authSlice = createSlice({
   },
 })
 
-export const { clearError } = authSlice.actions
+export const { clearError, clearAuth } = authSlice.actions
 export default authSlice.reducer

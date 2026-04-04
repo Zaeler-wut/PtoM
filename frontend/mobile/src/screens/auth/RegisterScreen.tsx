@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useForm, useWatch } from 'react-hook-form'
@@ -16,7 +17,7 @@ import { router } from 'expo-router'
 import FormInput from '../../components/form/FormInput'
 import Button from '../../components/ui/Button'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { registerThunk } from '../../store/slices/authSlice'
+import { registerThunk, clearAuth } from '../../store/slices/authSlice'
 import { registerSchema } from '../../schemas/auth.schema'
 
 type RegisterForm = z.infer<typeof registerSchema>
@@ -60,7 +61,10 @@ export default function RegisterScreen() {
     const { confirmPassword, ...payload } = data
     const result = await dispatch(registerThunk(payload))
     if (registerThunk.fulfilled.match(result)) {
-      router.replace('/(app)/properties' as any)
+      dispatch(clearAuth())
+      Alert.alert('สมัครสมาชิกสำเร็จ', 'ยินดีต้อนรับสู่ระบบ', [
+        { text: 'ตกลง', onPress: () => router.replace('/(auth)/login' as any) },
+      ])
     }
   }
 

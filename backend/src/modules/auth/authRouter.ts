@@ -1,6 +1,8 @@
 import express from "express"
 import rateLimit from "express-rate-limit"
 import * as service from "./authService"
+import { authenticate, type AuthenticatedRequest } from "../../middlewares/authenticate"
+import * as repo from "./authRepository"
 
 const router = express.Router()
 
@@ -38,6 +40,7 @@ function resolveStatus(message: string): number {
 router.post("/register", async (req, res) => {
   try {
     const result = await service.register(req.body)
+    res.cookie("refreshToken", result.refreshToken, REFRESH_COOKIE_OPTIONS)
     res.status(201).json(result)
   } catch (err: any) {
     res.status(resolveStatus(err.message)).json({ error: err.message })
@@ -71,6 +74,22 @@ router.post("/refresh-token", async (req, res) => {
     // ไม่ clearCookie เพราะ token rotation revoke server-side แล้ว
     // การ clear cookie จะทำให้ request คู่ขนานที่สำเร็จถูกลบทับ
     res.json({ accessToken: null })
+  }
+})
+
+router.get("/me", authenticate, async (req, res) => {
+  try {
+    const userId = (req as AuthenticatedRequest).user.id
+    const user = await repo.findById(userId)
+    if (!user) return res.status(404).json({ error: "User not found" })
+    res.json({
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      role: user.role,
+    })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
   }
 })
 

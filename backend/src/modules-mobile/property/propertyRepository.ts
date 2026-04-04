@@ -1,4 +1,4 @@
-import { prisma } from "../../../lib/prisma"
+import { prisma } from "../../lib/prisma"
 
 // ดึง property ทั้งหมดพร้อมข้อมูลที่ต้องใช้กรอง
 export const getAllProperties = async () => {

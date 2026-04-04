@@ -57,11 +57,19 @@ export const register = async (data: RegisterInput): Promise<RegisterResponse> =
     role: "USER",
   })
 
+  const accessToken = generateAccessToken(user)
+  const refreshToken = generateRefreshToken(user)
+  await repo.saveRefreshToken(user.id, refreshToken)
+
   return {
-    id: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      role: user.role,
+    },
   }
 }
 

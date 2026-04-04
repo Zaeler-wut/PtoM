@@ -13,10 +13,14 @@ export interface LoginInput {
 
 
 export interface RegisterResponse {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
+  accessToken: string
+  refreshToken: string
+  user: {
+    id: string
+    name: string
+    email: string
+    role: string
+  }
 }
 
 export interface AuthResponse {
