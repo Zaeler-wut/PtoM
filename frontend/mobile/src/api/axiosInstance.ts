@@ -2,7 +2,7 @@ import axios from "axios"
 import * as SecureStore from "expo-secure-store"
 import { router } from "expo-router"
 
-const BASE_URL = "http://192.168.1.44:8080/api"
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api"
 
 const api = axios.create({
   baseURL: BASE_URL,
