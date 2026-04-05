@@ -1,7 +1,3 @@
-// ─────────────────────────────────────────
-// PROFILE
-// ─────────────────────────────────────────
-
 export interface ProfileResponse {
   // ข้อมูลส่วนตัว
   id: string
@@ -33,10 +29,6 @@ export interface BillSummary {
   paid: number            // ชำระแล้ว
   unpaid: number          // รอชำระ (PENDING + VERIFYING)
 }
-
-// ─────────────────────────────────────────
-// UPDATE PROFILE
-// ─────────────────────────────────────────
 
 export interface UpdateProfileInput {
   firstName: string

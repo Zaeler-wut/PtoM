@@ -4,10 +4,8 @@ import * as service from "./bookingService"
 
 const router = express.Router()
 
-// ─────────────────────────────────────────
 // 1. ดึงข้อมูลสำหรับหน้าจอง (ไม่ต้อง login)
 // GET /properties/:propertyId/room-types/:roomTypeId/booking-info
-// ─────────────────────────────────────────
 
 router.get(
   "/properties/:propertyId/room-types/:roomTypeId/booking-info",
@@ -25,11 +23,9 @@ router.get(
   }
 )
 
-// ─────────────────────────────────────────
 // 2. สร้าง booking + อัพโหลดสลิป (ต้อง login)
 // POST /properties/:propertyId/room-types/:roomTypeId/bookings
 // body: { moveInDate, slipUrl }
-// ─────────────────────────────────────────
 
 router.post(
   "/properties/:propertyId/room-types/:roomTypeId/bookings",
@@ -49,10 +45,8 @@ router.post(
   }
 )
 
-// ─────────────────────────────────────────
 // 3. ยกเลิก booking (ต้อง login)
 // DELETE /bookings/:bookingId
-// ─────────────────────────────────────────
 
 router.delete(
   "/bookings/:bookingId",
@@ -71,10 +65,8 @@ router.delete(
 )
 
 
-// ─────────────────────────────────────────
 // 4. ดึงรายการจองของฉัน (แท็บการจอง)
 // GET /bookings
-// ─────────────────────────────────────────
 
 router.get("/bookings", authenticate, async (req: any, res) => {
   try {
@@ -86,4 +78,3 @@ router.get("/bookings", authenticate, async (req: any, res) => {
 })
 
 export default router
-

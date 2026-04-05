@@ -14,11 +14,8 @@ function parseMonthYear(query: any): { month: number; year: number } {
   return { month, year }
 }
 
-// ─────────────────────────────────────────
 // 1. Summary cards + ตาราง
 // GET /properties/:propertyId/billing/summary?month=3&year=2026
-// ─────────────────────────────────────────
-
 router.get(
   "/properties/:propertyId/billing/summary",
   authenticate,
@@ -40,10 +37,8 @@ router.get(
   }
 )
 
-// ─────────────────────────────────────────
 // 2. ค่าบริการคงที่ของห้อง
 // GET /properties/:propertyId/billing/:contractId/fees
-// ─────────────────────────────────────────
 
 router.get(
   "/properties/:propertyId/billing/:contractId/fees",
@@ -63,10 +58,8 @@ router.get(
   }
 )
 
-// ─────────────────────────────────────────
 // 3. ใบแจ้งหนี้ (realtime)
 // GET /properties/:propertyId/billing/:contractId/invoice?month=3&year=2026
-// ─────────────────────────────────────────
 
 router.get(
   "/properties/:propertyId/billing/:contractId/invoice",
@@ -89,12 +82,9 @@ router.get(
   }
 )
 
-// ─────────────────────────────────────────
 // 4. แก้ไขมิเตอร์ + รายการเพิ่มเติม
 // PUT /properties/:propertyId/billing/:contractId/meter?month=3&year=2026
 // body: { waterMeter, electricMeter, additionalItems? }
-// ─────────────────────────────────────────
-
 router.put(
   "/properties/:propertyId/billing/:contractId/meter",
   authenticate,
@@ -117,11 +107,8 @@ router.put(
   }
 )
 
-// ─────────────────────────────────────────
 // 5. ส่งบิลห้องเดียว
 // POST /properties/:propertyId/billing/:contractId/send?month=3&year=2026
-// ─────────────────────────────────────────
-
 router.post(
   "/properties/:propertyId/billing/:contractId/send",
   authenticate,
@@ -143,11 +130,8 @@ router.post(
   }
 )
 
-// ─────────────────────────────────────────
 // 6. ส่งบิลทั้งหมด
 // POST /properties/:propertyId/billing/send-all?month=3&year=2026
-// ─────────────────────────────────────────
-
 router.post(
   "/properties/:propertyId/billing/send-all",
   authenticate,
@@ -168,11 +152,8 @@ router.post(
   }
 )
 
-// ─────────────────────────────────────────
-// 7. อัพโหลดสลิปแทนผู้เช่า (admin)
+// อัพโหลดสลิปแทนผู้เช่า (admin)
 // POST /properties/:propertyId/billing/bills/:billId/payment
-// ─────────────────────────────────────────
-
 router.post(
   "/properties/:propertyId/billing/bills/:billId/payment",
   authenticate,
@@ -191,11 +172,8 @@ router.post(
   }
 )
 
-// ─────────────────────────────────────────
-// 8. ตรวจสอบการชำระเงิน
+// ตรวจสอบการชำระเงิน
 // GET /properties/:propertyId/billing/payments?month=3&year=2026&status=VERIFYING
-// ─────────────────────────────────────────
-
 router.get(
   "/properties/:propertyId/billing/payments",
   authenticate,
@@ -217,11 +195,8 @@ router.get(
   }
 )
 
-// ─────────────────────────────────────────
-// 8. ดูข้อมูล payment
+// ดูข้อมูล payment
 // GET /properties/:propertyId/billing/payments/:paymentId
-// ─────────────────────────────────────────
-
 router.get(
   "/properties/:propertyId/billing/payments/:paymentId",
   authenticate,
@@ -240,11 +215,8 @@ router.get(
   }
 )
 
-// ─────────────────────────────────────────
-// 9. ยืนยันการชำระเงิน → PAID
+// ยืนยันการชำระเงิน → PAID
 // PATCH /properties/:propertyId/billing/payments/:paymentId/confirm
-// ─────────────────────────────────────────
-
 router.patch(
   "/properties/:propertyId/billing/payments/:paymentId/confirm",
   authenticate,
@@ -264,11 +236,8 @@ router.patch(
   }
 )
 
-// ─────────────────────────────────────────
-// 10. ปฏิเสธการชำระเงิน → กลับเป็น PENDING
+// ปฏิเสธการชำระเงิน → กลับเป็น PENDING
 // PATCH /properties/:propertyId/billing/payments/:paymentId/reject
-// ─────────────────────────────────────────
-
 router.patch(
   "/properties/:propertyId/billing/payments/:paymentId/reject",
   authenticate,

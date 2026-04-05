@@ -1,9 +1,5 @@
 import * as repo from "./billingRepository"
 
-// ─────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────
-
 function getDaysInMonth(month: number, year: number) {
   return new Date(year, month, 0).getDate()
 }
@@ -25,7 +21,7 @@ function getBillingDays(
   const monthStart = new Date(year, month - 1, 1)
   const monthEnd = new Date(year, month - 1, daysInMonth)
 
-  // เดือนปัจจุบันที่ยังไม่จบ → ใช้วันนี้เป็น effective end
+  // เดือนปัจจุบันที่ยังไม่จบ  ใช้วันนี้เป็น effective end
   const billingEnd = isCurrentMonth && today < monthEnd ? today : monthEnd
 
   const contractStart = normalize(contract.startDate)
@@ -65,8 +61,8 @@ function calculateBill(data: {
   daysInMonth: number
   isFullMonth: boolean
 }) {
-  // เต็มเดือน → คิดราคารายเดือนปกติ
-  // ไม่เต็มเดือน → เฉลี่ยรายวัน (นับรวมวันแรก)
+  // เต็มเดือน  คิดราคารายเดือนปกติ
+  // ไม่เต็มเดือน เฉลี่ยรายวัน (นับรวมวันแรก)
   const ratio = data.days / 30
 
   const roomRent = data.isFullMonth
@@ -112,16 +108,13 @@ function calculateBill(data: {
   return { roomRent, furnitureRent, total, items }
 }
 
-// ─────────────────────────────────────────
-// 1. SUMMARY — cards + ตาราง
-// ─────────────────────────────────────────
 
 export const getBillingSummary = async (
   propertyId: string,
   month: number,
   year: number
 ) => {
-  // เดือนปัจจุบัน → active only | เดือนที่ผ่านมา → รวม ENDED (แสดงบิลย้อนหลัง)
+  // เดือนปัจจุบัน  active only | เดือนที่ผ่านมา  รวม ENDED (แสดงบิลย้อนหลัง)
   const now = new Date()
   const isCurrentMonth = now.getFullYear() === year && now.getMonth() === month - 1
   const contracts = await repo.getContractsByPropertyForMonth(propertyId, month, year, isCurrentMonth)
@@ -168,7 +161,7 @@ export const getBillingSummary = async (
 
       estimatedRevenue += total
 
-      // ไม่มี bill ใน DB → DRAFT (ยังไม่ครบ) หรือ READY (กรอกมิเตอร์ครบแล้ว พร้อมส่ง)
+      // ไม่มี bill ใน DB  DRAFT (ยังไม่ครบ) หรือ READY (กรอกมิเตอร์ครบแล้ว พร้อมส่ง)
       const billStatus = existingBill?.status ?? (hasMeter ? "READY" : "DRAFT")
 
       return {
@@ -218,9 +211,9 @@ export const getBillingSummary = async (
   }
 }
 
-// ─────────────────────────────────────────
+
 // 2. ค่าบริการคงที่ของห้อง
-// ─────────────────────────────────────────
+
 
 export const getRoomFees = async (contractId: string, propertyId: string) => {
   const contract = await prisma_getContract(contractId, propertyId)
@@ -249,9 +242,9 @@ async function prisma_getContract(contractId: string, propertyId: string) {
   })
 }
 
-// ─────────────────────────────────────────
+
 // 3. ใบแจ้งหนี้ (realtime ไม่ต้องรอส่งบิล)
-// ─────────────────────────────────────────
+
 
 export const getInvoice = async (
   contractId: string,
@@ -327,7 +320,7 @@ export const getInvoice = async (
   ]
 
   const beYear = year + 543
-  const beYearShort = beYear % 100  // e.g. 2569 → 69
+  const beYearShort = beYear % 100  // e.g. 2569  69
 
   let billingPeriod: string
   if (isFullMonth) {
@@ -369,9 +362,9 @@ export const getInvoice = async (
   }
 }
 
-// ─────────────────────────────────────────
+
 // 4. แก้ไขมิเตอร์ + รายการเพิ่มเติม
-// ─────────────────────────────────────────
+
 
 export const updateMeter = async (
   contractId: string,
@@ -410,7 +403,7 @@ export const updateMeter = async (
     })
   }
 
-  // ถ้ามี bill อยู่แล้ว → อัพเดท items ใหม่
+  // ถ้ามี bill อยู่แล้ว  อัพเดท items ใหม่
   const existingBill = await repo.getBillByContract(contractId, month, year)
   if (existingBill && Array.isArray(data.additionalItems)) {
     const { prisma } = await import("../../lib/prisma")
@@ -441,9 +434,9 @@ export const updateMeter = async (
   return { message: "Meter updated" }
 }
 
-// ─────────────────────────────────────────
+
 // 5. ส่งบิลห้องเดียว
-// ─────────────────────────────────────────
+
 
 export const sendBill = async (
   contractId: string,
@@ -504,7 +497,7 @@ export const sendBill = async (
   })
 
   if (existingBill) {
-    // มีบิลแล้ว → เปลี่ยนเป็น PENDING
+    // มีบิลแล้ว  เปลี่ยนเป็น PENDING
     await repo.updateBillStatus(existingBill.id, "PENDING")
     return { billId: existingBill.id, total, status: "PENDING" }
   }
@@ -525,9 +518,9 @@ export const sendBill = async (
   return { billId: bill.id, total, status: "PENDING" }
 }
 
-// ─────────────────────────────────────────
+
 // 6. ส่งบิลทั้งหมด
-// ─────────────────────────────────────────
+
 
 export const sendAllBills = async (
   propertyId: string,
@@ -550,9 +543,9 @@ export const sendAllBills = async (
   }
 }
 
-// ─────────────────────────────────────────
+
 // 7. อัพโหลดสลิปแทนผู้เช่า (admin)
-// ─────────────────────────────────────────
+
 
 export const submitPaymentByAdmin = async (
   billId: string,
@@ -576,9 +569,9 @@ export const submitPaymentByAdmin = async (
   return { success: true }
 }
 
-// ─────────────────────────────────────────
+
 // 8. ตรวจสอบการชำระเงิน
-// ─────────────────────────────────────────
+
 
 export const getPayments = async (
   propertyId: string,
@@ -591,7 +584,7 @@ export const getPayments = async (
     repo.getPendingBillsWithoutPayment(propertyId, month, year),
   ])
 
-  // บิล PENDING (ส่งแล้ว รอผู้เช่าชำระ) → แสดงเป็นแถวใน payment tab
+  // บิล PENDING (ส่งแล้ว รอผู้เช่าชำระ)  แสดงเป็นแถวใน payment tab
   const pendingRows = pendingBills.map((b) => ({
     paymentId: b.id,          // ใช้ billId แทน (ไม่มี payment record)
     roomNumber: b.room.roomNumber,
@@ -618,9 +611,9 @@ export const getPayments = async (
   return filtered
 }
 
-// ─────────────────────────────────────────
+
 // 8. ดูข้อมูล payment (popup)
-// ─────────────────────────────────────────
+
 
 export const getPaymentDetail = async (
   paymentId: string,
@@ -647,9 +640,9 @@ export const getPaymentDetail = async (
   }
 }
 
-// ─────────────────────────────────────────
-// 9. ยืนยันการชำระเงิน → PAID
-// ─────────────────────────────────────────
+
+// 9. ยืนยันการชำระเงิน  PAID
+
 
 export const confirmPayment = async (
   paymentId: string,
@@ -665,18 +658,18 @@ export const confirmPayment = async (
     throw new Error("Payment is not in VERIFYING status")
   }
 
-  // อัพเดท payment → CONFIRMED พร้อม verifiedAt และ verifiedBy
+  // อัพเดท payment  CONFIRMED พร้อม verifiedAt และ verifiedBy
   await repo.updatePaymentConfirmed(paymentId, adminEmail)
 
-  // อัพเดท bill → PAID
+  // อัพเดท bill  PAID
   await repo.updateBillStatus(payment.billId, "PAID")
 
   return { message: "Payment confirmed" }
 }
 
-// ─────────────────────────────────────────
-// 10. ปฏิเสธการชำระเงิน → กลับเป็น PENDING
-// ─────────────────────────────────────────
+
+// 10. ปฏิเสธการชำระเงิน  กลับเป็น PENDING
+
 
 export const rejectPayment = async (
   paymentId: string,
@@ -691,10 +684,10 @@ export const rejectPayment = async (
     throw new Error("Payment is not in VERIFYING status")
   }
 
-  // อัพเดท payment → REJECTED
+  // อัพเดท payment  REJECTED
   await repo.updatePaymentStatus(paymentId, "REJECTED")
 
-  // อัพเดท bill → กลับเป็น PENDING
+  // อัพเดท bill  กลับเป็น PENDING
   await repo.updateBillStatus(payment.billId, "PENDING")
 
   return { message: "Payment rejected" }

@@ -1,7 +1,7 @@
 import * as repo from "./propertyRepository"
 import type { PropertySearchQuery, PropertyCardItem, PropertyDetailMobile } from "./propertyModel"
 
-// คำนวณระยะห่างระหว่างสองจุด GPS (Haversine formula) หน่วย กม.
+// คำนวณระยะห่างระหว่างสองจุด GPS หน่วย กม.
 function calculateDistance(
   lat1: number, lng1: number,
   lat2: number, lng2: number

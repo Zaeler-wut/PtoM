@@ -65,9 +65,9 @@ export const getBookingForContract = async (bookingId: string, propertyId: strin
   }
 }
 
-// ─────────────────────────────────────────
+
 // ROOM ASSIGNMENT
-// ─────────────────────────────────────────
+
 
 export const assignRoom = async (bookingId: string, propertyId: string) => {
   const booking = await repo.getBookingDetail(bookingId, propertyId)

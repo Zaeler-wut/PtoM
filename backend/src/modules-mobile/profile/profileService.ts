@@ -5,9 +5,6 @@ import type {
   UpdateProfileResponse,
 } from "./profileModel"
 
-// ─────────────────────────────────────────
-// 1. ดึงข้อมูลโปรไฟล์
-// ─────────────────────────────────────────
 
 export const getProfile = async (userId: string): Promise<ProfileResponse> => {
   const user = await repo.getUserProfile(userId)
@@ -50,10 +47,6 @@ export const getProfile = async (userId: string): Promise<ProfileResponse> => {
     billSummary: { total, paid, unpaid },
   }
 }
-
-// ─────────────────────────────────────────
-// 2. แก้ไขข้อมูลส่วนตัว
-// ─────────────────────────────────────────
 
 export const updateProfile = async (
   userId: string,

@@ -15,8 +15,8 @@ export const getActiveContractsByProperty = async (propertyId: string) => {
 }
 
 // ดึงสัญญาที่ overlap กับเดือน/ปีที่ระบุ
-// activeOnly=true  → เฉพาะ ACTIVE/MOVE_OUT_NOTICE (ใช้กับเดือนปัจจุบัน)
-// activeOnly=false → รวม ENDED ด้วย (ใช้กับเดือนที่ผ่านมา เพื่อแสดงบิลย้อนหลัง)
+// activeOnly=true  เฉพาะ ACTIVE/MOVE_OUT_NOTICE (ใช้กับเดือนปัจจุบัน)
+// activeOnly=false  รวม ENDED ด้วย (ใช้กับเดือนที่ผ่านมา เพื่อแสดงบิลย้อนหลัง)
 export const getContractsByPropertyForMonth = async (
   propertyId: string,
   month: number,

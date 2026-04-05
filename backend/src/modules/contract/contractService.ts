@@ -1,8 +1,6 @@
 import * as repo from "./contractRepository"
 
-// ─────────────────────────────────────────
 // HELPERS
-// ─────────────────────────────────────────
 
 function buildAddress(data: {
   houseNumber?: string
@@ -72,9 +70,9 @@ async function resolveUser(data: {
   return user
 }
 
-// ─────────────────────────────────────────
+
 // CONTRACT LIST / DETAIL
-// ─────────────────────────────────────────
+
 
 export const getContracts = async (propertyId: string) => {
   const contracts = await repo.getContractsByProperty(propertyId)
@@ -252,9 +250,9 @@ export const updateContract = async (
   }
 }
 
-// ─────────────────────────────────────────
+
 // CREATE CONTRACT
-// ─────────────────────────────────────────
+
 
 export const createOnlineContract = async (propertyId: string, data: any) => {
   const { startDate, endDate } = validateContractData(data)

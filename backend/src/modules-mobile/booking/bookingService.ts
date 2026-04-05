@@ -6,9 +6,7 @@ import type {
   CancelBookingResponse,
 } from "./bookingModel"
 
-// ─────────────────────────────────────────
 // 1. ดึงข้อมูลสำหรับหน้าจอง
-// ─────────────────────────────────────────
 
 export const getBookingInfo = async (
   propertyId: string,
@@ -40,9 +38,7 @@ export const getBookingInfo = async (
   }
 }
 
-// ─────────────────────────────────────────
 // 2. สร้าง booking
-// ─────────────────────────────────────────
 
 export const createBooking = async (
   propertyId: string,
@@ -98,9 +94,7 @@ export const createBooking = async (
   }
 }
 
-// ─────────────────────────────────────────
 // 3. ยกเลิก booking
-// ─────────────────────────────────────────
 
 export const cancelBooking = async (
   bookingId: string,
@@ -130,9 +124,7 @@ export const cancelBooking = async (
   }
 }
 
-// ─────────────────────────────────────────
 // 4. ดึงรายการจองของฉัน (แท็บการจอง)
-// ─────────────────────────────────────────
 
 export const getMyBookings = async (userId: string) => {
   const bookings = await repo.getMyBookings(userId)

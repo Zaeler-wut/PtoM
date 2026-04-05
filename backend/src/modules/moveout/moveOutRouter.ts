@@ -6,10 +6,8 @@ import * as service from "./moveOutService"
 
 const router = express.Router()
 
-// ─────────────────────────────────────────
 // 1. รายการแจ้งย้ายออก + บิลที่ออกแล้ว
 // GET /properties/:propertyId/move-out
-// ─────────────────────────────────────────
 
 router.get(
   "/properties/:propertyId/move-out",
@@ -29,13 +27,11 @@ router.get(
   }
 )
 
-// ─────────────────────────────────────────
 // 2. Preview — คำนวณยอดก่อนสร้างบิล (realtime)
 // POST /properties/:propertyId/move-out/:contractId/preview
 // body: { moveOutDate, billingStartDay, billingEndDay,
 //         waterStart, waterEnd, electricStart, electricEnd,
 //         damageItems?, additionalItems? }
-// ─────────────────────────────────────────
 
 router.post(
   "/properties/:propertyId/move-out/:contractId/preview",
@@ -57,13 +53,11 @@ router.post(
   }
 )
 
-// ─────────────────────────────────────────
 // 3. สร้างบิลแจ้งออก
 // POST /properties/:propertyId/move-out/:contractId/bill
 // body: { moveOutDate, billingStartDay, billingEndDay,
 //         waterStart, waterEnd, electricStart, electricEnd,
 //         damageItems?, additionalItems? }
-// ─────────────────────────────────────────
 
 router.post(
   "/properties/:propertyId/move-out/:contractId/bill",
@@ -85,10 +79,8 @@ router.post(
   }
 )
 
-// ─────────────────────────────────────────
 // 4. ดูรายละเอียดบิลแจ้งออก
 // GET /properties/:propertyId/move-out/bills/:moveOutBillId
-// ─────────────────────────────────────────
 
 router.get(
   "/properties/:propertyId/move-out/bills/:moveOutBillId",

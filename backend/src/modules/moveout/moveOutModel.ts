@@ -1,7 +1,4 @@
-// ─────────────────────────────────────────
 // LIST
-// ─────────────────────────────────────────
-
 export interface MoveOutListResponse {
   pending: MoveOutPendingItem[]
   completed: MoveOutCompletedItem[]
@@ -29,9 +26,9 @@ export interface MoveOutCompletedItem {
   status: MoveOutBillStatus
 }
 
-// ─────────────────────────────────────────
+
 // PREVIEW / CREATE INPUT
-// ─────────────────────────────────────────
+
 
 export interface MoveOutBillInput {
   moveOutDate: string
@@ -45,9 +42,9 @@ export interface MoveOutBillInput {
   additionalItems?: { title: string; amount: number }[]
 }
 
-// ─────────────────────────────────────────
+
 // PREVIEW RESPONSE
-// ─────────────────────────────────────────
+
 
 export interface MoveOutPreviewResponse {
   tenant: {
@@ -87,9 +84,9 @@ export interface MoveOutSummary {
   refundAmount: number
 }
 
-// ─────────────────────────────────────────
+
 // DETAIL RESPONSE
-// ─────────────────────────────────────────
+
 
 export interface MoveOutBillDetail {
   moveOutBillId: string

@@ -1,9 +1,5 @@
 import { prisma } from "../../lib/prisma"
 
-// ─────────────────────────────────────────
-// PROPERTIES
-// ─────────────────────────────────────────
-
 export const getAdminProperties = async (userId: string) => {
   return prisma.propertyAdmin.findMany({
     where: { userId },
@@ -97,9 +93,7 @@ export const setCoverImage = async (propertyId: string, imageId: string) => {
   return prisma.propertyImage.update({ where: { id: imageId }, data: { isCover: true } })
 }
 
-// ─────────────────────────────────────────
 // ROOM TYPES
-// ─────────────────────────────────────────
 
 export const createRoomType = async (propertyId: string, data: any) => {
   const facilities = await Promise.all(

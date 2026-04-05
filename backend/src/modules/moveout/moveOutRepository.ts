@@ -1,8 +1,6 @@
 import { prisma } from "../../lib/prisma"
 
-// ─────────────────────────────────────────
 // รายการแจ้งย้ายออก (MOVE_OUT_NOTICE)
-// ─────────────────────────────────────────
 
 export const getMoveOutContracts = async (propertyId: string) => {
   return prisma.contract.findMany({
@@ -18,9 +16,7 @@ export const getMoveOutContracts = async (propertyId: string) => {
   })
 }
 
-// ─────────────────────────────────────────
 // บิลแจ้งออกที่ออกแล้ว
-// ─────────────────────────────────────────
 
 export const getMoveOutBillsByProperty = async (propertyId: string) => {
   return prisma.moveOutBill.findMany({
@@ -35,9 +31,7 @@ export const getMoveOutBillsByProperty = async (propertyId: string) => {
   })
 }
 
-// ─────────────────────────────────────────
 // Contract พร้อม roomType สำหรับคำนวณ
-// ─────────────────────────────────────────
 
 export const getContractForMoveOut = async (
   contractId: string,
@@ -56,9 +50,7 @@ export const getContractForMoveOut = async (
   })
 }
 
-// ─────────────────────────────────────────
 // MeterReading
-// ─────────────────────────────────────────
 
 export const getMeterReading = async (
   roomId: string,
@@ -84,9 +76,7 @@ export const getPreviousMeterReading = async (
   })
 }
 
-// ─────────────────────────────────────────
 // บิลรายเดือนล่าสุด (สำหรับดึงมิเตอร์เดิม)
-// ─────────────────────────────────────────
 
 export const getLatestBill = async (contractId: string) => {
   return prisma.bill.findFirst({
@@ -96,9 +86,7 @@ export const getLatestBill = async (contractId: string) => {
   })
 }
 
-// ─────────────────────────────────────────
 // สร้าง MoveOutBill
-// ─────────────────────────────────────────
 
 export const createMoveOutBill = async (data: {
   contractId: string
@@ -137,9 +125,7 @@ export const createMoveOutBill = async (data: {
   })
 }
 
-// ─────────────────────────────────────────
 // ดูรายละเอียด MoveOutBill
-// ─────────────────────────────────────────
 
 export const getMoveOutBillById = async (
   moveOutBillId: string,
@@ -156,9 +142,7 @@ export const getMoveOutBillById = async (
   })
 }
 
-// ─────────────────────────────────────────
 // อัพเดท contract และห้องหลังแจ้งออก
-// ─────────────────────────────────────────
 
 export const endContract = async (contractId: string) => {
   return prisma.contract.update({

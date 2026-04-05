@@ -2,7 +2,7 @@ import { Request, Response } from "express"
 import { v2 as cloudinary } from "cloudinary"
 import { v4 as uuidv4 } from "uuid"
 
-// ── Cloudinary config ──
+//  Cloudinary config 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -11,7 +11,7 @@ cloudinary.config({
 
 const FOLDER = process.env.CLOUDINARY_FOLDER ?? "ptom"
 
-// ── Helper: upload buffer → Cloudinary ──
+//  Helper: upload buffer  Cloudinary 
 async function uploadToCloudinary(
   buffer: Buffer,
   mimetype: string,
@@ -38,7 +38,7 @@ async function uploadToCloudinary(
   })
 }
 
-// ── POST /api/upload/image ──
+//  POST /api/upload/image 
 export const uploadImage = async (req: Request, res: Response) => {
   const file = req.file
   if (!file) throw new Error("No file uploaded")
@@ -49,7 +49,7 @@ export const uploadImage = async (req: Request, res: Response) => {
   res.json({ url })
 }
 
-// ── POST /api/upload/images ──
+//  POST /api/upload/images 
 export const uploadImages = async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[]
   if (!files || files.length === 0) throw new Error("No files uploaded")

@@ -17,7 +17,7 @@ const upload = multer({
   },
 })
 
-// ── อัพโหลดรูปภาพเดียว ──
+//  อัพโหลดรูปภาพเดียว 
 // POST /api/upload/image
 // form-data: file (image)
 router.post(
@@ -27,7 +27,7 @@ router.post(
   asyncHandler(UploadService.uploadImage)
 )
 
-// ── อัพโหลดหลายรูป ──
+//  อัพโหลดหลายรูป 
 // POST /api/upload/images
 // form-data: files[] (images)
 router.post(

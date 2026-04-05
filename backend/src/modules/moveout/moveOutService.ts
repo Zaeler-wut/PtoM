@@ -1,9 +1,5 @@
 import * as repo from "./moveOutRepository"
 
-// ─────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────
-
 function getDaysInMonth(month: number, year: number) {
   return new Date(year, month, 0).getDate()
 }
@@ -24,7 +20,6 @@ function checkContractCompletion(
     expectedMonths: contractTermMonths,
   }
 }
-
 
 // คำนวณบิลสุดท้าย (คิดตามรายวัน)
 function calculateFinalBill(data: {
@@ -102,9 +97,7 @@ function calculateFinalBill(data: {
   }
 }
 
-// ─────────────────────────────────────────
 // 1. รายการแจ้งย้ายออก + บิลที่ออกแล้ว
-// ─────────────────────────────────────────
 
 export const getMoveOutList = async (
   propertyId: string,
@@ -155,9 +148,7 @@ export const getMoveOutList = async (
   return { pending, completed }
 }
 
-// ─────────────────────────────────────────
 // 2. Preview — คำนวณยอดก่อนสร้างบิล
-// ─────────────────────────────────────────
 
 export const getMoveOutPreview = async (
   contractId: string,
@@ -282,9 +273,7 @@ export const getMoveOutPreview = async (
   }
 }
 
-// ─────────────────────────────────────────
 // 3. สร้างบิลแจ้งออก
-// ─────────────────────────────────────────
 
 export const createMoveOutBill = async (
   contractId: string,
@@ -376,9 +365,7 @@ export const createMoveOutBill = async (
   }
 }
 
-// ─────────────────────────────────────────
 // 4. ดูรายละเอียดบิลแจ้งออก
-// ─────────────────────────────────────────
 
 export const getMoveOutBillDetail = async (
   moveOutBillId: string,

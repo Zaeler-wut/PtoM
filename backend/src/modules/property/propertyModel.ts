@@ -1,7 +1,4 @@
-// ─────────────────────────────────────────
 // PROPERTY
-// ─────────────────────────────────────────
-
 export interface PropertyListItem {
   id: string
   name: string
@@ -59,9 +56,7 @@ export interface UpdatePropertyInput extends Partial<CreatePropertyInput> {
   facilities?: string[]
 }
 
-// ─────────────────────────────────────────
 // ROOM TYPE
-// ─────────────────────────────────────────
 
 export interface RoomTypeDetail {
   id: string
