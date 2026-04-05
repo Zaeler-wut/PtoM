@@ -9,13 +9,11 @@ export const registerThunk = createAsyncThunk(
   async (data: RegisterPayload, { rejectWithValue }) => {
     try {
       const res = await authApi.register(data)
-      console.log("Register response:", JSON.stringify(res))
       if (!res.accessToken || !res.refreshToken) throw new Error("Invalid response from server")
       setAccessToken(res.accessToken)
       await SecureStore.setItemAsync("refreshToken", res.refreshToken)
       return res
     } catch (err: any) {
-      console.error("Register error:", JSON.stringify(err?.response?.data), err?.message, err?.code)
       return rejectWithValue(err.response?.data?.error ?? err?.message ?? "สมัครสมาชิกไม่สำเร็จ")
     }
   }
@@ -30,7 +28,7 @@ export const loginThunk = createAsyncThunk(
       await SecureStore.setItemAsync("refreshToken", res.refreshToken)
       return res
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error ?? "เข้าสู่ระบบไม่สำเร็จ")
+      return rejectWithValue("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
     }
   }
 )
