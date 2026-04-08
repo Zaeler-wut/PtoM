@@ -11,7 +11,10 @@ export const loginThunk = createAsyncThunk(
       setAccessToken(res.accessToken)  // เก็บใน memory
       return res
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.error ?? "Login failed")
+      const msg = err.response?.data?.error ?? ""
+      if (msg === "User account is inactive") return rejectWithValue("บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
+      if (msg === "Invalid credentials") return rejectWithValue("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
+      return rejectWithValue(msg || "เกิดข้อผิดพลาด กรุณาลองใหม่")
     }
   }
 )

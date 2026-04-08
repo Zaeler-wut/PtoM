@@ -27,7 +27,7 @@ export interface AuthUser {
   id: string
   name: string
   email: string
-  role: "USER" | "ADMIN"
+  role: "USER" | "ADMIN" | "SUPERADMIN"
 }
 
 export interface AuthState {

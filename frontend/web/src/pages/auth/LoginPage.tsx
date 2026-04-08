@@ -19,7 +19,8 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginPayload) => {
     const result = await dispatch(loginThunk(data));
     if (loginThunk.fulfilled.match(result)) {
-      navigate("/properties", { replace: true });
+      const role = result.payload.user.role;
+      navigate(role === "SUPERADMIN" ? "/superadmin/dashboard" : "/properties", { replace: true });
     }
   };
 

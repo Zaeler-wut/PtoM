@@ -120,7 +120,7 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {/* Edit Name Modal */}
-      <Modal visible={editVisible} transparent animationType="slide">
+      <Modal visible={editVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
@@ -251,11 +251,13 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    paddingTop: 60,
+    paddingHorizontal: 20,
   },
   modalSheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
+    backgroundColor: '#fff', borderRadius: 24,
+    padding: 24, paddingBottom: 28,
   },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between',

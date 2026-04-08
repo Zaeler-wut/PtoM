@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
 
 interface FormInputProps<T extends FieldValues> extends TextInputProps {
@@ -53,7 +54,11 @@ export default function FormInput<T extends FieldValues>({
                 style={styles.eyeBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={styles.eyeIcon}>{isSecure ? '🙈' : '👁'}</Text>
+                <Ionicons
+                  name={isSecure ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color="#8B8A9B"
+                />
               </TouchableOpacity>
             )}
           </View>

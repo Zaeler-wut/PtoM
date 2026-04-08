@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom"
 import ProtectedRoute from "./ProtectedRoute"
+import SuperAdminRoute from "./SuperAdminRoute"
 import LoginPage from "../pages/auth/LoginPage"
 import PropertyListPage from "../pages/property/PropertyListPage"
 import DashboardPage from "../pages/dashboard/DashboardPage"
@@ -12,12 +13,17 @@ import ContractListPage from "../pages/contract/ContractListPage"
 import BillingPage from "../pages/billing/BillingPage"
 import BookingListPage from "../pages/booking/BookingListPage"
 import MainLayout from "../components/layout/MainLayout"
+import SuperAdminLayout from "../components/layout/SuperAdminLayout"
+import SuperAdminDashboard from "../pages/superadmin/SuperAdminDashboard"
+import AdminListPage from "../pages/superadmin/AdminListPage"
+import SAPropertyListPage from "../pages/superadmin/PropertyListPage"
+import UserSupportPage from "../pages/superadmin/UserSupportPage"
 
 export const router = createBrowserRouter([
   // ── Public ──
   { path: "/login", element: <LoginPage /> },
 
-  // ── Protected ──
+  // ── Admin ──
   {
     path: "/properties",
     element: (
@@ -45,7 +51,23 @@ export const router = createBrowserRouter([
       { path: "contracts", element: <ContractListPage /> },
       { path: "billing", element: <BillingPage /> },
       { path: "move-out", element: <MoveOutListPage /> },
-      // { path: "edit", element: <PropertyEditPage /> },
+    ],
+  },
+
+  // ── SuperAdmin ──
+  {
+    path: "/superadmin",
+    element: (
+      <SuperAdminRoute>
+        <SuperAdminLayout />
+      </SuperAdminRoute>
+    ),
+    children: [
+      { index: true, element: <Navigate to="dashboard" replace /> },
+      { path: "dashboard", element: <SuperAdminDashboard /> },
+      { path: "admins", element: <AdminListPage /> },
+      { path: "properties", element: <SAPropertyListPage /> },
+      { path: "users", element: <UserSupportPage /> },
     ],
   },
 

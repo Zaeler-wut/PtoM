@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express"
 import type { AuthenticatedRequest } from "./authenticate"
 
-type Role = "USER" | "ADMIN"
+type Role = "USER" | "ADMIN" | "SUPERADMIN"
 
 export const authorize = (...roles: Role[]) => {
   return (req: Request, res: Response, next: NextFunction) => {

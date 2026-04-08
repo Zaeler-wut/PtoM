@@ -32,11 +32,10 @@ export const loginThunk = createAsyncThunk(
       if (!err.response) {
         return rejectWithValue("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ")
       }
-      // 401 = รหัสผิด
-      if (err.response.status === 401) {
-        return rejectWithValue("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
-      }
-      return rejectWithValue(err.response?.data?.error ?? "เกิดข้อผิดพลาด กรุณาลองใหม่")
+      const msg = err.response?.data?.error ?? ""
+      if (msg === "User account is inactive") return rejectWithValue("บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
+      if (err.response.status === 401) return rejectWithValue("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
+      return rejectWithValue(msg || "เกิดข้อผิดพลาด กรุณาลองใหม่")
     }
   }
 )

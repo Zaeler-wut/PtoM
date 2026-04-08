@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  SUPERADMIN
 }
 
 model User {
@@ -44,6 +45,14 @@ model User {
 
   managedProperties PropertyAdmin[]
   refreshTokens RefreshToken[]
+  adminLimit AdminLimit?
+}
+
+model AdminLimit {
+  id            String  @id @default(uuid())
+  userId        String  @unique
+  propertyLimit Int     @default(3)
+  user          User    @relation(fields: [userId], references: [id])
 }
 
 model Vehicle {

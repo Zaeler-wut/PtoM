@@ -63,7 +63,7 @@ export default function LoginScreen() {
             <View style={styles.brandIcon}>
               <Text style={styles.brandIconText}>⊞</Text>
             </View>
-            <Text style={styles.brandTitle}>PropSpace</Text>
+            <Text style={styles.brandTitle}>PtoM</Text>
             <Text style={styles.brandSub}>Property Management</Text>
           </View>
 

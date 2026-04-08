@@ -16,6 +16,25 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
     if (fetched.current) return
     fetched.current = true
 
+    // รองรับ impersonate token จาก superadmin
+    const params = new URLSearchParams(window.location.search)
+    const impersonateToken = params.get("impersonate")
+    if (impersonateToken) {
+      // ดึง user info จาก token payload
+      try {
+        const payload = JSON.parse(atob(impersonateToken.split(".")[1]))
+        setAccessToken(impersonateToken)
+        store.dispatch(setUser({
+          accessToken: impersonateToken,
+          user: { id: payload.id, name: payload.firstName || payload.email, email: payload.email, role: payload.role },
+        }))
+        // ลบ query param ออกจาก URL
+        window.history.replaceState({}, "", window.location.pathname)
+      } catch {}
+      setReady(true)
+      return
+    }
+
     axios.post("/api/auth/refresh-token", {}, { withCredentials: true })
       .then((res) => {
         const { accessToken, user } = res.data
