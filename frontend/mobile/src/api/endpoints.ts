@@ -12,6 +12,18 @@ export const ENDPOINTS = {
     detail: (id: string) => `/admin/properties/${id}`,
   },
 
+  adminMobile: {
+    properties: "/mobile/admin/properties",
+    rooms: (propertyId: string) => `/mobile/admin/properties/${propertyId}/rooms`,
+    saveMeter: "/mobile/admin/meter",
+  },
+
+  mobileProperties: {
+    featured: "/mobile/properties/featured",
+    search: "/mobile/properties",
+    detail: (id: string) => `/mobile/properties/${id}`,
+  },
+
   dashboard: {
     summary: (propertyId: string) => `/admin/properties/${propertyId}/dashboard`,
     revenue: (propertyId: string) => `/admin/properties/${propertyId}/revenue`,

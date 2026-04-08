@@ -14,6 +14,8 @@ import moveOutRouter from "./modules/moveout/moveOutRouter"
 import dashboardRouter from "./modules/dashboard/dashboardRouter"
 import uploadRouter from "./modules/upload/uploadRouter"
 import mobilePropertyRouter from "./modules-mobile/property/propertyRouter"
+import mobileMeterRouter from "./modules-mobile/meter/meterRouter"
+import mobileProfileRouter from "./modules-mobile/profile/profileRouter"
 
 
 const app = express();
@@ -43,6 +45,8 @@ app.use("/api/admin", billingRouter)
 app.use("/api/admin", moveOutRouter)
 app.use("/api/admin", dashboardRouter)
 app.use("/api/mobile", mobilePropertyRouter)
+app.use("/api/mobile", mobileMeterRouter)
+app.use("/api/mobile", mobileProfileRouter)
 
 app.listen(port, () => {
     console.log(`Server is running on http:localhost:${port}`);

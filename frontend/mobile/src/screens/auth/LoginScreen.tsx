@@ -44,7 +44,7 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginForm) => {
     const result = await dispatch(loginThunk(data))
     if (loginThunk.fulfilled.match(result)) {
-      router.replace('/(app)/properties')
+      router.replace('/' as any)
     }
   }
 

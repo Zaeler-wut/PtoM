@@ -4,6 +4,15 @@ import * as service from "./propertyService"
 const router = express.Router()
 
 
+router.get("/properties/featured", async (_req, res) => {
+  try {
+    const data = await service.getFeaturedProperties()
+    res.json(data)
+  } catch (err: any) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 router.get("/properties", async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat as string)

@@ -28,7 +28,15 @@ export const loginThunk = createAsyncThunk(
       await SecureStore.setItemAsync("refreshToken", res.refreshToken)
       return res
     } catch (err: any) {
-      return rejectWithValue("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
+      // Network error (ไม่มี response = backend ไม่ตอบ)
+      if (!err.response) {
+        return rejectWithValue("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ")
+      }
+      // 401 = รหัสผิด
+      if (err.response.status === 401) {
+        return rejectWithValue("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
+      }
+      return rejectWithValue(err.response?.data?.error ?? "เกิดข้อผิดพลาด กรุณาลองใหม่")
     }
   }
 )
@@ -102,6 +110,7 @@ const authSlice = createSlice({
         state.isLoading = false
         state.accessToken = action.payload.accessToken
         state.user = action.payload.user
+        state.isRestored = true
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.isLoading = false

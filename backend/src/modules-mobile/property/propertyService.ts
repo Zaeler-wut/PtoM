@@ -110,6 +110,46 @@ export const searchProperties = async (query: PropertySearchQuery): Promise<Prop
 }
 
 
+export const getFeaturedProperties = async (): Promise<PropertyCardItem[]> => {
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const year = now.getFullYear()
+
+  const properties = await repo.getAllProperties()
+  const results: PropertyCardItem[] = []
+
+  for (const property of properties) {
+    const availableRooms = property.rooms.filter((room) =>
+      isRoomAvailableInMonth(room, month, year, property.preparingDays)
+    ).length
+
+    const coverImage =
+      property.images.find((img) => img.isCover)?.url ||
+      property.images[0]?.url ||
+      null
+
+    results.push({
+      id: property.id,
+      name: property.name,
+      address: property.address,
+      coverImage,
+      images: property.images.map((img) => img.url),
+      facilities: property.facilities.map((f) => f.facility.name),
+      contractTerm: property.contractTerm,
+      priceMin: property.priceMin,
+      priceMax: property.priceMax,
+      totalRooms: property.rooms.length,
+      availableRooms,
+      distanceKm: 0,
+      lat: property.lat,
+      lng: property.lng,
+      googleMap: property.googleMap,
+    })
+  }
+
+  return results
+}
+
 // ดูรายละเอียดหอพัก
 
 export const getPropertyDetail = async (
