@@ -32,6 +32,20 @@ export interface Property {
 
 export type PropertyListItem = Property
 
+export interface CreatePropertyPayload {
+  name: string
+  address: string
+  googleMap?: string
+  description?: string
+  priceMin: number
+  priceMax: number
+  contractTerm?: string
+  preparingDays?: number
+  bankName: string
+  bankAccount: string
+  bankHolder: string
+}
+
 export interface UpdatePropertyPayload {
   name?: string
   address?: string

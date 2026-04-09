@@ -1,101 +1,135 @@
-// import { useState } from "react";
-// import { useNavigate } from "react-router-dom";
-// import { useForm } from "react-hook-form";
-// import { useAppDispatch, useAppSelector } from "../../store/hooks";
-// import { createProperty } from "../../store/slices/propertySlice";
-// import type { CreatePropertyPayload } from "../../types/property.types";
-// import { FormInput } from "../../components/shared/FormInput";
-// import { RiArrowLeftLine } from "react-icons/ri";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { createProperty } from "../../store/slices/propertySlice";
+import { RiArrowLeftLine } from "react-icons/ri";
+import type { CreatePropertyPayload } from "../../types/property.types";
 
-// export default function PropertyCreatePage() {
-//   const dispatch = useAppDispatch();
-//   const navigate = useNavigate();
-//   const { isLoading, error } = useAppSelector((s) => s.property);
+export default function PropertyCreatePage() {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const { isLoading, error } = useAppSelector((s) => s.property);
+  const [form, setForm] = useState<CreatePropertyPayload>({
+    name: "", address: "", googleMap: "", description: "",
+    priceMin: 0, priceMax: 0, contractTerm: "", preparingDays: 3,
+    bankName: "", bankAccount: "", bankHolder: "",
+  });
 
-//   const { register, handleSubmit, formState: { errors } } = useForm<CreatePropertyPayload>();
+  const set = (key: keyof CreatePropertyPayload, value: any) =>
+    setForm(p => ({ ...p, [key]: value }));
 
-//   const onSubmit = async (data: CreatePropertyPayload) => {
-//     const result = await dispatch(createProperty({
-//       ...data,
-//       priceMin: Number(data.priceMin),
-//       priceMax: Number(data.priceMax),
-//       preparingDays: Number(data.preparingDays) || 3,
-//     }));
-//     if (createProperty.fulfilled.match(result)) {
-//       navigate(`/properties/${result.payload.id}/dashboard`);
-//     }
-//   };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await dispatch(createProperty({
+      ...form,
+      priceMin: Number(form.priceMin),
+      priceMax: Number(form.priceMax),
+      preparingDays: Number(form.preparingDays) || 3,
+    }));
+    if (createProperty.fulfilled.match(result)) {
+      navigate(`/properties/${result.payload.id}/dashboard`);
+    }
+  };
 
-//   return (
-//     <div className="p-8 max-w-2xl">
-//       <button onClick={() => navigate("/properties")}
-//         className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-6 transition-colors">
-//         <RiArrowLeftLine /> กลับ
-//       </button>
-//       <h1 className="text-2xl font-bold text-purple-900 mb-6">เพิ่มสถานที่ใหม่</h1>
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-2xl mx-auto">
+        <button onClick={() => navigate("/properties")}
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-6 transition-colors">
+          <RiArrowLeftLine /> กลับ
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">เพิ่มสถานที่ใหม่</h1>
 
-//       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-//         {/* Basic Info */}
-//         <Section title="ข้อมูลทั่วไป">
-//           <FormInput label="ชื่อสถานที่" error={errors.name?.message}
-//             {...register("name", { required: "กรุณากรอกชื่อสถานที่" })} />
-//           <FormInput label="ที่อยู่" error={errors.address?.message}
-//             {...register("address", { required: "กรุณากรอกที่อยู่" })} />
-//           <FormInput label="Google Maps URL" {...register("googleMap")} />
-//           <div>
-//             <label className="block text-sm font-medium text-gray-700 mb-1.5">คำอธิบาย</label>
-//             <textarea rows={3} {...register("description")}
-//               className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 resize-none" />
-//           </div>
-//         </Section>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Section title="ข้อมูลทั่วไป">
+            <Field label="ชื่อสถานที่ *">
+              <input className="input" value={form.name} required
+                onChange={e => set("name", e.target.value)} placeholder="เช่น หอพักสุขสบาย" />
+            </Field>
+            <Field label="ที่อยู่ *">
+              <textarea className="input resize-none" rows={2} value={form.address} required
+                onChange={e => set("address", e.target.value)} placeholder="เลขที่ ถนน แขวง เขต จังหวัด" />
+            </Field>
+            <Field label="Google Maps URL">
+              <input className="input" value={form.googleMap ?? ""} type="url"
+                onChange={e => set("googleMap", e.target.value)} placeholder="https://maps.google.com/..." />
+            </Field>
+            <Field label="คำอธิบาย">
+              <textarea className="input resize-none" rows={3} value={form.description ?? ""}
+                onChange={e => set("description", e.target.value)} />
+            </Field>
+          </Section>
 
-//         {/* Pricing */}
-//         <Section title="ราคา">
-//           <div className="grid grid-cols-2 gap-4">
-//             <FormInput label="ราคาต่ำสุด (บาท)" type="number" error={errors.priceMin?.message}
-//               {...register("priceMin", { required: "กรุณากรอกราคา" })} />
-//             <FormInput label="ราคาสูงสุด (บาท)" type="number" error={errors.priceMax?.message}
-//               {...register("priceMax", { required: "กรุณากรอกราคา" })} />
-//           </div>
-//           <FormInput label="เงื่อนไขสัญญา" placeholder="เช่น สัญญาขั้นต่ำ 1 ปี" {...register("contractTerm")} />
-//           <FormInput label="จำนวนวันเตรียมห้อง" type="number" hint="จำนวนวันก่อนวันเข้าอยู่ที่ต้องเตรียมห้อง (default: 3)"
-//             {...register("preparingDays")} />
-//         </Section>
+          <Section title="ราคา">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="ราคาต่ำสุด (บาท) *">
+                <input className="input" type="number" min={0} value={form.priceMin} required
+                  onChange={e => set("priceMin", e.target.value)} />
+              </Field>
+              <Field label="ราคาสูงสุด (บาท) *">
+                <input className="input" type="number" min={0} value={form.priceMax} required
+                  onChange={e => set("priceMax", e.target.value)} />
+              </Field>
+            </div>
+            <Field label="เงื่อนไขสัญญา">
+              <input className="input" value={form.contractTerm ?? ""} placeholder="เช่น สัญญาขั้นต่ำ 1 ปี"
+                onChange={e => set("contractTerm", e.target.value)} />
+            </Field>
+            <Field label="จำนวนวันเตรียมห้อง">
+              <input className="input" type="number" min={0} value={form.preparingDays ?? 3}
+                onChange={e => set("preparingDays", e.target.value)} />
+            </Field>
+          </Section>
 
-//         {/* Bank */}
-//         <Section title="ข้อมูลการชำระเงิน">
-//           <FormInput label="ชื่อธนาคาร" error={errors.bankName?.message}
-//             {...register("bankName", { required: "กรุณากรอกชื่อธนาคาร" })} />
-//           <div className="grid grid-cols-2 gap-4">
-//             <FormInput label="เลขบัญชี" error={errors.bankAccount?.message}
-//               {...register("bankAccount", { required: "กรุณากรอกเลขบัญชี" })} />
-//             <FormInput label="ชื่อบัญชี" error={errors.bankHolder?.message}
-//               {...register("bankHolder", { required: "กรุณากรอกชื่อบัญชี" })} />
-//           </div>
-//         </Section>
+          <Section title="ข้อมูลรับชำระเงิน">
+            <Field label="ธนาคาร *">
+              <input className="input" value={form.bankName} required placeholder="เช่น กสิกรไทย"
+                onChange={e => set("bankName", e.target.value)} />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="เลขบัญชี *">
+                <input className="input" value={form.bankAccount} required placeholder="000-0-00000-0"
+                  onChange={e => set("bankAccount", e.target.value)} />
+              </Field>
+              <Field label="ชื่อบัญชี *">
+                <input className="input" value={form.bankHolder} required
+                  onChange={e => set("bankHolder", e.target.value)} />
+              </Field>
+            </div>
+          </Section>
 
-//         {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-red-500">{error}</p>}
 
-//         <div className="flex gap-3">
-//           <button type="button" onClick={() => navigate("/properties")}
-//             className="px-5 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-//             ยกเลิก
-//           </button>
-//           <button type="submit" disabled={isLoading}
-//             className="px-5 py-2.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-60 transition-colors">
-//             {isLoading ? "กำลังบันทึก..." : "บันทึก"}
-//           </button>
-//         </div>
-//       </form>
-//     </div>
-//   );
-// }
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={() => navigate("/properties")}
+              className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+              ยกเลิก
+            </button>
+            <button type="submit" disabled={isLoading}
+              className="px-5 py-2.5 text-sm bg-violet-600 text-white rounded-xl hover:bg-violet-700 disabled:opacity-60 transition-colors">
+              {isLoading ? "กำลังบันทึก..." : "บันทึกสถานที่"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
-// function Section({ title, children }: { title: string; children: React.ReactNode }) {
-//   return (
-//     <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
-//       <h3 className="text-sm font-semibold text-gray-700 border-b border-gray-100 pb-3">{title}</h3>
-//       {children}
-//     </div>
-//   );
-// }
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-700 border-b border-gray-100 pb-3">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1.5">{label}</label>
+      {children}
+    </div>
+  );
+}

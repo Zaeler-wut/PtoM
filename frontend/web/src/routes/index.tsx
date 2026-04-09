@@ -3,6 +3,7 @@ import ProtectedRoute from "./ProtectedRoute"
 import SuperAdminRoute from "./SuperAdminRoute"
 import LoginPage from "../pages/auth/LoginPage"
 import PropertyListPage from "../pages/property/PropertyListPage"
+import PropertyCreatePage from "../pages/property/PropertyCreatePage"
 import DashboardPage from "../pages/dashboard/DashboardPage"
 import PropertySettingsPage from "../pages/property/PropertySettingsPage"
 import RoomTypePage from "../pages/property/RoomTypePage"
@@ -29,6 +30,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <PropertyListPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/properties/create",
+    element: (
+      <ProtectedRoute>
+        <PropertyCreatePage />
       </ProtectedRoute>
     ),
   },

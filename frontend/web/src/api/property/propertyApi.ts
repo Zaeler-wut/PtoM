@@ -1,6 +1,6 @@
 import api from "../axiosInstance"
 import { ENDPOINTS } from "../endpoints"
-import type { Property, PropertyListItem } from "../../types/property.types"
+import type { Property, PropertyListItem, CreatePropertyPayload } from "../../types/property.types"
 
 export const propertyApi = {
   getList: async (): Promise<PropertyListItem[]> => {
@@ -28,5 +28,10 @@ export const propertyApi = {
 
   setCover: async (propertyId: string, imageId: string): Promise<void> => {
     await api.patch(ENDPOINTS.properties.setCover(propertyId, imageId))
+  },
+
+  create: async (payload: CreatePropertyPayload): Promise<Property> => {
+    const { data } = await api.post<Property>(ENDPOINTS.properties.create, payload)
+    return data
   },
 }

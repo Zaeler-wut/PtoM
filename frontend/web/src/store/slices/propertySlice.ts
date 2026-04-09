@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 import { propertyApi } from "../../api/property/propertyApi"
-import type { PropertyState, Property, PropertyListItem, UpdatePropertyPayload } from "../../types/property.types"
+import type { PropertyState, Property, PropertyListItem, UpdatePropertyPayload, CreatePropertyPayload } from "../../types/property.types"
 
 export const fetchProperties = createAsyncThunk(
   "property/fetchList",
@@ -26,6 +26,17 @@ export const fetchPropertyDetail = createAsyncThunk(
       return res
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? "Failed to fetch property detail")
+    }
+  }
+)
+
+export const createProperty = createAsyncThunk(
+  "property/create",
+  async (payload: CreatePropertyPayload, { rejectWithValue }) => {
+    try {
+      return await propertyApi.create(payload)
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? "สร้างสถานที่ไม่สำเร็จ")
     }
   }
 )
@@ -88,6 +99,14 @@ const propertySlice = createSlice({
         try { localStorage.setItem(SELECTED_KEY, JSON.stringify(action.payload)) } catch {}
       })
       .addCase(fetchPropertyDetail.rejected, (state, action) => { state.isLoading = false; state.error = action.payload as string })
+
+    builder
+      .addCase(createProperty.pending, (state) => { state.isLoading = true; state.error = null })
+      .addCase(createProperty.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.list.unshift(action.payload)
+      })
+      .addCase(createProperty.rejected, (state, action) => { state.isLoading = false; state.error = action.payload as string })
 
     builder
       .addCase(updateProperty.pending, (state) => { state.isLoading = true; state.error = null })

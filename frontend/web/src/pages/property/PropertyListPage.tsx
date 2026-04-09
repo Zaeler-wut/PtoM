@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { RiMapPinLine, RiLogoutBoxLine, RiHome2Line, RiArrowRightLine, RiSearchLine } from "react-icons/ri";
+import { RiMapPinLine, RiLogoutBoxLine, RiHome2Line, RiArrowRightLine, RiSearchLine, RiAddLine } from "react-icons/ri";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchProperties } from "../../store/slices/propertySlice";
 import { logoutThunk } from "../../store/slices/authSlice";
@@ -51,15 +51,24 @@ export default function PropertyListPage() {
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="relative mb-8 max-w-sm">
-          <RiSearchLine className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="ค้นหาสถานที่..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 outline-none focus:border-violet-400 transition-colors"
-          />
+        <div className="flex items-center gap-3 mb-8">
+          <div className="relative flex-1 max-w-sm">
+            <RiSearchLine className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="ค้นหาสถานที่..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 outline-none focus:border-violet-400 transition-colors"
+            />
+          </div>
+          <button
+            onClick={() => navigate("/properties/create")}
+            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-3 rounded-xl text-sm font-medium transition-colors whitespace-nowrap"
+          >
+            <RiAddLine size={18} />
+            เพิ่มสถานที่
+          </button>
         </div>
 
         {isLoading ? (

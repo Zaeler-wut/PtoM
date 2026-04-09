@@ -1,5 +1,5 @@
-import { useEffect } from "react"
-import { useRouter } from "expo-router"
+import { useEffect, useCallback } from "react"
+import { useRouter, useFocusEffect } from "expo-router"
 import { useProperty } from "../../../src/hooks/useProperty"
 import PropertyListScreen from "../../../src/screens/property/PropertyListScreen"
 
@@ -7,7 +7,8 @@ export default function PropertiesPage() {
   const router = useRouter()
   const { list, isLoading, loadList, select } = useProperty()
 
-  useEffect(() => { loadList() }, [])
+  // reload ทุกครั้งที่กลับมาหน้านี้ (เช่น หลังสร้างสถานที่ใหม่)
+  useFocusEffect(useCallback(() => { loadList() }, []))
 
   const handleSelect = (propertyId: string) => {
     const prop = list.find((p) => p.id === propertyId)

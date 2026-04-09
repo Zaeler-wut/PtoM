@@ -10,6 +10,7 @@ export const ENDPOINTS = {
   properties: {
     list: "/admin/properties",
     detail: (id: string) => `/admin/properties/${id}`,
+    create: "/admin/properties",
   },
 
   adminMobile: {
