@@ -16,6 +16,21 @@ export interface MobilePropertyCard {
   googleMap: string | null
 }
 
+export interface MobileRoomType {
+  id: string
+  name: string
+  size: number | null
+  roomPrice: number
+  availableRooms: number
+  facilities: string[]
+}
+
+export interface MobilePropertyDetail extends MobilePropertyCard {
+  allowOnlineBooking: boolean
+  description: string | null
+  roomTypes: MobileRoomType[]
+}
+
 export interface PropertySearchParams {
   lat: number
   lng: number

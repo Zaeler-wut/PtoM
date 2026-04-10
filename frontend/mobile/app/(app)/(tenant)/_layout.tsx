@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-
 export default function TenantLayout() {
   return (
     <Tabs
@@ -36,6 +35,14 @@ export default function TenantLayout() {
           title: 'โปรไฟล์',
           tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
         }}
+      />
+      <Tabs.Screen
+        name="property/[id]"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="room/[id]"
+        options={{ href: null }}
       />
     </Tabs>
   )
