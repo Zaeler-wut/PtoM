@@ -64,20 +64,24 @@ function PropertyCard({ item, onPress }: { item: MobilePropertyCard; onPress: ()
         )}
 
         {item.contractTerm && (
-          <Text style={styles.contractTerm}>สัญญาการเช่า: {item.contractTerm}</Text>
+          <View>
+            <View style={styles.contractRow}>
+              <Ionicons name="document-text-outline" size={16} color="#7C5CFC" />
+              <Text style={styles.contractTerm}>สัญญาเช่า: {item.contractTerm}</Text>
+            </View>
+            <View style={styles.contractDivider} />
+          </View>
         )}
 
         <View style={styles.priceRow}>
-          <Text style={styles.priceText}>
-            {formatPrice(item.priceMin)} – {formatPrice(item.priceMax)}{' '}
-            <Text style={styles.priceCurrency}>฿</Text>
-          </Text>
-          <View style={{ alignItems: 'flex-end', gap: 2 }}>
-            {item.distanceKm > 0 && (
-              <Text style={styles.distance}>
-                <Ionicons name="navigate-circle-outline" size={11} color="#7C5CFC" /> {item.distanceKm} กม.
-              </Text>
-            )}
+          <View>
+            <Text style={styles.priceText}>
+              {formatPrice(item.priceMin)} – {formatPrice(item.priceMax)}{' '}
+              <Text style={styles.priceCurrency}>฿</Text>
+            </Text>
+            <Text style={styles.pricePerMonth}>ต่อเดือน</Text>
+          </View>
+          <View style={styles.totalRoomsBox}>
             <Text style={styles.totalRooms}>ทั้งหมด {item.totalRooms} ห้อง</Text>
           </View>
         </View>
@@ -170,7 +174,6 @@ export default function HomeScreen() {
 
   const ListHeader = (
     <>
-      {/* Purple gradient header + search */}
       <LinearGradient
         colors={['#9B6DFF', '#6C3AED']}
         start={{ x: 0, y: 0 }}
@@ -247,7 +250,6 @@ export default function HomeScreen() {
         </View>
       </LinearGradient>
 
-      {/* Section title */}
       <View style={styles.sectionRow}>
         <Text style={styles.sectionTitle}>ที่พักแนะนำ</Text>
         <TouchableOpacity>
@@ -284,112 +286,60 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
 
-  // Header
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 25,
-    paddingBottom: 16,
-  },
+  header: { paddingHorizontal: 20, paddingTop: 25, paddingBottom: 16 },
   headerTitle: { fontSize: 22, fontWeight: '700', color: '#fff' },
   headerSub: { fontSize: 22, fontWeight: '700', color: '#DDD6FE', marginBottom: 16 },
 
-  listContent: {
-    backgroundColor: '#F5F3FF',
-    paddingBottom: 24,
-  },
+  listContent: { backgroundColor: '#F5F3FF', paddingBottom: 24 },
+  gradientWrapper: { paddingBottom: 20 },
 
-  gradientWrapper: {
-    paddingBottom: 20,
-  },
-
-  // Search card
   searchCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 16,
-    marginHorizontal: 16,
-    shadowColor: '#7C5CFC',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    backgroundColor: '#fff', borderRadius: 20, padding: 16, marginHorizontal: 16,
+    shadowColor: '#7C5CFC', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15, shadowRadius: 16, elevation: 8,
   },
   searchField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F3FF',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 46,
-    marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#F5F3FF', borderRadius: 12,
+    paddingHorizontal: 12, height: 46, marginBottom: 10,
   },
   searchRow: { flexDirection: 'row', marginBottom: 10 },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 13, color: '#1F1D2E' },
   searchBtn: {
-    backgroundColor: '#7C5CFC',
-    borderRadius: 12,
-    height: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#7C5CFC', borderRadius: 12,
+    height: 46, alignItems: 'center', justifyContent: 'center',
   },
   searchBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
-  // Body
-  body: {
-    flex: 1,
-    backgroundColor: '#F5F3FF',
-    paddingTop: 36,
-    paddingHorizontal: 16,
-  },
+  body: { flex: 1, backgroundColor: '#F5F3FF', paddingTop: 36, paddingHorizontal: 16 },
   sectionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F5F3FF',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 14,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: '#F5F3FF', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 14,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1F1D2E' },
   sectionLink: { fontSize: 13, color: '#7C5CFC', fontWeight: '500' },
   emptyText: { textAlign: 'center', color: '#9CA3AF', marginTop: 40 },
 
-  // Card
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginBottom: 16,
-    marginHorizontal: 16,
-    overflow: 'hidden',
-    shadowColor: '#7C5CFC',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: '#fff', borderRadius: 20,
+    marginBottom: 16, marginHorizontal: 16, overflow: 'hidden',
+    shadowColor: '#7C5CFC', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
   },
   imageWrapper: { position: 'relative' },
   cardImage: { width: '100%', height: 180 },
   imagePlaceholder: { backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center' },
   imagePlaceholderText: { color: '#9CA3AF', fontSize: 12 },
   badgeRow: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    position: 'absolute', top: 10, left: 10, right: 10,
+    flexDirection: 'row', justifyContent: 'space-between',
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   badgeGreen: { backgroundColor: '#059669' },
   badgePurple: { backgroundColor: '#7C5CFC' },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
-  // Card body
   cardBody: { padding: 14 },
   cardName: { fontSize: 16, fontWeight: '700', color: '#1F1D2E', marginBottom: 4 },
   addressRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
@@ -397,42 +347,38 @@ const styles = StyleSheet.create({
   addressText: { flex: 1, fontSize: 12, color: '#6B7280' },
   facilitiesRow: { marginBottom: 8 },
   chip: {
-    backgroundColor: '#EDE9FE',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginRight: 6,
+    backgroundColor: '#EDE9FE', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 4, marginRight: 6,
   },
   chipText: { fontSize: 11, color: '#7C5CFC', fontWeight: '500' },
-  contractTerm: { fontSize: 11, color: '#9CA3AF', marginBottom: 8 },
+
+  contractRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginBottom: 8, backgroundColor: '#F5F3FF',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+  },
+  contractTerm: { fontSize: 12, color: '#1F1D2E', fontWeight: '400' },
+  contractDivider: { height: 0.5, backgroundColor: 'rgba(0,0,0,0.08)', marginBottom: 10 },
+
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  priceText: { fontSize: 15, fontWeight: '700', color: '#7C5CFC' },
+  priceText: { fontSize: 20, fontWeight: '700', color: '#7C5CFC' },
   priceCurrency: { fontWeight: '400' },
-  totalRooms: { fontSize: 11, color: '#9CA3AF' },
+  pricePerMonth: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  totalRoomsBox: {
+    backgroundColor: '#F5F3FF', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  totalRooms: { fontSize: 11, color: '#7C5CFC', fontWeight: '600' },
   distance: { fontSize: 11, color: '#7C5CFC', fontWeight: '500' },
 
-  // Suggestion dropdown
   suggestionBox: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: '#EDE9FE',
-    overflow: 'hidden',
+    backgroundColor: '#fff', borderRadius: 12, marginTop: 4,
+    borderWidth: 1, borderColor: '#EDE9FE', overflow: 'hidden',
   },
   suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 12, paddingVertical: 10,
   },
-  suggestionBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F3FF',
-  },
-  suggestionText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#1F1D2E',
-  },
+  suggestionBorder: { borderBottomWidth: 1, borderBottomColor: '#F5F3FF' },
+  suggestionText: { flex: 1, fontSize: 12, color: '#1F1D2E' },
 })
