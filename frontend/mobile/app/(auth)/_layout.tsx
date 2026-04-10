@@ -5,7 +5,8 @@ export default function AuthLayout() {
   const { user, isRestored } = useAppSelector((s) => s.auth)
 
   if (isRestored && user) {
-    return <Redirect href={"/(app)/properties" as any} />
+    if (user.role === 'ADMIN') return <Redirect href={"/(app)/(admin)" as any} />
+    return <Redirect href={"/(app)/(tenant)" as any} />
   }
 
   return <Stack screenOptions={{ headerShown: false }} />
