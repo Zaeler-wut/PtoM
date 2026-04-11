@@ -56,7 +56,7 @@ export default function RoomDetailScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
 
         <View style={s.imageWrap}>
           {room.coverImage ? (
@@ -188,18 +188,17 @@ export default function RoomDetailScreen() {
             </View>
           </View>
 
+          {/* ปุ่มจองห้องนี้ */}
+          <TouchableOpacity
+            style={s.bookBtn}
+            activeOpacity={0.85}
+            onPress={() => router.push({ pathname: '/(app)/(tenant)/booking/[id]', params: { id, propertyId } } as any)}
+          >
+            <Text style={s.bookBtnText}>จองห้องนี้</Text>
+          </TouchableOpacity>
+
         </View>
       </ScrollView>
-
-      <View style={s.footer}>
-        <TouchableOpacity
-          style={s.bookBtn}
-          activeOpacity={0.85}
-          onPress={() => router.push({ pathname: '/(app)/(tenant)/booking/[id]', params: { id, propertyId } } as any)}
-        >
-          <Text style={s.bookBtnText}>จองห้องนี้</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   )
 }
@@ -276,11 +275,6 @@ const s = StyleSheet.create({
   statNum: { fontSize: 28, fontWeight: '700', color: '#1F1D2E' },
   statUnit: { fontSize: 11, color: '#9CA3AF' },
 
-  footer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff', padding: 16,
-    borderTopWidth: 0.5, borderTopColor: 'rgba(0,0,0,0.08)',
-  },
   bookBtn: {
     backgroundColor: '#7C5CFC', borderRadius: 14,
     height: 52, alignItems: 'center', justifyContent: 'center',

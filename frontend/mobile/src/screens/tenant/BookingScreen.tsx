@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
 import { router, useLocalSearchParams } from 'expo-router'
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
 const MOCK_BOOKING = {
   propertyName: 'Purple Residence',
   roomName: 'Standard',
@@ -15,7 +14,6 @@ const MOCK_BOOKING = {
   bookingFee: 2000,
 }
 
-// ─── Calendar helpers ─────────────────────────────────────────────────────────
 const MONTH_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
 const DAY_TH = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
@@ -104,7 +102,10 @@ function Calendar({ selectedDate, onSelect }: {
               <TouchableOpacity
                 key={di}
                 style={[s.calCell, sel && s.calCellSelected, past && s.calCellPast]}
-                onPress={() => !past && onSelect(new Date(viewYear, viewMonth, day))}
+                onPress={() => {
+                  if (past) return
+                  if (!isSelected(day)) onSelect(new Date(viewYear, viewMonth, day))
+                }}
                 disabled={past}
                 activeOpacity={0.7}
               >
@@ -120,7 +121,6 @@ function Calendar({ selectedDate, onSelect }: {
   )
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function BookingScreen() {
   const { id, propertyId } = useLocalSearchParams<{ id: string; propertyId: string }>()
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -133,7 +133,6 @@ export default function BookingScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      {/* Header */}
       <View style={s.header}>
         <TouchableOpacity
           onPress={() => router.push({ pathname: '/(app)/(tenant)/room/[id]', params: { id, propertyId } } as any)}
@@ -144,10 +143,9 @@ export default function BookingScreen() {
         <Text style={s.headerTitle}>จองห้องพัก</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={s.body}>
 
-          {/* ข้อมูลห้อง */}
           <View style={s.roomCard}>
             <View style={s.roomCardLeft}>
               <Ionicons name="location-sharp" size={12} color="#7C5CFC" />
@@ -166,7 +164,6 @@ export default function BookingScreen() {
             </View>
           </View>
 
-          {/* เลือกวันที่เข้าอยู่ */}
           <View style={s.section}>
             <View style={s.sectionHeader}>
               <View style={s.sectionBar} />
@@ -183,19 +180,21 @@ export default function BookingScreen() {
             )}
           </View>
 
+          {/* ปุ่มถัดไป */}
+          <TouchableOpacity
+            style={[s.nextBtn, !selectedDate && s.nextBtnDisabled]}
+            disabled={!selectedDate}
+            activeOpacity={0.85}
+            onPress={() => router.push({
+              pathname: '/(app)/(tenant)/booking-summary/[id]',
+              params: { id, propertyId, moveInDate: selectedDate?.toISOString() }
+            } as any)}
+          >
+            <Text style={s.nextBtnText}>ถัดไป →</Text>
+          </TouchableOpacity>
+
         </View>
       </ScrollView>
-
-      {/* ปุ่มถัดไป */}
-      <View style={s.footer}>
-        <TouchableOpacity
-          style={[s.nextBtn, !selectedDate && s.nextBtnDisabled]}
-          disabled={!selectedDate}
-          activeOpacity={0.85}
-        >
-          <Text style={s.nextBtnText}>ถัดไป →</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   )
 }
@@ -227,7 +226,7 @@ const s = StyleSheet.create({
   section: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#5B8DEF', paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: '#3B82F6', paddingHorizontal: 16, paddingVertical: 14,
   },
   sectionBar: { width: 4, height: 20, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 2 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
@@ -256,11 +255,6 @@ const s = StyleSheet.create({
   },
   selectedDateText: { fontSize: 13, color: '#7C5CFC', fontWeight: '500' },
 
-  footer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff', padding: 16,
-    borderTopWidth: 0.5, borderTopColor: 'rgba(0,0,0,0.08)',
-  },
   nextBtn: {
     backgroundColor: '#7C5CFC', borderRadius: 14,
     height: 52, alignItems: 'center', justifyContent: 'center',
