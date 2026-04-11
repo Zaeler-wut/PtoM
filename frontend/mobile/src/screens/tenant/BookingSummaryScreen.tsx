@@ -28,7 +28,6 @@ export default function BookingSummaryScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      {/* Header */}
       <View style={s.header}>
         <TouchableOpacity
           onPress={() => router.push({ pathname: '/(app)/(tenant)/booking/[id]', params: { id, propertyId } } as any)}
@@ -39,10 +38,9 @@ export default function BookingSummaryScreen() {
         <Text style={s.headerTitle}>จองห้องพัก</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={s.body}>
 
-          {/* ข้อมูลห้อง */}
           <View style={s.roomCard}>
             <View style={s.roomCardLeft}>
               <Ionicons name="location-sharp" size={12} color="#7C5CFC" />
@@ -61,7 +59,6 @@ export default function BookingSummaryScreen() {
             </View>
           </View>
 
-          {/* สรุปการจอง */}
           <View style={s.section}>
             <View style={s.sectionHeader}>
               <View style={s.sectionBar} />
@@ -69,7 +66,6 @@ export default function BookingSummaryScreen() {
             </View>
 
             <View style={s.sectionBody}>
-              {/* วันที่เข้าอยู่ */}
               <View style={s.summaryRow}>
                 <View style={s.summaryIconWrap}>
                   <Ionicons name="calendar-outline" size={16} color="#7C5CFC" />
@@ -82,7 +78,6 @@ export default function BookingSummaryScreen() {
 
               <View style={s.divider} />
 
-              {/* ค่าจองห้อง */}
               <View style={s.summaryRow}>
                 <View style={s.summaryIconWrap}>
                   <Ionicons name="card-outline" size={16} color="#7C5CFC" />
@@ -95,7 +90,6 @@ export default function BookingSummaryScreen() {
 
               <View style={s.divider} />
 
-              {/* รวมทั้งหมด */}
               <View style={s.totalBlock}>
                 <Text style={s.totalLabel}>รวมทั้งหมด</Text>
                 <Text style={s.totalVal}>{booking.bookingFee.toLocaleString('th-TH')} ฿</Text>
@@ -103,7 +97,6 @@ export default function BookingSummaryScreen() {
             </View>
           </View>
 
-          {/* การชำระเงินและการยืนยัน */}
           <View style={s.noteCard}>
             <View style={s.noteHeader}>
               <Ionicons name="card" size={16} color="#854F0B" />
@@ -125,7 +118,6 @@ export default function BookingSummaryScreen() {
             </View>
           </View>
 
-          {/* ปุ่ม */}
           <View style={s.btnRow}>
             <TouchableOpacity
               style={s.backFooterBtn}
@@ -136,7 +128,14 @@ export default function BookingSummaryScreen() {
               <Text style={s.backFooterText}>ย้อนกลับ</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.payBtn} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={s.payBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push({
+                pathname: '/(app)/(tenant)/payment/[id]',
+                params: { id, propertyId, moveInDate }
+              } as any)}
+            >
               <Ionicons name="card-outline" size={16} color="#fff" />
               <Text style={s.payBtnText}>ชำระเงิน</Text>
             </TouchableOpacity>
@@ -211,9 +210,7 @@ const s = StyleSheet.create({
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   noteText: { fontSize: 13, color: '#854F0B', flex: 1, lineHeight: 20 },
 
-  btnRow: {
-    flexDirection: 'row', gap: 12,
-  },
+  btnRow: { flexDirection: 'row', gap: 12 },
   backFooterBtn: {
     flex: 1, height: 52, borderRadius: 14,
     borderWidth: 1.5, borderColor: '#7C5CFC',
