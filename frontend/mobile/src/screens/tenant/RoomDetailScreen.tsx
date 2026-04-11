@@ -192,7 +192,11 @@ export default function RoomDetailScreen() {
       </ScrollView>
 
       <View style={s.footer}>
-        <TouchableOpacity style={s.bookBtn} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={s.bookBtn}
+          activeOpacity={0.85}
+          onPress={() => router.push({ pathname: '/(app)/(tenant)/booking/[id]', params: { id, propertyId } } as any)}
+        >
           <Text style={s.bookBtnText}>จองห้องนี้</Text>
         </TouchableOpacity>
       </View>

@@ -74,7 +74,7 @@ export default function ProfileScreen() {
         {/* Header — พื้นขาว เหมือน FinanceScreen */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={20} color="#2C2C2A" />
+            <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>โปรไฟล์ของฉัน</Text>
         </View>
@@ -286,13 +286,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F3FF' },
 
   header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderBottomWidth: 0.5, borderBottomColor: 'rgba(0,0,0,0.06)',
+    paddingHorizontal: 16, paddingVertical: 14,
   },
   backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#2C2C2A' },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
   userCardWrap: { paddingHorizontal: 16, marginTop: 16, marginBottom: 4 },
   userCard: { backgroundColor: '#7C5CFC', borderRadius: 16, padding: 16 },
   userName: { fontSize: 22, fontWeight: '700', color: '#fff' },

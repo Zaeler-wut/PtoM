@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -19,12 +20,12 @@ export default function FinanceScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('bill')
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top']}>
 
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={20} color="#2C2C2A" />
+          <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>ข้อมูลและการเงิน</Text>
       </View>
@@ -71,13 +72,12 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F5F7' },
 
   header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderBottomWidth: 0.5, borderBottomColor: 'rgba(0,0,0,0.06)',
+    paddingHorizontal: 16, paddingVertical: 14,
   },
   backBtn: {
-    width: 34, height: 34,
+    width: 32, height: 32,
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
@@ -85,7 +85,7 @@ const s = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#2C2C2A',
+    color: '#fff',
   },
 
   tabWrap: {
