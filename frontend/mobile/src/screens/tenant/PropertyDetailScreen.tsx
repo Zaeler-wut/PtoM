@@ -4,12 +4,11 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useEffect, useState } from 'react'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { mobilePropertyApi } from '../../api/property/mobilePropertyApi'
 import type { MobilePropertyDetail } from '../../types/mobileProperty.types'
 
-// ─── Facility icon map ────────────────────────────────────────────────────────
 const FACILITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Wi-Fi': 'wifi-outline',
   'ลิฟต์': 'layers-outline',
@@ -86,6 +85,13 @@ export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const [property, setProperty] = useState<MobilePropertyDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const scrollRef = useRef<ScrollView>(null)
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false })
+    }, [])
+  )
 
   useEffect(() => {
     if (!id) return
@@ -113,7 +119,6 @@ export default function PropertyDetailScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
@@ -121,9 +126,8 @@ export default function PropertyDetailScreen() {
         <Text style={s.headerTitle}>รายละเอียดที่พัก</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
-        {/* Cover image */}
         <View style={s.imageWrap}>
           {property.coverImage ? (
             <Image source={{ uri: property.coverImage }} style={s.coverImage} resizeMode="cover" />
@@ -142,7 +146,6 @@ export default function PropertyDetailScreen() {
 
         <View style={s.body}>
 
-          {/* ชื่อ + ราคา */}
           <View style={s.nameSection}>
             <View style={{ flex: 1 }}>
               <Text style={s.propertyName}>{property.name}</Text>
@@ -150,7 +153,6 @@ export default function PropertyDetailScreen() {
                 <Ionicons name="location-outline" size={13} color="#9CA3AF" />
                 <Text style={s.addressText} numberOfLines={2}>{property.address}</Text>
               </View>
-
               <Text style={s.priceLabel}>ราคาเริ่มต้น</Text>
               <View style={s.priceRow}>
                 <Text style={s.priceText}>
@@ -159,7 +161,6 @@ export default function PropertyDetailScreen() {
                 <Text style={s.priceUnit}>บาท / เดือน</Text>
               </View>
             </View>
-
             <View style={s.availableBox}>
               <Text style={s.availableNum}>{property.availableRooms ?? 0}</Text>
               <Text style={s.availableSub}>ห้องว่าง</Text>
@@ -167,7 +168,6 @@ export default function PropertyDetailScreen() {
             </View>
           </View>
 
-          {/* สิ่งอำนวยความสะดวก */}
           {property.facilities?.length > 0 && (
             <View style={s.section}>
               <SectionHeader icon="star-outline" title="สิ่งอำนวยความสะดวก" />
@@ -179,7 +179,6 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
-          {/* รายละเอียด */}
           {property.description && (
             <View style={s.section}>
               <SectionHeader icon="document-text-outline" title="รายละเอียด" />
@@ -187,7 +186,6 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
-          {/* ประเภทห้องพัก */}
           {property.roomTypes?.length > 0 && (
             <View style={s.section}>
               <SectionHeader
@@ -209,7 +207,6 @@ export default function PropertyDetailScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F3FF' },
-
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -217,7 +214,6 @@ const s = StyleSheet.create({
   },
   backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
-
   imageWrap: { position: 'relative' },
   coverImage: { width: '100%', height: 220 },
   imagePlaceholder: { backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center' },
@@ -228,10 +224,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   onlineBadgeText: { fontSize: 11, color: '#fff', fontWeight: '600' },
-
   body: { padding: 16, gap: 16 },
-
-  // ชื่อ + ราคา
   nameSection: {
     backgroundColor: '#fff', borderRadius: 16, padding: 16,
     flexDirection: 'row', gap: 12,
@@ -243,7 +236,6 @@ const s = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
   priceText: { fontSize: 20, fontWeight: '700', color: '#7C5CFC' },
   priceUnit: { fontSize: 11, color: '#9CA3AF' },
-
   availableBox: {
     backgroundColor: '#F5F3FF', borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 10,
@@ -252,8 +244,6 @@ const s = StyleSheet.create({
   availableNum: { fontSize: 28, fontWeight: '700', color: '#7C5CFC' },
   availableSub: { fontSize: 11, color: '#7C5CFC' },
   availableTotal: { fontSize: 10, color: '#9CA3AF', marginTop: 2 },
-
-  // Section
   section: { backgroundColor: '#fff', borderRadius: 16, padding: 16 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   sectionIconWrap: {
@@ -262,21 +252,14 @@ const s = StyleSheet.create({
   },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: '#1F1D2E', flex: 1 },
   sectionSub: { fontSize: 12, color: '#9CA3AF' },
-
-  // Facilities
   facilityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   facilityItem: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#F5F3FF', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8,
-    minWidth: '45%',
+    paddingHorizontal: 12, paddingVertical: 8, minWidth: '45%',
   },
   facilityLabel: { fontSize: 13, color: '#1F1D2E', fontWeight: '500' },
-
-  // Description
   descText: { fontSize: 13, color: '#6B7280', lineHeight: 22 },
-
-  // Room types
   roomCard: {
     borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)',
     borderRadius: 14, padding: 14, marginBottom: 12,

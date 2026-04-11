@@ -4,7 +4,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useCallback, useRef } from 'react'
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 
 const MOCK_ROOM = {
   id: '1',
@@ -35,8 +36,14 @@ function SectionHeader({ label, color }: { label: string; color: string }) {
 
 export default function RoomDetailScreen() {
   const { id, propertyId } = useLocalSearchParams<{ id: string; propertyId: string }>()
-
+  const scrollRef = useRef<ScrollView>(null)
   const room = MOCK_ROOM
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false })
+    }, [])
+  )
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -56,7 +63,7 @@ export default function RoomDetailScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
 
         <View style={s.imageWrap}>
           {room.coverImage ? (
@@ -86,7 +93,6 @@ export default function RoomDetailScreen() {
               </View>
             </View>
             <View style={s.sectionBody}>
-
               <View style={s.priceRow}>
                 <View style={s.priceLeft}>
                   <Ionicons name="cash-outline" size={18} color="#F5A623" />
@@ -94,9 +100,7 @@ export default function RoomDetailScreen() {
                 </View>
                 <Text style={s.priceVal}>{room.roomPrice.toLocaleString('th-TH')} ฿</Text>
               </View>
-
               <View style={s.divider} />
-
               <View style={s.priceRow}>
                 <View style={s.priceLeft}>
                   <Ionicons name="home-outline" size={18} color="#7C5CFC" />
@@ -104,9 +108,7 @@ export default function RoomDetailScreen() {
                 </View>
                 <Text style={s.priceVal}>{(room.securityDeposit + room.advanceRent).toLocaleString('th-TH')} ฿</Text>
               </View>
-
               <View style={s.divider} />
-
               <View style={s.priceRow}>
                 <View style={s.priceLeft}>
                   <Ionicons name="document-text-outline" size={18} color="#6B7280" />
@@ -114,7 +116,6 @@ export default function RoomDetailScreen() {
                 </View>
                 <Text style={s.priceVal}>{room.bookingFee.toLocaleString('th-TH')} ฿</Text>
               </View>
-
               {room.description && (
                 <View style={s.noteBox}>
                   {room.description.split('\n').map((line, i) => (
@@ -141,9 +142,7 @@ export default function RoomDetailScreen() {
                 </View>
                 <Text style={s.utilVal}>{room.electricRate} ฿</Text>
               </View>
-
               <View style={s.divider} />
-
               <View style={s.utilRow}>
                 <View style={[s.utilIcon, { backgroundColor: '#E0F2FE' }]}>
                   <Ionicons name="water" size={20} color="#0284C7" />
@@ -188,7 +187,6 @@ export default function RoomDetailScreen() {
             </View>
           </View>
 
-          {/* ปุ่มจองห้องนี้ */}
           <TouchableOpacity
             style={s.bookBtn}
             activeOpacity={0.85}
@@ -205,7 +203,6 @@ export default function RoomDetailScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F3FF' },
-
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -219,7 +216,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   headerBadgeText: { fontSize: 11, color: '#fff', fontWeight: '600' },
-
   imageWrap: { position: 'relative' },
   coverImage: { width: '100%', height: 220 },
   imagePlaceholder: { backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center' },
@@ -230,43 +226,30 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   availableBadgeText: { fontSize: 11, color: '#fff', fontWeight: '600' },
-
   body: { padding: 16, gap: 16 },
-
   section: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 16, paddingVertical: 14,
   },
-  sectionHeaderBar: {
-    width: 4, height: 20, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 2,
-  },
+  sectionHeaderBar: { width: 4, height: 20, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 2 },
   sectionHeaderText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   sectionBody: { padding: 16 },
-
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  infoLabel: { fontSize: 13, color: '#6B7280' },
-
   divider: { height: 0.5, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 10 },
-
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   priceLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   priceLabel: { fontSize: 14, color: '#1F1D2E' },
   priceVal: { fontSize: 16, fontWeight: '700', color: '#7C5CFC' },
-
   noteBox: { backgroundColor: '#F5F3FF', borderRadius: 10, padding: 10, marginTop: 10, gap: 6 },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   noteText: { fontSize: 12, color: '#7C5CFC', flex: 1 },
-
   utilRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   utilIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   utilLabel: { fontSize: 14, fontWeight: '500', color: '#1F1D2E' },
   utilUnit: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
   utilVal: { fontSize: 18, fontWeight: '700', color: '#1F1D2E' },
-
   facilityRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   facilityText: { fontSize: 14, color: '#1F1D2E' },
-
   statCard: {
     flex: 1, backgroundColor: '#F5F3FF', borderRadius: 12,
     padding: 14, alignItems: 'center', gap: 4,
@@ -274,7 +257,6 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 12, color: '#9CA3AF' },
   statNum: { fontSize: 28, fontWeight: '700', color: '#1F1D2E' },
   statUnit: { fontSize: 11, color: '#9CA3AF' },
-
   bookBtn: {
     backgroundColor: '#7C5CFC', borderRadius: 14,
     height: 52, alignItems: 'center', justifyContent: 'center',

@@ -3,7 +3,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useState, useCallback, useRef } from 'react'
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 
 const MONTH_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
@@ -17,14 +18,19 @@ const MOCK_BOOKING = {
 
 export default function BookingSummaryScreen() {
   const { id, propertyId, moveInDate } = useLocalSearchParams<{
-    id: string
-    propertyId: string
-    moveInDate: string
+    id: string; propertyId: string; moveInDate: string
   }>()
 
+  const scrollRef = useRef<ScrollView>(null)
   const booking = MOCK_BOOKING
   const date = moveInDate ? new Date(moveInDate) : new Date()
   const formattedDate = `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false })
+    }, [])
+  )
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -38,7 +44,7 @@ export default function BookingSummaryScreen() {
         <Text style={s.headerTitle}>จองห้องพัก</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={s.body}>
 
           <View style={s.roomCard}>
@@ -64,7 +70,6 @@ export default function BookingSummaryScreen() {
               <View style={s.sectionBar} />
               <Text style={s.sectionTitle}>สรุปการจอง</Text>
             </View>
-
             <View style={s.sectionBody}>
               <View style={s.summaryRow}>
                 <View style={s.summaryIconWrap}>
@@ -75,9 +80,7 @@ export default function BookingSummaryScreen() {
                   <Text style={s.summaryVal}>{formattedDate}</Text>
                 </View>
               </View>
-
               <View style={s.divider} />
-
               <View style={s.summaryRow}>
                 <View style={s.summaryIconWrap}>
                   <Ionicons name="card-outline" size={16} color="#7C5CFC" />
@@ -87,9 +90,7 @@ export default function BookingSummaryScreen() {
                 </View>
                 <Text style={s.summaryAmount}>{booking.bookingFee.toLocaleString('th-TH')} ฿</Text>
               </View>
-
               <View style={s.divider} />
-
               <View style={s.totalBlock}>
                 <Text style={s.totalLabel}>รวมทั้งหมด</Text>
                 <Text style={s.totalVal}>{booking.bookingFee.toLocaleString('th-TH')} ฿</Text>
@@ -127,7 +128,6 @@ export default function BookingSummaryScreen() {
               <Ionicons name="arrow-back" size={16} color="#7C5CFC" />
               <Text style={s.backFooterText}>ย้อนกลับ</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={s.payBtn}
               activeOpacity={0.85}
@@ -149,7 +149,6 @@ export default function BookingSummaryScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F3FF' },
-
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -157,20 +156,18 @@ const s = StyleSheet.create({
   },
   backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
-
   body: { padding: 16, gap: 16 },
-
   roomCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    backgroundColor: '#EDE9FE',
+    borderRadius: 16, padding: 16,
     borderWidth: 0.5, borderColor: 'rgba(108,99,255,0.2)',
   },
   roomCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
   roomPropName: { fontSize: 11, color: '#7C5CFC' },
   roomName: { fontSize: 20, fontWeight: '700', color: '#7C5CFC', marginBottom: 12 },
   roomPriceRow: { flexDirection: 'row', gap: 32 },
-  roomPriceLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 4 },
+  roomPriceLabel: { fontSize: 11, color: '#7C5CFC', marginBottom: 4 },
   roomPriceVal: { fontSize: 16, fontWeight: '700', color: '#7C5CFC' },
-
   section: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -179,7 +176,6 @@ const s = StyleSheet.create({
   sectionBar: { width: 4, height: 20, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 2 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
   sectionBody: { padding: 16 },
-
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   summaryIconWrap: {
     width: 36, height: 36, borderRadius: 10,
@@ -188,18 +184,14 @@ const s = StyleSheet.create({
   summaryLabel: { fontSize: 12, color: '#1F1D2E', marginBottom: 2 },
   summaryVal: { fontSize: 14, fontWeight: '600', color: '#1F1D2E' },
   summaryAmount: { fontSize: 16, fontWeight: '700', color: '#00C853', marginLeft: 'auto' },
-
   divider: { height: 0.5, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 10 },
-
   totalBlock: {
     backgroundColor: '#7C5CFC', borderRadius: 12,
     paddingHorizontal: 16, paddingVertical: 14,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginTop: 4,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4,
   },
   totalLabel: { fontSize: 15, fontWeight: '600', color: '#fff' },
   totalVal: { fontSize: 20, fontWeight: '700', color: '#fff' },
-
   noteCard: {
     backgroundColor: '#FFF8E6', borderRadius: 16, padding: 16,
     borderWidth: 0.5, borderColor: '#FBBF24',
@@ -209,7 +201,6 @@ const s = StyleSheet.create({
   noteList: { gap: 8 },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   noteText: { fontSize: 13, color: '#854F0B', flex: 1, lineHeight: 20 },
-
   btnRow: { flexDirection: 'row', gap: 12 },
   backFooterBtn: {
     flex: 1, height: 52, borderRadius: 14,

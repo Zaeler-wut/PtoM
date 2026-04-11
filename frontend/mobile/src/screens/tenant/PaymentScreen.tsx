@@ -204,14 +204,15 @@ const s = StyleSheet.create({
   body: { padding: 16, gap: 16 },
 
   roomCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    backgroundColor: '#EDE9FE',  
+    borderRadius: 16, padding: 16,
     borderWidth: 0.5, borderColor: 'rgba(108,99,255,0.2)',
   },
   roomCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
   roomPropName: { fontSize: 11, color: '#7C5CFC' },
   roomName: { fontSize: 20, fontWeight: '700', color: '#7C5CFC', marginBottom: 12 },
   roomPriceRow: { flexDirection: 'row', gap: 32 },
-  roomPriceLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 4 },
+  roomPriceLabel: { fontSize: 11, color: '#7C5CFC', marginBottom: 4 },
   roomPriceVal: { fontSize: 16, fontWeight: '700', color: '#7C5CFC' },
 
   section: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },

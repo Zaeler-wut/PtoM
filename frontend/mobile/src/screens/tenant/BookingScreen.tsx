@@ -4,8 +4,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useState } from 'react'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useState, useCallback, useRef } from 'react'
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 
 const MOCK_BOOKING = {
   propertyName: 'Purple Residence',
@@ -124,8 +124,14 @@ function Calendar({ selectedDate, onSelect }: {
 export default function BookingScreen() {
   const { id, propertyId } = useLocalSearchParams<{ id: string; propertyId: string }>()
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-
+  const scrollRef = useRef<ScrollView>(null)
   const booking = MOCK_BOOKING
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false })
+    }, [])
+  )
 
   const formatDate = (date: Date) => {
     return `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
@@ -143,7 +149,7 @@ export default function BookingScreen() {
         <Text style={s.headerTitle}>จองห้องพัก</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={s.body}>
 
           <View style={s.roomCard}>
@@ -180,7 +186,6 @@ export default function BookingScreen() {
             )}
           </View>
 
-          {/* ปุ่มถัดไป */}
           <TouchableOpacity
             style={[s.nextBtn, !selectedDate && s.nextBtnDisabled]}
             disabled={!selectedDate}
@@ -201,7 +206,6 @@ export default function BookingScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F3FF' },
-
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -209,20 +213,18 @@ const s = StyleSheet.create({
   },
   backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
-
   body: { padding: 16, gap: 16 },
-
   roomCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    backgroundColor: '#EDE9FE',
+    borderRadius: 16, padding: 16,
     borderWidth: 0.5, borderColor: 'rgba(108,99,255,0.2)',
   },
   roomCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
   roomPropName: { fontSize: 11, color: '#7C5CFC' },
   roomName: { fontSize: 20, fontWeight: '700', color: '#7C5CFC', marginBottom: 12 },
   roomPriceRow: { flexDirection: 'row', gap: 32 },
-  roomPriceLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 4 },
+  roomPriceLabel: { fontSize: 11, color: '#7C5CFC', marginBottom: 4 },
   roomPriceVal: { fontSize: 16, fontWeight: '700', color: '#7C5CFC' },
-
   section: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -230,7 +232,6 @@ const s = StyleSheet.create({
   },
   sectionBar: { width: 4, height: 20, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 2 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
-
   calendar: { padding: 16 },
   calNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   calNavBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
@@ -238,23 +239,18 @@ const s = StyleSheet.create({
   calDayRow: { flexDirection: 'row', marginBottom: 8 },
   calDayLabel: { flex: 1, textAlign: 'center', fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
   calWeekRow: { flexDirection: 'row', marginBottom: 4 },
-  calCell: {
-    flex: 1, height: 36, alignItems: 'center', justifyContent: 'center',
-    borderRadius: 18,
-  },
+  calCell: { flex: 1, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18 },
   calCellSelected: { backgroundColor: '#7C5CFC' },
   calCellPast: { opacity: 0.3 },
   calCellText: { fontSize: 14, color: '#1F1D2E' },
   calCellTextSelected: { color: '#fff', fontWeight: '700' },
   calCellTextPast: { color: '#9CA3AF' },
-
   selectedDateBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#EDE9FE', borderRadius: 10,
     padding: 10, marginHorizontal: 16, marginBottom: 16,
   },
   selectedDateText: { fontSize: 13, color: '#7C5CFC', fontWeight: '500' },
-
   nextBtn: {
     backgroundColor: '#7C5CFC', borderRadius: 14,
     height: 52, alignItems: 'center', justifyContent: 'center',

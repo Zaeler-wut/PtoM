@@ -1,9 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState } from 'react'
-import { router } from 'expo-router'
+import { useState, useCallback } from 'react'
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-
 import BillTab from './BillTab'
 import BookingTab from './BookingTab'
 import ContractTab from './ContractTab'
@@ -17,14 +16,21 @@ const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] 
 ]
 
 export default function FinanceScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: Tab }>()
   const [activeTab, setActiveTab] = useState<Tab>('bill')
+
+  useFocusEffect(
+  useCallback(() => {
+    if (tab) setActiveTab(tab)
+    return () => setActiveTab('bill') 
+  }, [tab])
+)
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(app)/(tenant)' as any)} style={s.backBtn}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>ข้อมูลและการเงิน</Text>
@@ -63,68 +69,34 @@ export default function FinanceScreen() {
         {activeTab === 'booking'  && <BookingTab />}
         {activeTab === 'contract' && <ContractTab />}
       </View>
-
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F5F7' },
-
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingVertical: 14,
   },
-  backBtn: {
-    width: 32, height: 32,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#fff',
-  },
-
-  tabWrap: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-  },
+  backBtn: { width: 32, height: 32, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  tabWrap: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff' },
   tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#EDE9FE',
-    borderRadius: 14,
-    padding: 5,
-    gap: 4,
+    flexDirection: 'row', backgroundColor: '#EDE9FE',
+    borderRadius: 14, padding: 5, gap: 4,
   },
   tabBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1, flexDirection: 'row', paddingVertical: 10,
+    borderRadius: 10, alignItems: 'center', justifyContent: 'center',
   },
   tabBtnActive: {
     backgroundColor: '#7C5CFC',
-    shadowColor: '#7C5CFC',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowColor: '#7C5CFC', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#7C5CFC',
-  },
-  tabTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-
-  content: { flex: 1 },
+  tabText: { fontSize: 13, fontWeight: '500', color: '#7C5CFC' },
+  tabTextActive: { color: '#fff', fontWeight: '600' },
+  content: { flex: 1, backgroundColor: '#F5F5F7' },
 })

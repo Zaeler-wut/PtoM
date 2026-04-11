@@ -56,6 +56,10 @@ export default function TenantLayout() {
         name="payment/[id]"
         options={{ href: null }}
       />
+      <Tabs.Screen
+        name="booking-success/[id]"
+        options={{ href: null }}
+      />
     </Tabs>
   )
 }
