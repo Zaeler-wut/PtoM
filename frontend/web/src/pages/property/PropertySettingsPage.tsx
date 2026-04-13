@@ -1,17 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { ENDPOINTS } from "../../api/endpoints";
 import { useForm } from "react-hook-form";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchPropertyDetail, updateProperty } from "../../store/slices/propertySlice";
 import { useToast } from "../../components/shared/Toast";
 import {
   RiImageAddLine, RiQrCodeLine, RiMapPinLine, RiMoneyDollarCircleLine,
-  RiFileTextLine, RiAddLine, RiCloseLine, RiCheckLine, RiSaveLine,
+  RiFileTextLine, RiAddLine, RiCloseLine, RiCheckLine, RiSaveLine, RiStickyNoteLine,
+  RiTimeLine,
 } from "react-icons/ri";
 
+function parseLatLngFromGoogleMapsUrl(url: string): { lat: number; lng: number } | null {
+  // @lat,lng,zoom  →  google.com/maps/@13.72,100.53,15z
+  const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+  if (atMatch) return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) }
+  // ?q=lat,lng  →  maps.google.com/?q=13.72,100.53
+  const qMatch = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+  if (qMatch) return { lat: parseFloat(qMatch[1]), lng: parseFloat(qMatch[2]) }
+  // !3dlat!4dlng  →  embedded share URL
+  const embedMatch = url.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/)
+  if (embedMatch) return { lat: parseFloat(embedMatch[1]), lng: parseFloat(embedMatch[2]) }
+  return null
+}
+
 interface SettingsForm {
+  name: string;
   priceMin: number;
   priceMax: number;
+  preparingDays: number;
   contractTerm: string;
   description: string;
   address: string;
@@ -19,6 +36,9 @@ interface SettingsForm {
   bankName: string;
   bankAccount: string;
   bankHolder: string;
+  billNote: string;
+  lat: string;
+  lng: string;
 }
 
 export default function PropertySettingsPage() {
@@ -30,8 +50,30 @@ export default function PropertySettingsPage() {
   const [amenityInput, setAmenityInput] = useState("");
   const { toast } = useToast();
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<SettingsForm>();
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<SettingsForm>();
   const googleMapValue = watch("googleMap");
+
+  // ── ดึง lat/lng จาก Google Maps URL อัตโนมัติ ──
+  useEffect(() => {
+    if (!googleMapValue) return;
+    const run = async () => {
+      let urlToParse = googleMapValue;
+      if (/goo\.gl|maps\.app/i.test(googleMapValue)) {
+        try {
+          const res = await import("../../api/axiosInstance").then(m =>
+            m.default.get<{ resolvedUrl: string }>(ENDPOINTS.resolveMapUrl(googleMapValue))
+          );
+          urlToParse = res.data.resolvedUrl;
+        } catch { return; }
+      }
+      const coords = parseLatLngFromGoogleMapsUrl(urlToParse);
+      if (coords) {
+        setValue("lat", String(coords.lat));
+        setValue("lng", String(coords.lng));
+      }
+    };
+    run();
+  }, [googleMapValue]);
 
   // ── ดึงข้อมูลตอนเปิดหน้า (ถ้า MainLayout ยังไม่ได้โหลดหรือเป็น property อื่น) ──
   useEffect(() => {
@@ -44,6 +86,7 @@ export default function PropertySettingsPage() {
   useEffect(() => {
     if (!property || !property.id) return;
     reset({
+      name: property.name,
       priceMin: property.priceMin,
       priceMax: property.priceMax,
       contractTerm: property.contractTerm ?? "",
@@ -53,6 +96,10 @@ export default function PropertySettingsPage() {
       bankName: property.bankName ?? "",
       bankAccount: property.bankAccount ?? "",
       bankHolder: property.bankHolder ?? "",
+      billNote: property.billNote ?? "",
+      preparingDays: property.preparingDays ?? 3,
+      lat: property.lat != null ? String(property.lat) : "",
+      lng: property.lng != null ? String(property.lng) : "",
     });
     setAmenities(property.facilities ?? property.amenities ?? []);
   }, [property?.id]);
@@ -67,6 +114,10 @@ export default function PropertySettingsPage() {
         facilities: amenities,
         priceMin: Number(data.priceMin),
         priceMax: Number(data.priceMax),
+        preparingDays: Number(data.preparingDays) || 1,
+        lat: data.lat !== "" ? Number(data.lat) : null,
+        lng: data.lng !== "" ? Number(data.lng) : null,
+        billNote: data.billNote?.trim() || null,
       },
     }));
     if (updateProperty.fulfilled.match(result)) {
@@ -105,6 +156,17 @@ export default function PropertySettingsPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+          {/* ชื่อสถานที่ */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">ชื่อสถานที่</label>
+            <input
+              type="text"
+              {...register("name", { required: "กรุณากรอกชื่อสถานที่" })}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400"
+            />
+            {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
+          </div>
 
           {/* ช่วงราคา + สิ่งอำนวยความสะดวก */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 ">
@@ -176,6 +238,27 @@ export default function PropertySettingsPage() {
             <p className="text-xs text-gray-400 mt-1">ระบุระยะเวลาสัญญาเช่า เช่น "6 เดือน - 1 ปี" หรือ "1 ปี"</p>
           </div>
 
+          {/* จำนวนวันเตรียมห้องหลังผู้เช่าออก */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <RiTimeLine className="text-purple-500" size={18} />
+              <h3 className="text-sm font-semibold text-gray-700">จำนวนวันเตรียมห้องหลังผู้เช่าออก</h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={0}
+                max={30}
+                {...register("preparingDays", { min: 0, max: 30 })}
+                className="w-28 px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 text-center"
+              />
+              <span className="text-sm text-gray-500">วัน</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              ระบบจะเปิดให้จองห้องนี้ได้ หลังจากผู้เช่าเก่าออกไปแล้ว <strong>{watch("preparingDays") ?? 3} วัน</strong> เช่น ออกวันที่ 25 จะเปิดจองวันที่ {25 + (Number(watch("preparingDays")) || 3)} เป็นต้นไป
+            </p>
+          </div>
+
           {/* รายละเอียดหอพัก */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm ">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">รายละเอียดหอพัก</h3>
@@ -209,6 +292,29 @@ export default function PropertySettingsPage() {
                   </div>
                 )}
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">ละติจูด (Latitude)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="13.7563"
+                    {...register("lat")}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">ลองจิจูด (Longitude)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="100.5018"
+                    {...register("lng")}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">วาง Google Maps URL ด้านบน ระบบจะดึงค่าให้อัตโนมัติ หรือกรอกเองก็ได้</p>
             </div>
           </div>
 
@@ -365,6 +471,25 @@ export default function PropertySettingsPage() {
               <input type="text" {...register("bankHolder")}
                 className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
             </div>
+          </div>
+
+          {/* หมายเหตุในบิล */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <RiStickyNoteLine className="text-purple-500" size={18} />
+              <h3 className="text-sm font-semibold text-gray-700">หมายเหตุในบิล</h3>
+            </div>
+            {/* styled เหมือน section หมายเหตุในบิล */}
+            <div className="border border-gray-200 rounded-xl p-4">
+              <p className="text-xs font-semibold text-purple-600 mb-3">● หมายเหตุ</p>
+              <textarea
+                rows={6}
+                {...register("billNote")}
+                placeholder={"1. กรุณาชำระภายในวันที่ 5 ของทุกเดือน พร้อมส่งสลิปการโอน\n2. หากเลยกำหนดชำระ ปรับวันละ 50 บาท\n3. โอนเข้าบัญชี ธนาคาร เลขที่ 000-0-00000-0 ชื่อบัญชี ชื่อ นามสกุล"}
+                className="w-full text-sm text-gray-700 leading-relaxed outline-none resize-none placeholder:text-gray-300"
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">ข้อความด้านบนจะแสดงในบิลเป๊ะ แก้ไขได้ทุกบรรทัด</p>
           </div>
 
           {/* Save Button */}

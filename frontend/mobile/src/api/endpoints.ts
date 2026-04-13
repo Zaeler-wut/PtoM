@@ -23,6 +23,35 @@ export const ENDPOINTS = {
     featured: "/mobile/properties/featured",
     search: "/mobile/properties",
     detail: (id: string) => `/mobile/properties/${id}`,
+    roomTypeDetail: (propertyId: string, roomTypeId: string) =>
+      `/mobile/properties/${propertyId}/room-types/${roomTypeId}`,
+    bookingInfo: (propertyId: string, roomTypeId: string) =>
+      `/mobile/properties/${propertyId}/room-types/${roomTypeId}/booking-info`,
+    createBooking: (propertyId: string, roomTypeId: string) =>
+      `/mobile/properties/${propertyId}/room-types/${roomTypeId}/bookings`,
+  },
+  upload: {
+    image: "/upload/image",
+  },
+
+  mobileBills: {
+    list: "/mobile/bills",
+    paymentInfo: (billId: string) => `/mobile/bills/${billId}/payment-info`,
+    submitPayment: (billId: string) => `/mobile/bills/${billId}/payments`,
+  },
+
+  mobileBookingsList: {
+    list: "/mobile/bookings",
+    cancel: (bookingId: string) => `/mobile/bookings/${bookingId}`,
+  },
+
+  mobileContracts: {
+    list: "/mobile/contracts",
+  },
+
+  mobileProfile: {
+    get: "/mobile/profile",
+    update: "/mobile/profile",
   },
 
   dashboard: {

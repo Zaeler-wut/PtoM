@@ -4,6 +4,15 @@ export const createProperty = async (data: any) => {
   if (!data.userId) throw new Error("userId is required")
   if (!data.name) throw new Error("name is required")
   if (!data.address) throw new Error("address is required")
+
+  const { count, limit } = await repo.getAdminPropertyLimit(data.userId)
+  if (limit === null) {
+    throw new Error("ไม่สามารถสร้างสถานที่ได้ กรุณาติดต่อผู้ดูแลระบบเพื่อกำหนดสิทธิ์")
+  }
+  if (count >= limit) {
+    throw new Error(`ถึงขีดจำกัดการสร้างสถานที่แล้ว (${count}/${limit})`)
+  }
+
   return repo.createPropertyWithAdmin(data)
 }
 
@@ -36,6 +45,7 @@ export const getPropertyDetail = async (propertyId: string) => {
     contractTerm: p.contractTerm, preparingDays: p.preparingDays,
     bankName: p.bankName, bankAccount: p.bankAccount, bankHolder: p.bankHolder,
     paymentQrUrl: p.paymentQrUrl, logoUrl: p.logoUrl,
+    lat: p.lat, lng: p.lng, billNote: p.billNote,
     facilities: p.facilities.map((f) => f.facility.name),
     images: p.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover })),
   }
@@ -56,6 +66,12 @@ export const updateProperty = async (propertyId: string, data: any) => {
     console.log("facilities not array:", data.facilities)
   }
   return getPropertyDetail(propertyId)
+}
+
+export const deleteProperty = async (propertyId: string) => {
+  const p = await repo.getPropertyById(propertyId)
+  if (!p) throw new Error("Property not found")
+  return repo.deleteProperty(propertyId)
 }
 
 export const addPropertyImages = async (propertyId: string, urls: string[]) => {

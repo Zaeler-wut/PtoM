@@ -1,24 +1,12 @@
 import {
-  View, Text, StyleSheet, ScrollView as RNScrollView, TouchableOpacity, Image, Alert,
+  View, Text, StyleSheet, ScrollView as RNScrollView, TouchableOpacity, Image, Alert, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
-
-const MOCK_PAYMENT = {
-  propertyName: 'Purple Residence',
-  roomName: 'Standard',
-  rentPerMonth: 4500,
-  bookingFee: 2000,
-  bank: {
-    name: 'ธนาคารกสิกรไทย',
-    accountNumber: '123-4-56789-0',
-    accountName: 'Purple Residence',
-  },
-  qrUrl: null,
-}
+import { mobileBookingApi, type BookingInfo } from '../../api/booking/mobileBookingApi'
 
 export default function PaymentScreen() {
   const { id, propertyId, moveInDate } = useLocalSearchParams<{
@@ -28,8 +16,18 @@ export default function PaymentScreen() {
   }>()
 
   const [slipImage, setSlipImage] = useState<string | null>(null)
+  const [bookingInfo, setBookingInfo] = useState<BookingInfo | null>(null)
+  const [loadingInfo, setLoadingInfo] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const scrollRef = useRef<RNScrollView>(null)
-  const payment = MOCK_PAYMENT
+
+  useEffect(() => {
+    if (!id || !propertyId) return
+    mobileBookingApi.getBookingInfo(propertyId as string, id as string)
+      .then(setBookingInfo)
+      .catch(console.error)
+      .finally(() => setLoadingInfo(false))
+  }, [id, propertyId])
 
   // ล้างรูปทุกครั้งที่เข้าหน้านี้
   useFocusEffect(
@@ -46,7 +44,7 @@ export default function PaymentScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     })
@@ -55,15 +53,39 @@ export default function PaymentScreen() {
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!slipImage) {
       Alert.alert('แจ้งเตือน', 'กรุณาอัปโหลดสลิปการโอนเงินก่อน')
       return
     }
-    router.push({
-      pathname: '/(app)/(tenant)/booking-success/[id]',
-      params: { id, propertyId, moveInDate }
-    } as any)
+    if (!id || !propertyId || !moveInDate) return
+    setSubmitting(true)
+    try {
+      const slipUrl = await mobileBookingApi.uploadSlip(slipImage)
+      const result = await mobileBookingApi.createBooking(
+        propertyId as string,
+        id as string,
+        { moveInDate: moveInDate as string, slipUrl }
+      )
+      router.push({
+        pathname: '/(app)/(tenant)/booking-success/[id]',
+        params: {
+          id: result.bookingId,
+          propertyId,
+          moveInDate,
+          propertyName: bookingInfo?.propertyName ?? result.propertyName,
+          roomTypeName: bookingInfo?.roomTypeName ?? result.roomTypeName,
+          rentPerMonth: String((bookingInfo?.roomPrice ?? result.roomPrice) + (bookingInfo?.furniturePrice ?? 0)),
+          bookingFee: String(result.bookingFee),
+          paidAmount: String(result.paidAmount),
+          tenantName: `${result.firstName} ${result.lastName}`,
+        }
+      } as any)
+    } catch (err: any) {
+      Alert.alert('เกิดข้อผิดพลาด', err.response?.data?.error ?? 'ไม่สามารถจองได้ กรุณาลองใหม่')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -81,23 +103,27 @@ export default function PaymentScreen() {
         <Text style={s.headerTitle}>จองห้องพัก</Text>
       </View>
 
+      {loadingInfo && (
+        <ActivityIndicator color="#7C5CFC" style={{ marginTop: 80 }} />
+      )}
+
       <RNScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={s.body}>
 
           <View style={s.roomCard}>
             <View style={s.roomCardLeft}>
               <Ionicons name="location-sharp" size={12} color="#7C5CFC" />
-              <Text style={s.roomPropName}>{payment.propertyName}</Text>
+              <Text style={s.roomPropName}>{bookingInfo?.propertyName}</Text>
             </View>
-            <Text style={s.roomName}>{payment.roomName}</Text>
+            <Text style={s.roomName}>{bookingInfo?.roomTypeName}</Text>
             <View style={s.roomPriceRow}>
               <View>
                 <Text style={s.roomPriceLabel}>ค่าเช่า/เดือน</Text>
-                <Text style={s.roomPriceVal}>{payment.rentPerMonth.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.roomPriceVal}>{((bookingInfo?.roomPrice ?? 0) + (bookingInfo?.furniturePrice ?? 0)).toLocaleString('th-TH')} ฿</Text>
               </View>
               <View>
                 <Text style={s.roomPriceLabel}>ค่าจองห้อง</Text>
-                <Text style={s.roomPriceVal}>{payment.bookingFee.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.roomPriceVal}>{bookingInfo?.bookingFee.toLocaleString('th-TH')} ฿</Text>
               </View>
             </View>
           </View>
@@ -111,8 +137,8 @@ export default function PaymentScreen() {
             <View style={s.sectionBody}>
               <Text style={s.qrLabel}>สแกน QR Code เพื่อชำระเงิน</Text>
               <View style={s.qrWrap}>
-                {payment.qrUrl ? (
-                  <Image source={{ uri: payment.qrUrl }} style={s.qrImage} resizeMode="contain" />
+                {bookingInfo?.payment?.paymentQrUrl ? (
+                  <Image source={{ uri: bookingInfo?.payment?.paymentQrUrl }} style={s.qrImage} resizeMode="contain" />
                 ) : (
                   <View style={s.qrPlaceholder}>
                     <Ionicons name="qr-code-outline" size={80} color="#7C5CFC" />
@@ -121,13 +147,13 @@ export default function PaymentScreen() {
               </View>
 
               <Text style={s.amountLabel}>จำนวนเงิน</Text>
-              <Text style={s.amountVal}>{payment.bookingFee.toLocaleString('th-TH')} ฿</Text>
+              <Text style={s.amountVal}>{bookingInfo?.bookingFee.toLocaleString('th-TH')} ฿</Text>
 
               <View style={s.bankCard}>
                 <Text style={s.bankTitle}>ธนาคาร</Text>
-                <Text style={s.bankName}>{payment.bank.name}</Text>
-                <Text style={s.bankDetail}>เลขที่บัญชี: {payment.bank.accountNumber}</Text>
-                <Text style={s.bankDetail}>ชื่อบัญชี: {payment.bank.accountName}</Text>
+                <Text style={s.bankName}>{bookingInfo?.payment?.bankName}</Text>
+                <Text style={s.bankDetail}>เลขที่บัญชี: {bookingInfo?.payment?.bankAccount}</Text>
+                <Text style={s.bankDetail}>ชื่อบัญชี: {bookingInfo?.payment?.bankHolder}</Text>
               </View>
 
               <TouchableOpacity style={s.saveQrBtn} activeOpacity={0.8}>
@@ -178,9 +204,19 @@ export default function PaymentScreen() {
               <Text style={s.backFooterText}>ย้อนกลับ</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.submitBtn} onPress={handleSubmit} activeOpacity={0.85}>
-              <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-              <Text style={s.submitBtnText}>ชำระเงินแล้ว</Text>
+            <TouchableOpacity
+              style={[s.submitBtn, submitting && { opacity: 0.6 }]}
+              onPress={handleSubmit}
+              disabled={submitting}
+              activeOpacity={0.85}
+            >
+              {submitting
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <>
+                    <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+                    <Text style={s.submitBtnText}>ชำระเงินแล้ว</Text>
+                  </>
+              }
             </TouchableOpacity>
           </View>
 

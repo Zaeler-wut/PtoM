@@ -1,16 +1,30 @@
 import { prisma } from "../../lib/prisma"
 
 export const getRoomsByProperty = async (propertyId: string) => {
-  return prisma.room.findMany({
-    where: { propertyId },
-    include: {
-      roomType: true,
-      contracts: {
-        where: { status: "ACTIVE" },
-        include: { user: true },
+  const [rooms, property] = await Promise.all([
+    prisma.room.findMany({
+      where: { propertyId },
+      include: {
+        roomType: true,
+        contracts: {
+          where: { status: { in: ["ACTIVE", "MOVE_OUT_NOTICE"] } },
+          include: { user: true },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+        moveOutBills: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { moveOutDate: true },
+        },
       },
-    },
-  })
+    }),
+    prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { preparingDays: true },
+    }),
+  ])
+  return { rooms, preparingDays: property?.preparingDays ?? 3 }
 }
 
 export const getRoomById = async (roomId: string) => {

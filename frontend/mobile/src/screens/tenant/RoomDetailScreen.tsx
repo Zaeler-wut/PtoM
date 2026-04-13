@@ -1,29 +1,12 @@
 import {
   View, Text, StyleSheet, ScrollView, Image,
-  TouchableOpacity,
+  TouchableOpacity, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
-
-const MOCK_ROOM = {
-  id: '1',
-  name: 'Standard',
-  propertyName: 'Purple Residence',
-  coverImage: null,
-  availableRooms: 5,
-  totalRooms: 40,
-  size: 20,
-  roomPrice: 6500,
-  securityDeposit: 6500,
-  advanceRent: 2500,
-  bookingFee: 2000,
-  waterRate: 20,
-  electricRate: 7,
-  facilities: ['แอร์', 'ห้องน้ำในตัว', 'ระเบียง'],
-  description: 'ค่าประกัน+ล่วงหน้า จ่ายตอนทำสัญญา\nค่าจองห้องรวมอยู่ในค่าล่วงหน้าแล้ว',
-}
+import { mobileBookingApi, type RoomTypeDetail } from '../../api/booking/mobileBookingApi'
 
 function SectionHeader({ label, color }: { label: string; color: string }) {
   return (
@@ -37,12 +20,33 @@ function SectionHeader({ label, color }: { label: string; color: string }) {
 export default function RoomDetailScreen() {
   const { id, propertyId } = useLocalSearchParams<{ id: string; propertyId: string }>()
   const scrollRef = useRef<ScrollView>(null)
-  const room = MOCK_ROOM
+  const [room, setRoom] = useState<RoomTypeDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!id || !propertyId) return
+    mobileBookingApi.getRoomTypeDetail(propertyId as string, id as string)
+      .then(setRoom)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [id, propertyId])
 
   useFocusEffect(
     useCallback(() => {
       scrollRef.current?.scrollTo({ y: 0, animated: false })
     }, [])
+  )
+
+  if (loading) return (
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <ActivityIndicator color="#7C5CFC" style={{ marginTop: 80 }} />
+    </SafeAreaView>
+  )
+
+  if (!room) return (
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <Text style={{ textAlign: 'center', marginTop: 40, color: '#9CA3AF' }}>ไม่พบข้อมูลห้อง</Text>
+    </SafeAreaView>
   )
 
   return (
@@ -55,19 +59,19 @@ export default function RoomDetailScreen() {
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>{room.name}</Text>
-          <Text style={s.headerSub}>{room.propertyName}</Text>
+          <Text style={s.headerTitle}>{room!.name}</Text>
+          <Text style={s.headerSub}>{room!.propertyName}</Text>
         </View>
         <View style={s.headerBadge}>
-          <Text style={s.headerBadgeText}>ห้อง {room.name}</Text>
+          <Text style={s.headerBadgeText}>ห้อง {room!.name}</Text>
         </View>
       </View>
 
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
 
         <View style={s.imageWrap}>
-          {room.coverImage ? (
-            <Image source={{ uri: room.coverImage }} style={s.coverImage} resizeMode="cover" />
+          {room!.images?.[0] ? (
+            <Image source={{ uri: room!.images[0] }} style={s.coverImage} resizeMode="cover" />
           ) : (
             <View style={[s.coverImage, s.imagePlaceholder]}>
               <Ionicons name="image-outline" size={40} color="#C4B5FD" />
@@ -75,7 +79,9 @@ export default function RoomDetailScreen() {
           )}
           <View style={s.availableBadge}>
             <Ionicons name="checkmark-circle" size={12} color="#fff" />
-            <Text style={s.availableBadgeText}>ว่าง {room.availableRooms} ห้อง</Text>
+            <Text style={s.availableBadgeText}>
+              ว่าง {room!.availableRooms + room!.preparingCount} ห้อง
+            </Text>
           </View>
         </View>
 
@@ -89,7 +95,7 @@ export default function RoomDetailScreen() {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 4 }}>
                 <Ionicons name="resize-outline" size={13} color="#fff" />
-                <Text style={{ fontSize: 12, color: '#fff' }}>ขนาดห้อง {room.size} ตารางเมตร</Text>
+                <Text style={{ fontSize: 12, color: '#fff' }}>ขนาดห้อง {room!.size} ตารางเมตร</Text>
               </View>
             </View>
             <View style={s.sectionBody}>
@@ -98,15 +104,22 @@ export default function RoomDetailScreen() {
                   <Ionicons name="cash-outline" size={18} color="#F5A623" />
                   <Text style={s.priceLabel}>ค่าเช่ารายเดือน</Text>
                 </View>
-                <Text style={s.priceVal}>{room.roomPrice.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.priceVal}>{(room!.roomPrice + room!.furniturePrice).toLocaleString('th-TH')} ฿</Text>
               </View>
+              {room!.furniturePrice > 0 && (
+                <View style={{ paddingLeft: 28, marginTop: -4, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 11, color: '#9CA3AF' }}>
+                    ห้อง {room!.roomPrice.toLocaleString('th-TH')} + เฟอร์นิเจอร์ {room!.furniturePrice.toLocaleString('th-TH')} ฿
+                  </Text>
+                </View>
+              )}
               <View style={s.divider} />
               <View style={s.priceRow}>
                 <View style={s.priceLeft}>
                   <Ionicons name="home-outline" size={18} color="#7C5CFC" />
                   <Text style={s.priceLabel}>ค่าประกัน+ล่วงหน้า 1 เดือน</Text>
                 </View>
-                <Text style={s.priceVal}>{(room.securityDeposit + room.advanceRent).toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.priceVal}>{(room!.securityDeposit + room!.advanceRent).toLocaleString('th-TH')} ฿</Text>
               </View>
               <View style={s.divider} />
               <View style={s.priceRow}>
@@ -114,11 +127,11 @@ export default function RoomDetailScreen() {
                   <Ionicons name="document-text-outline" size={18} color="#6B7280" />
                   <Text style={s.priceLabel}>ค่าจองห้อง</Text>
                 </View>
-                <Text style={s.priceVal}>{room.bookingFee.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.priceVal}>{room!.bookingFee.toLocaleString('th-TH')} ฿</Text>
               </View>
-              {room.description && (
+              {room!.description && (
                 <View style={s.noteBox}>
-                  {room.description.split('\n').map((line, i) => (
+                  {room!.description.split('\n').map((line, i) => (
                     <View key={i} style={s.noteRow}>
                       <Ionicons name="information-circle" size={13} color="#7C5CFC" />
                       <Text style={s.noteText}>{line}</Text>
@@ -140,7 +153,7 @@ export default function RoomDetailScreen() {
                   <Text style={s.utilLabel}>ค่าไฟฟ้า</Text>
                   <Text style={s.utilUnit}>ต่อหน่วย</Text>
                 </View>
-                <Text style={s.utilVal}>{room.electricRate} ฿</Text>
+                <Text style={s.utilVal}>{room!.electricRate} ฿</Text>
               </View>
               <View style={s.divider} />
               <View style={s.utilRow}>
@@ -151,7 +164,7 @@ export default function RoomDetailScreen() {
                   <Text style={s.utilLabel}>ค่าน้ำประปา</Text>
                   <Text style={s.utilUnit}>ต่อหน่วย</Text>
                 </View>
-                <Text style={s.utilVal}>{room.waterRate} ฿</Text>
+                <Text style={s.utilVal}>{room!.waterRate} ฿</Text>
               </View>
             </View>
           </View>
@@ -159,13 +172,13 @@ export default function RoomDetailScreen() {
           <View style={s.section}>
             <SectionHeader label="สิ่งอำนวยความสะดวกในห้อง" color="#00C853" />
             <View style={s.sectionBody}>
-              {room.facilities.map((f, i) => (
+              {room!.facilities.map((f, i) => (
                 <View key={i}>
                   <View style={s.facilityRow}>
                     <Ionicons name="checkmark-circle" size={18} color="#00C853" />
                     <Text style={s.facilityText}>{f}</Text>
                   </View>
-                  {i < room.facilities.length - 1 && <View style={s.divider} />}
+                  {i < room!.facilities.length - 1 && <View style={s.divider} />}
                 </View>
               ))}
             </View>
@@ -176,13 +189,20 @@ export default function RoomDetailScreen() {
             <View style={[s.sectionBody, { flexDirection: 'row', gap: 12 }]}>
               <View style={s.statCard}>
                 <Text style={s.statLabel}>ห้องทั้งหมด</Text>
-                <Text style={[s.statNum, { color: '#FF8C00' }]}>{room.totalRooms}</Text>
+                <Text style={[s.statNum, { color: '#FF8C00' }]}>{room!.totalRooms}</Text>
                 <Text style={s.statUnit}>ห้อง</Text>
               </View>
               <View style={s.statCard}>
                 <Text style={s.statLabel}>ห้องว่าง</Text>
-                <Text style={[s.statNum, { color: '#00C853' }]}>{room.availableRooms}</Text>
+                <Text style={[s.statNum, { color: '#00C853' }]}>
+                  {room!.availableRooms + room!.preparingCount}
+                </Text>
                 <Text style={s.statUnit}>ห้อง</Text>
+                {room!.preparingCount > 0 && room!.availableRooms === 0 && room!.preparingAvailableDate && (
+                  <Text style={{ fontSize: 10, color: '#EA580C', marginTop: 2, textAlign: 'center' }}>
+                    {`จะว่าง ${new Date(room!.preparingAvailableDate + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}`}
+                  </Text>
+                )}
               </View>
             </View>
           </View>

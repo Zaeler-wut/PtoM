@@ -65,7 +65,11 @@ export default function RoomListPage() {
   const filtered = rooms
     .filter((r) => {
       const matchSearch = r.roomNumber.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "ALL" || r.status === statusFilter;
+      const matchStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "PREPARING"
+          ? r.status === "PREPARING" || r.contractStatus === "MOVE_OUT_NOTICE"
+          : r.status === statusFilter && r.contractStatus !== "MOVE_OUT_NOTICE");
       return matchSearch && matchStatus;
     })
     .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }));
@@ -113,7 +117,7 @@ export default function RoomListPage() {
             <table className="w-full min-w-[600px]">
               <thead className="border-b border-gray-300 bg-gray-50/50">
                 <tr>
-                  {["เลขห้อง", "ชั้น", "ประเภทห้อง", "ราคา/เดือน", "สถานะ", "ผู้เช่า", "จัดการ"].map((h) => (
+                  {["เลขห้อง", "ชั้น", "ประเภทห้อง", "ราคา/เดือน", "สถานะ", "ผู้เช่า / วันที่แจ้งออก", "จัดการ"].map((h) => (
                     <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
                   ))}
                 </tr>
@@ -129,8 +133,35 @@ export default function RoomListPage() {
                     <td className="px-5 py-3.5 text-sm text-gray-600">{room.floor ?? "-"}</td>
                     <td className="px-5 py-3.5 text-sm text-gray-600">{room.roomType}</td>
                     <td className="px-5 py-3.5 text-sm text-gray-600">฿{room.price.toLocaleString()}</td>
-                    <td className="px-5 py-3.5"><StatusBadge status={room.status} /></td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">{room.tenant ?? "-"}</td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex flex-col gap-0.5">
+                        <StatusBadge
+                          status={room.contractStatus === "MOVE_OUT_NOTICE" ? "PREPARING" : room.status}
+                        />
+                        {(room.status === "PREPARING" || room.contractStatus === "MOVE_OUT_NOTICE") &&
+                          room.availableFromDate && (
+                            <span className="text-xs text-gray-400">
+                              ว่างตั้งแต่{" "}
+                              {new Date(room.availableFromDate).toLocaleDateString("th-TH", {
+                                day: "numeric", month: "short",
+                              })}
+                            </span>
+                          )}
+                        {room.status === "PREPARING" && !room.availableFromDate && (
+                          <span className="text-xs text-yellow-600">พร้อมแล้ว</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm text-gray-700">{room.tenant ?? "-"}</span>
+                        {room.moveOutNoticeDate && (
+                          <span className="text-xs text-orange-500">
+                            แจ้งออก {new Date(room.moveOutNoticeDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
                         <button onClick={() => setEditRoom(room)}
@@ -242,7 +273,7 @@ function AddRoomModal({ open, onClose, propertyId, roomTypes, onSuccess }: {
   const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<AddRoomForm>();
 
   const roomTypeOptions = roomTypes.map((rt) => ({
-    value: rt.id, label: `${rt.name} — ฿${rt.roomPrice.toLocaleString()}/เดือน`,
+    value: rt.id, label: `${rt.name} — ฿${(rt.roomPrice + (rt.furniturePrice ?? 0)).toLocaleString()}/เดือน`,
   }));
 
   const onSubmit = async (data: AddRoomForm) => {
@@ -302,7 +333,7 @@ function EditRoomModal({ open, room, propertyId, roomTypes, onClose, onSuccess }
   });
 
   const roomTypeOptions = roomTypes.map((rt) => ({
-    value: rt.id, label: `${rt.name} — ฿${rt.roomPrice.toLocaleString()}/เดือน`,
+    value: rt.id, label: `${rt.name} — ฿${(rt.roomPrice + (rt.furniturePrice ?? 0)).toLocaleString()}/เดือน`,
   }));
 
   const onSubmit = async (data: EditRoomForm) => {
@@ -335,7 +366,9 @@ function EditRoomModal({ open, room, propertyId, roomTypes, onClose, onSuccess }
           <label className="block text-sm font-medium text-gray-700 mb-1.5">สถานะห้อง</label>
           {room.status === "OCCUPIED" ? (
             <div className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 text-gray-400">
-              ห้องมีผู้เช่าอยู่ — ไม่สามารถแก้ไขสถานะได้
+              {room.contractStatus === "MOVE_OUT_NOTICE"
+                ? "ผู้เช่าแจ้งย้ายออกแล้ว — ไม่สามารถแก้ไขสถานะได้"
+                : "ห้องมีผู้เช่าอยู่ — ไม่สามารถแก้ไขสถานะได้"}
             </div>
           ) : (
             <Controller name="status" control={control}

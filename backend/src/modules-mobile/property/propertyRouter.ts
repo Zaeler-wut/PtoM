@@ -33,8 +33,10 @@ router.get("/properties", async (req, res) => {
       return res.status(400).json({ error: "month and year are required" })
     }
 
+    const day = req.query.day ? parseInt(req.query.day as string) : undefined
+
     const data = await service.searchProperties({
-      lat, lng, month, year, maxOccupants, radius,
+      lat, lng, month, year, day, maxOccupants, radius,
     })
 
     res.json(data)
@@ -45,16 +47,29 @@ router.get("/properties", async (req, res) => {
 })
 
 
+router.get("/properties/:propertyId/room-types/:roomTypeId", async (req, res) => {
+  try {
+    const data = await service.getRoomTypeDetail(
+      req.params.propertyId,
+      req.params.roomTypeId
+    )
+    res.json(data)
+  } catch (err: any) {
+    res.status(404).json({ error: err.message })
+  }
+})
+
 router.get("/properties/:propertyId", async (req, res) => {
   try {
     const month = req.query.month ? parseInt(req.query.month as string) : undefined
     const year = req.query.year ? parseInt(req.query.year as string) : undefined
+    const day = req.query.day ? parseInt(req.query.day as string) : undefined
     const maxOccupants = req.query.maxOccupants
       ? parseInt(req.query.maxOccupants as string)
       : undefined
 
     const data = await service.getPropertyDetail(req.params.propertyId, {
-      month, year, maxOccupants,
+      month, year, day, maxOccupants,
     })
 
     res.json(data)

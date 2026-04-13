@@ -1,20 +1,14 @@
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
+import { mobileBookingApi, type BookingInfo } from '../../api/booking/mobileBookingApi'
 
 const MONTH_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
-
-const MOCK_BOOKING = {
-  propertyName: 'Purple Residence',
-  roomName: 'Standard',
-  rentPerMonth: 4500,
-  bookingFee: 2000,
-}
 
 export default function BookingSummaryScreen() {
   const { id, propertyId, moveInDate } = useLocalSearchParams<{
@@ -22,15 +16,31 @@ export default function BookingSummaryScreen() {
   }>()
 
   const scrollRef = useRef<ScrollView>(null)
-  const booking = MOCK_BOOKING
-  const date = moveInDate ? new Date(moveInDate) : new Date()
-  const formattedDate = `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
+  const [bookingInfo, setBookingInfo] = useState<BookingInfo | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!id || !propertyId) return
+    mobileBookingApi.getBookingInfo(propertyId as string, id as string)
+      .then(setBookingInfo)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [id, propertyId])
 
   useFocusEffect(
     useCallback(() => {
       scrollRef.current?.scrollTo({ y: 0, animated: false })
     }, [])
   )
+
+  if (loading) return (
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <ActivityIndicator color="#7C5CFC" style={{ marginTop: 80 }} />
+    </SafeAreaView>
+  )
+
+  const date = moveInDate ? new Date(moveInDate) : new Date()
+  const formattedDate = `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -50,17 +60,17 @@ export default function BookingSummaryScreen() {
           <View style={s.roomCard}>
             <View style={s.roomCardLeft}>
               <Ionicons name="location-sharp" size={12} color="#7C5CFC" />
-              <Text style={s.roomPropName}>{booking.propertyName}</Text>
+              <Text style={s.roomPropName}>{bookingInfo?.propertyName}</Text>
             </View>
-            <Text style={s.roomName}>{booking.roomName}</Text>
+            <Text style={s.roomName}>{bookingInfo?.roomTypeName}</Text>
             <View style={s.roomPriceRow}>
               <View>
                 <Text style={s.roomPriceLabel}>ค่าเช่า/เดือน</Text>
-                <Text style={s.roomPriceVal}>{booking.rentPerMonth.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.roomPriceVal}>{((bookingInfo?.roomPrice ?? 0) + (bookingInfo?.furniturePrice ?? 0)).toLocaleString('th-TH')} ฿</Text>
               </View>
               <View>
                 <Text style={s.roomPriceLabel}>ค่าจองห้อง</Text>
-                <Text style={s.roomPriceVal}>{booking.bookingFee.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.roomPriceVal}>{bookingInfo?.bookingFee.toLocaleString('th-TH')} ฿</Text>
               </View>
             </View>
           </View>
@@ -88,12 +98,12 @@ export default function BookingSummaryScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.summaryLabel}>ค่าจองห้อง</Text>
                 </View>
-                <Text style={s.summaryAmount}>{booking.bookingFee.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.summaryAmount}>{bookingInfo?.bookingFee.toLocaleString('th-TH')} ฿</Text>
               </View>
               <View style={s.divider} />
               <View style={s.totalBlock}>
                 <Text style={s.totalLabel}>รวมทั้งหมด</Text>
-                <Text style={s.totalVal}>{booking.bookingFee.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.totalVal}>{bookingInfo?.bookingFee.toLocaleString('th-TH')} ฿</Text>
               </View>
             </View>
           </View>
@@ -110,7 +120,7 @@ export default function BookingSummaryScreen() {
               </View>
               <View style={s.noteRow}>
                 <Ionicons name="checkmark" size={13} color="#854F0B" />
-                <Text style={s.noteText}>ชำระค่าจองห้อง {booking.bookingFee.toLocaleString('th-TH')} บาท ภายใน 24 ชั่วโมง</Text>
+                <Text style={s.noteText}>ชำระค่าจองห้อง {bookingInfo?.bookingFee.toLocaleString('th-TH')} บาท ภายใน 24 ชั่วโมง</Text>
               </View>
               <View style={s.noteRow}>
                 <Ionicons name="checkmark" size={13} color="#854F0B" />

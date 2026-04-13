@@ -9,23 +9,29 @@ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 const MONTH_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
 
-const MOCK_SUCCESS = {
-  propertyName: 'Purple Residence',
-  roomName: 'Standard',
-  rentPerMonth: 4500,
-  bookingFee: 2000,
-  tenantName: 'วุฒิพงศ์ จงกลิกรรม',
-}
-
 export default function BookingSuccessScreen() {
-  const { id, propertyId, moveInDate } = useLocalSearchParams<{
+  const {
+    moveInDate,
+    propertyName,
+    roomTypeName,
+    rentPerMonth,
+    bookingFee,
+    paidAmount,
+    tenantName,
+  } = useLocalSearchParams<{
     id: string; propertyId: string; moveInDate: string
+    propertyName: string; roomTypeName: string
+    rentPerMonth: string; bookingFee: string; paidAmount: string
+    tenantName: string
   }>()
 
   const scrollRef = useRef<ScrollView>(null)
-  const data = MOCK_SUCCESS
   const date = moveInDate ? new Date(moveInDate) : new Date()
   const formattedDate = `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
+
+  const rentNum = Number(rentPerMonth) || 0
+  const feeNum = Number(bookingFee) || 0
+  const paidNum = Number(paidAmount) || 0
 
   useFocusEffect(
     useCallback(() => {
@@ -48,17 +54,17 @@ export default function BookingSuccessScreen() {
           <View style={s.roomCard}>
             <View style={s.roomCardLeft}>
               <Ionicons name="location-sharp" size={12} color="#7C5CFC" />
-              <Text style={s.roomPropName}>{data.propertyName}</Text>
+              <Text style={s.roomPropName}>{propertyName}</Text>
             </View>
-            <Text style={s.roomName}>{data.roomName}</Text>
+            <Text style={s.roomName}>{roomTypeName}</Text>
             <View style={s.roomPriceRow}>
               <View>
                 <Text style={s.roomPriceLabel}>ค่าเช่า/เดือน</Text>
-                <Text style={s.roomPriceVal}>{data.rentPerMonth.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.roomPriceVal}>{rentNum.toLocaleString('th-TH')} ฿</Text>
               </View>
               <View>
                 <Text style={s.roomPriceLabel}>ค่าจองห้อง</Text>
-                <Text style={s.roomPriceVal}>{data.bookingFee.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.roomPriceVal}>{feeNum.toLocaleString('th-TH')} ฿</Text>
               </View>
             </View>
           </View>
@@ -80,7 +86,7 @@ export default function BookingSuccessScreen() {
               <Ionicons name="person-outline" size={14} color="#7C5CFC" />
               <Text style={[s.infoLabel, { color: '#7C5CFC' }]}>ผู้จอง</Text>
             </View>
-            <Text style={[s.infoVal, { color: '#7C5CFC' }]}>{data.tenantName}</Text>
+            <Text style={[s.infoVal, { color: '#7C5CFC' }]}>{tenantName}</Text>
           </View>
 
           <View style={[s.infoCard, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
@@ -96,7 +102,7 @@ export default function BookingSuccessScreen() {
               <Ionicons name="cash-outline" size={14} color="#F5A623" />
               <Text style={[s.infoLabel, { color: '#F5A623' }]}>ยอดชำระแล้ว</Text>
             </View>
-            <Text style={[s.infoValAmount, { color: '#F5A623' }]}>{data.bookingFee.toLocaleString('th-TH')} ฿</Text>
+            <Text style={[s.infoValAmount, { color: '#F5A623' }]}>{paidNum.toLocaleString('th-TH')} ฿</Text>
           </View>
 
           <TouchableOpacity

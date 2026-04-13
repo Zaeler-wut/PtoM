@@ -8,11 +8,14 @@ export const ENDPOINTS = {
   },
 
   // ADMIN
+  resolveMapUrl: (url: string) => `/admin/resolve-map-url?url=${encodeURIComponent(url)}`,
+
   properties: {
     list: "/admin/properties",
     create: "/admin/properties",
     detail: (id: string) => `/admin/properties/${id}`,
     update: (id: string) => `/admin/properties/${id}`,
+    delete: (id: string) => `/admin/properties/${id}`,
     images: (id: string) => `/admin/properties/${id}/images`,
     deleteImage: (id: string, imgId: string) => `/admin/properties/${id}/images/${imgId}`,
     setCover: (id: string, imgId: string) => `/admin/properties/${id}/images/${imgId}/cover`,

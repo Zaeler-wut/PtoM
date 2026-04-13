@@ -47,7 +47,7 @@ function PropertyCard({ item }: { item: AdminPropertyCard }) {
       <TouchableOpacity
         style={styles.meterBtn}
         activeOpacity={0.85}
-        onPress={() => router.push(`/(app)/(admin)/meter/${item.id}` as any)}
+        onPress={() => router.push(`/(app)/(tenant)/meter/${item.id}` as any)}
       >
         <Ionicons name="camera-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
         <Text style={styles.meterBtnText}>บันทึกมิเตอร์</Text>

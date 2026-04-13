@@ -11,6 +11,14 @@ export const getAdminProperties = async (userId: string) => {
   })
 }
 
+export const getAdminPropertyLimit = async (userId: string) => {
+  const [count, limit] = await Promise.all([
+    prisma.propertyAdmin.count({ where: { userId } }),
+    prisma.adminLimit.findUnique({ where: { userId }, select: { propertyLimit: true } }),
+  ])
+  return { count, limit: limit?.propertyLimit ?? null }
+}
+
 export const createPropertyWithAdmin = async (data: any) => {
   return prisma.property.create({
     data: {
@@ -59,6 +67,9 @@ export const updateProperty = async (propertyId: string, data: any) => {
       bankHolder: data.bankHolder,
       paymentQrUrl: data.paymentQrUrl,
       logoUrl: data.logoUrl,
+      lat: data.lat,
+      lng: data.lng,
+      billNote: data.billNote,
     },
   })
 }
@@ -76,6 +87,47 @@ export const updatePropertyFacilities = async (propertyId: string, facilityNames
   await prisma.propertyFacility.createMany({
     data: facilities.map((f) => ({ propertyId, facilityId: f.id })),
   })
+}
+
+export const deleteProperty = async (propertyId: string) => {
+  // ลบจาก leaf → root เพื่อหลีกเลี่ยง FK constraint
+  const rooms = await prisma.room.findMany({ where: { propertyId }, select: { id: true } })
+  const roomIds = rooms.map((r) => r.id)
+
+  const contracts = await prisma.contract.findMany({ where: { roomId: { in: roomIds } }, select: { id: true } })
+  const contractIds = contracts.map((c) => c.id)
+
+  const moveOutBills = await prisma.moveOutBill.findMany({ where: { contractId: { in: contractIds } }, select: { id: true } })
+  await prisma.moveOutBillItem.deleteMany({ where: { moveOutBillId: { in: moveOutBills.map((m) => m.id) } } })
+  await prisma.moveOutBill.deleteMany({ where: { contractId: { in: contractIds } } })
+
+  const bills = await prisma.bill.findMany({ where: { contractId: { in: contractIds } }, select: { id: true } })
+  const billIds = bills.map((b) => b.id)
+  await prisma.payment.deleteMany({ where: { billId: { in: billIds } } })
+  await prisma.billItem.deleteMany({ where: { billId: { in: billIds } } })
+  await prisma.bill.deleteMany({ where: { contractId: { in: contractIds } } })
+
+  await prisma.contract.deleteMany({ where: { id: { in: contractIds } } })
+
+  const meters = await prisma.meterReading.findMany({ where: { roomId: { in: roomIds } }, select: { id: true } })
+  await prisma.meterImage.deleteMany({ where: { meterReadingId: { in: meters.map((m) => m.id) } } })
+  await prisma.meterReading.deleteMany({ where: { roomId: { in: roomIds } } })
+
+  await prisma.booking.deleteMany({ where: { propertyId } })
+  await prisma.room.deleteMany({ where: { propertyId } })
+
+  const roomTypes = await prisma.roomType.findMany({ where: { propertyId }, select: { id: true } })
+  const roomTypeIds = roomTypes.map((rt) => rt.id)
+  await prisma.roomTypeFee.deleteMany({ where: { roomTypeId: { in: roomTypeIds } } })
+  await prisma.roomTypeImage.deleteMany({ where: { roomTypeId: { in: roomTypeIds } } })
+  await prisma.roomFacility.deleteMany({ where: { roomTypeId: { in: roomTypeIds } } })
+  await prisma.roomType.deleteMany({ where: { propertyId } })
+
+  await prisma.propertyFacility.deleteMany({ where: { propertyId } })
+  await prisma.propertyImage.deleteMany({ where: { propertyId } })
+  await prisma.propertyAdmin.deleteMany({ where: { propertyId } })
+
+  return prisma.property.delete({ where: { id: propertyId } })
 }
 
 export const addPropertyImages = async (propertyId: string, urls: string[]) => {

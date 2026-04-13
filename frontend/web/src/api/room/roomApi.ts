@@ -11,6 +11,9 @@ export interface Room {
   roomType: string
   price: number
   status: RoomStatus
+  contractStatus: string | null
+  moveOutNoticeDate: string | null
+  availableFromDate: string | null
   tenant: string | null
 }
 

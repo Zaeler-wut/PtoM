@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { RiMapPinLine, RiLogoutBoxLine, RiHome2Line, RiArrowRightLine, RiSearchLine, RiAddLine } from "react-icons/ri";
+import { RiMapPinLine, RiLogoutBoxLine, RiHome2Line, RiArrowRightLine, RiSearchLine, RiAddLine, RiDeleteBin6Line, RiAlertLine } from "react-icons/ri";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { fetchProperties } from "../../store/slices/propertySlice";
+import { fetchProperties, deleteProperty } from "../../store/slices/propertySlice";
 import { logoutThunk } from "../../store/slices/authSlice";
 import type { Property } from "../../types/property.types";
 
@@ -12,6 +12,8 @@ export default function PropertyListPage() {
   const { list, isLoading } = useAppSelector((s) => s.property);
   const { user } = useAppSelector((s) => s.auth);
   const [search, setSearch] = useState("");
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { dispatch(fetchProperties()); }, [dispatch]);
 
@@ -25,8 +27,53 @@ export default function PropertyListPage() {
     navigate("/login");
   };
 
+  const handleDelete = async () => {
+    if (!confirmId) return;
+    setDeleting(true);
+    await dispatch(deleteProperty(confirmId));
+    setDeleting(false);
+    setConfirmId(null);
+  };
+
+  const confirmProperty = list.find((p) => p.id === confirmId);
+
   return (
     <div className="min-h-screen bg-gray-50">
+
+      {/* Confirm Delete Dialog */}
+      {confirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <RiAlertLine className="text-red-500" size={20} />
+              </div>
+              <h3 className="text-base font-bold text-gray-900">ยืนยันการลบสถานที่</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-1">
+              คุณต้องการลบ <span className="font-semibold text-gray-800">{confirmProperty?.name}</span> ใช่หรือไม่?
+            </p>
+            <p className="text-xs text-red-400 mb-5">ข้อมูลทั้งหมด ห้อง สัญญา บิล จะถูกลบถาวร</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmId(null)}
+                disabled={deleting}
+                className="flex-1 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2.5 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-60 transition-colors"
+              >
+                {deleting ? "กำลังลบ..." : "ลบสถานที่"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -84,6 +131,7 @@ export default function PropertyListPage() {
                 key={p.id}
                 property={p}
                 onClick={() => navigate(`/properties/${p.id}/dashboard`)}
+                onDelete={() => setConfirmId(p.id)}
               />
             ))}
           </div>
@@ -93,7 +141,7 @@ export default function PropertyListPage() {
   );
 }
 
-function PropertyCard({ property, onClick }: { property: Property; onClick: () => void }) {
+function PropertyCard({ property, onClick, onDelete }: { property: Property; onClick: () => void; onDelete: () => void }) {
   const coverImage =
     property.images?.find((img) => img.isCover)?.url ??
     property.images?.[0]?.url ??
@@ -115,7 +163,16 @@ function PropertyCard({ property, onClick }: { property: Property; onClick: () =
       <div className="p-5">
         <div className="flex items-start justify-between mb-1">
           <h3 className="font-bold text-violet-600 text-lg leading-tight">{property.name}</h3>
-          <RiArrowRightLine className="text-gray-300 group-hover:text-violet-400 transition-colors flex-shrink-0 mt-1" />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <RiDeleteBin6Line size={15} />
+            </button>
+            <RiArrowRightLine className="text-gray-300 group-hover:text-violet-400 transition-colors flex-shrink-0" />
+          </div>
         </div>
         <div className="flex items-start gap-1 mb-4">
           <RiMapPinLine className="text-gray-400 text-sm flex-shrink-0 mt-0.5" />

@@ -1,21 +1,44 @@
 import * as repo from "./roomRepository"
 
 export const getRooms = async (propertyId: string) => {
-  const rooms = await repo.getRoomsByProperty(propertyId)
+  const { rooms, preparingDays } = await repo.getRoomsByProperty(propertyId)
+
   return rooms.map((room) => {
-    const activeContract = room.contracts[0]
+    const contract = room.contracts[0]
+
+    // คำนวณวันที่ห้องพร้อมจอง
+    let availableFromDate: string | null = null
+    if (room.status === "PREPARING") {
+      const latestMoveOut = room.moveOutBills[0]
+      if (latestMoveOut) {
+        const d = new Date(latestMoveOut.moveOutDate)
+        d.setDate(d.getDate() + preparingDays)
+        availableFromDate = d.toISOString().split("T")[0]
+      }
+      // ไม่มี moveOutBill = admin ตั้งเอง → พร้อมแล้ว ไม่แสดงวัน
+    } else if (contract?.status === "MOVE_OUT_NOTICE" && contract.moveOutNoticeDate) {
+      const d = new Date(contract.moveOutNoticeDate)
+      d.setDate(d.getDate() + preparingDays)
+      availableFromDate = d.toISOString().split("T")[0]
+    }
+
     return {
       id: room.id,
       roomNumber: room.roomNumber,
       floor: room.floor,
       roomTypeId: room.roomType.id,
       roomType: room.roomType.name,
-      price: room.roomType.roomPrice,
+      price: room.roomType.roomPrice + (room.roomType.furniturePrice ?? 0),
       securityDeposit: room.roomType.securityDeposit,
       advanceRent: room.roomType.advanceRent,
       status: room.status,
-      tenant: activeContract
-        ? `${activeContract.user.firstName} ${activeContract.user.lastName}`
+      contractStatus: contract?.status ?? null,
+      moveOutNoticeDate: contract?.moveOutNoticeDate
+        ? contract.moveOutNoticeDate.toISOString().split("T")[0]
+        : null,
+      availableFromDate,
+      tenant: contract
+        ? `${contract.user.firstName} ${contract.user.lastName}`
         : null,
     }
   })

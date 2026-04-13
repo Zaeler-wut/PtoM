@@ -10,6 +10,8 @@ export interface MobilePropertyCard {
   priceMax: number
   totalRooms: number
   availableRooms: number
+  preparingCount: number
+  preparingAvailableDate: string | null
   distanceKm: number
   lat: number | null
   lng: number | null
@@ -22,6 +24,8 @@ export interface MobileRoomType {
   size: number | null
   roomPrice: number
   availableRooms: number
+  preparingCount: number
+  preparingAvailableDate: string | null
   facilities: string[]
 }
 
@@ -36,6 +40,7 @@ export interface PropertySearchParams {
   lng: number
   month: number
   year: number
+  day?: number
   maxOccupants?: number
   radius?: number
 }

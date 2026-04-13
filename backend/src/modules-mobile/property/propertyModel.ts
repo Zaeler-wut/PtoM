@@ -3,6 +3,7 @@ export interface PropertySearchQuery {
   lng: number
   month: number       // เดือนที่จะเข้าอยู่
   year: number        // ปีที่จะเข้าอยู่
+  day?: number        // วันที่จะเข้าอยู่ (ถ้าไม่ส่งมา = วันแรกของเดือน)
   maxOccupants?: number // จำนวนคน
   radius?: number     // รัศมีค้นหา (กม.) default 20
 }
@@ -19,8 +20,10 @@ export interface PropertyCardItem {
   priceMin: number
   priceMax: number
   totalRooms: number
-  availableRooms: number
-  distanceKm: number  // ระยะห่างจาก user
+  availableRooms: number      // ว่างแล้วตอนนี้ (หรือ ≤ searchDate)
+  preparingCount: number      // กำลังเตรียมว่าง (readyDate > searchDate)
+  preparingAvailableDate: string | null  // วันแรกที่จะว่าง (ISO date)
+  distanceKm: number
   lat: number | null
   lng: number | null
   googleMap: string | null

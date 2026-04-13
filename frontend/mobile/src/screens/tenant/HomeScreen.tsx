@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
-  TextInput, ActivityIndicator, ScrollView,
+  TextInput, ActivityIndicator, ScrollView, Modal, Pressable,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -45,7 +45,7 @@ function PropertyCard({ item, onPress }: { item: MobilePropertyCard; onPress: ()
             <Text style={styles.badgeText}>ใช้ระบบจองออนไลน์</Text>
           </View>
           <View style={[styles.badge, styles.badgePurple]}>
-            <Text style={styles.badgeText}>ว่าง {item.availableRooms} ห้อง</Text>
+            <Text style={styles.badgeText}>ว่าง {item.availableRooms + item.preparingCount} ห้อง</Text>
           </View>
         </View>
       </View>
@@ -55,6 +55,16 @@ function PropertyCard({ item, onPress }: { item: MobilePropertyCard; onPress: ()
         <View style={styles.addressRow}>
           <Text style={styles.addressPin}>📍</Text>
           <Text style={styles.addressText} numberOfLines={1}>{item.address}</Text>
+          {item.distanceKm > 0 && (
+            <View style={styles.distanceBadge}>
+              <Ionicons name="navigate-outline" size={10} color="#7C5CFC" />
+              <Text style={styles.distanceText}>
+                {item.distanceKm < 1
+                  ? `${Math.round(item.distanceKm * 1000)} ม.`
+                  : `${item.distanceKm} กม.`}
+              </Text>
+            </View>
+          )}
         </View>
 
         {item.facilities.length > 0 && (
@@ -90,29 +100,84 @@ function PropertyCard({ item, onPress }: { item: MobilePropertyCard; onPress: ()
   )
 }
 
+const THAI_MONTHS_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+const THAI_MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+const DAY_LABELS = ['อา','จ','อ','พ','พฤ','ศ','ส']
+
+function buildCalendarDays(year: number, month: number) {
+  const firstDay = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const cells: (number | null)[] = Array(firstDay).fill(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  while (cells.length % 7 !== 0) cells.push(null)
+  return cells
+}
+
 export default function HomeScreen() {
   const [properties, setProperties] = useState<MobilePropertyCard[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [location, setLocation] = useState('')
   const [isLocating, setIsLocating] = useState(false)
-  const [people, setPeople] = useState('')
+  const [selectedPeople, setSelectedPeople] = useState<number | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [showPeopleModal, setShowPeopleModal] = useState(false)
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [calView, setCalView] = useState(new Date()) // เดือน/ปีที่แสดงในปฏิทิน
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const coordsRef = useRef<{ lat: number; lng: number } | null>(null)
 
-  const fetchByCoords = async (lat: number, lng: number) => {
+  const getDateParams = (date?: Date | null) => {
+    const d = date !== undefined ? date : selectedDate
     const now = new Date()
-    try {
-      const data = await mobilePropertyApi.search({
-        lat, lng,
-        month: now.getMonth() + 1,
-        year: now.getFullYear(),
-        radius: 100,
-      })
-      setProperties(data)
-    } catch {
-      const data = await mobilePropertyApi.getFeatured()
-      setProperties(data)
+    const ref = d ?? now
+    return {
+      month: ref.getMonth() + 1,
+      year: ref.getFullYear(),
+      day: ref.getDate(),
     }
+  }
+
+  const fetchByCoords = async (lat: number, lng: number, overrideDate?: Date | null, overridePeople?: number | null) => {
+    coordsRef.current = { lat, lng }
+    const date = overrideDate !== undefined ? overrideDate : selectedDate
+    const people = overridePeople !== undefined ? overridePeople : selectedPeople
+    const { month, year, day } = getDateParams(date)
+    try {
+      const data = await mobilePropertyApi.search({ lat, lng, month, year, day, radius: 100, maxOccupants: people ?? undefined })
+      if (data.length > 0) {
+        setProperties(data)
+      } else {
+        const featured = await mobilePropertyApi.getFeatured()
+        setProperties(featured)
+      }
+    } catch {
+      const featured = await mobilePropertyApi.getFeatured()
+      setProperties(featured)
+    }
+  }
+
+  const handleSearch = async () => {
+    setSuggestions([])
+    if (coordsRef.current) {
+      setIsLoading(true)
+      await fetchByCoords(coordsRef.current.lat, coordsRef.current.lng)
+      setIsLoading(false)
+      return
+    }
+    if (!location.trim()) return
+    setIsLoading(true)
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&countrycodes=th`,
+        { headers: { 'Accept-Language': 'th' } }
+      )
+      const data: Suggestion[] = await res.json()
+      if (data.length > 0) {
+        await fetchByCoords(parseFloat(data[0].lat), parseFloat(data[0].lon))
+      }
+    } catch {}
+    setIsLoading(false)
   }
 
   const handleGetLocation = async () => {
@@ -223,28 +288,35 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.searchRow}>
-            <View style={[styles.searchField, { flex: 1, marginRight: 8 }]}>
+            {/* วันที่เข้าอยู่ */}
+            <TouchableOpacity
+              style={[styles.searchField, { flex: 1, marginRight: 8 }]}
+              onPress={() => { setCalView(selectedDate ?? new Date()); setShowCalendar(true) }}
+              activeOpacity={0.8}
+            >
               <Ionicons name="calendar-outline" size={18} color="#7C5CFC" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="เดือนที่เข้าอยู่"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-            <View style={[styles.searchField, { flex: 1 }]}>
+              <Text style={[styles.searchInput, { color: selectedDate ? '#1F1D2E' : '#9CA3AF' }]}>
+                {selectedDate
+                  ? `${selectedDate.getDate()} ${THAI_MONTHS_SHORT[selectedDate.getMonth()]} ${selectedDate.getFullYear() + 543}`
+                  : 'วันที่เข้าอยู่'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* จำนวนคน */}
+            <TouchableOpacity
+              style={[styles.searchField, { flex: 1 }]}
+              onPress={() => setShowPeopleModal(true)}
+              activeOpacity={0.8}
+            >
               <Ionicons name="person-outline" size={18} color="#7C5CFC" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="จำนวนคน"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-                value={people}
-                onChangeText={setPeople}
-              />
-            </View>
+              <Text style={[styles.searchInput, { color: selectedPeople ? '#1F1D2E' : '#9CA3AF' }]}>
+                {selectedPeople ? `${selectedPeople} คน` : 'จำนวนคน'}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color="#9CA3AF" />
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.searchBtn} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.searchBtn} activeOpacity={0.85} onPress={handleSearch}>
             <Text style={styles.searchBtnText}>ค้นหาที่พัก</Text>
           </TouchableOpacity>
         </View>
@@ -260,6 +332,43 @@ export default function HomeScreen() {
       {isLoading && <ActivityIndicator color="#7C5CFC" style={{ marginTop: 24 }} />}
     </>
   )
+
+  // ── helpers สำหรับ calendar ──
+  const calYear = calView.getFullYear()
+  const calMonth = calView.getMonth()
+  const calDays = buildCalendarDays(calYear, calMonth)
+  const today = new Date()
+
+  const goCalPrev = () => setCalView(v => new Date(v.getFullYear(), v.getMonth() - 1, 1))
+  const goCalNext = () => setCalView(v => new Date(v.getFullYear(), v.getMonth() + 1, 1))
+
+  const onSelectDay = (day: number) => {
+    const picked = new Date(calYear, calMonth, day)
+    setSelectedDate(picked)
+    setShowCalendar(false)
+    if (coordsRef.current) {
+      setIsLoading(true)
+      fetchByCoords(coordsRef.current.lat, coordsRef.current.lng, picked, selectedPeople).then(() => setIsLoading(false))
+    }
+  }
+
+  const onClearDate = () => {
+    setSelectedDate(null)
+    setShowCalendar(false)
+    if (coordsRef.current) {
+      setIsLoading(true)
+      fetchByCoords(coordsRef.current.lat, coordsRef.current.lng, null, selectedPeople).then(() => setIsLoading(false))
+    }
+  }
+
+  const onSelectPeople = (n: number | null) => {
+    setSelectedPeople(n)
+    setShowPeopleModal(false)
+    if (coordsRef.current) {
+      setIsLoading(true)
+      fetchByCoords(coordsRef.current.lat, coordsRef.current.lng, selectedDate, n).then(() => setIsLoading(false))
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -279,6 +388,93 @@ export default function HomeScreen() {
           !isLoading ? <Text style={styles.emptyText}>ไม่พบที่พักในขณะนี้</Text> : null
         }
       />
+
+      {/* ── People Modal ── */}
+      <Modal visible={showPeopleModal} transparent animationType="fade" onRequestClose={() => setShowPeopleModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowPeopleModal(false)}>
+          <View style={styles.peopleSheet}>
+            <Text style={styles.sheetTitle}>จำนวนคน</Text>
+            {[1, 2, 3, 4].map((n) => (
+              <TouchableOpacity
+                key={n}
+                style={[styles.peopleOption, selectedPeople === n && styles.peopleOptionActive]}
+                onPress={() => onSelectPeople(n)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.peopleOptionText, selectedPeople === n && styles.peopleOptionTextActive]}>
+                  {n} คน
+                </Text>
+                {selectedPeople === n && <Ionicons name="checkmark" size={16} color="#7C5CFC" />}
+              </TouchableOpacity>
+            ))}
+            {selectedPeople && (
+              <TouchableOpacity style={styles.clearBtn} onPress={() => onSelectPeople(null)}>
+                <Text style={styles.clearBtnText}>ล้างการเลือก</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* ── Calendar Modal ── */}
+      <Modal visible={showCalendar} transparent animationType="fade" onRequestClose={() => setShowCalendar(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowCalendar(false)}>
+          <Pressable style={styles.calSheet} onPress={() => {}}>
+            {/* header: เดือน/ปี + nav */}
+            <View style={styles.calYearRow}>
+              <TouchableOpacity onPress={goCalPrev} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="chevron-back" size={20} color="#7C5CFC" />
+              </TouchableOpacity>
+              <Text style={styles.calYearText}>
+                {THAI_MONTHS_FULL[calMonth]} {calYear + 543}
+              </Text>
+              <TouchableOpacity onPress={goCalNext} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="chevron-forward" size={20} color="#7C5CFC" />
+              </TouchableOpacity>
+            </View>
+
+            {/* day-of-week headers */}
+            <View style={styles.calDayHeaderRow}>
+              {DAY_LABELS.map((d) => (
+                <Text key={d} style={styles.calDayHeader}>{d}</Text>
+              ))}
+            </View>
+
+            {/* day grid */}
+            <View style={styles.calGrid}>
+              {calDays.map((day, i) => {
+                if (!day) return <View key={`e-${i}`} style={styles.calCell} />
+                const cellDate = new Date(calYear, calMonth, day)
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                const isPast = cellDate < todayStart
+                const isToday = day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear()
+                const isSelected = selectedDate
+                  ? day === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()
+                  : false
+                return (
+                  <TouchableOpacity
+                    key={`d-${i}`}
+                    style={[styles.calCell, isSelected && styles.calCellActive, isToday && !isSelected && styles.calCellToday, isPast && styles.calCellPast]}
+                    onPress={() => !isPast && onSelectDay(day)}
+                    activeOpacity={isPast ? 1 : 0.8}
+                  >
+                    <Text style={[styles.calCellText, isSelected && styles.calCellTextActive, isToday && !isSelected && styles.calCellTextToday, isPast && styles.calCellTextPast]}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+
+            {selectedDate && (
+              <TouchableOpacity style={styles.clearBtn} onPress={onClearDate}>
+                <Text style={styles.clearBtnText}>ล้างการเลือก</Text>
+              </TouchableOpacity>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </SafeAreaView>
   )
 }
@@ -338,6 +534,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   badgeGreen: { backgroundColor: '#059669' },
   badgePurple: { backgroundColor: '#7C5CFC' },
+  badgeOrange: { backgroundColor: '#EA580C' },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
   cardBody: { padding: 14 },
@@ -370,6 +567,56 @@ const styles = StyleSheet.create({
   },
   totalRooms: { fontSize: 11, color: '#7C5CFC', fontWeight: '600' },
   distance: { fontSize: 11, color: '#7C5CFC', fontWeight: '500' },
+  distanceBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#EDE9FE', borderRadius: 8,
+    paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6, flexShrink: 0,
+  },
+  distanceText: { fontSize: 10, color: '#7C5CFC', fontWeight: '600' },
+
+  // ── Modals ──
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  peopleSheet: {
+    backgroundColor: '#fff', borderRadius: 20, padding: 20, width: '100%',
+  },
+  sheetTitle: { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 12 },
+  peopleOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12,
+    marginBottom: 6, backgroundColor: '#F5F3FF',
+  },
+  peopleOptionActive: { backgroundColor: '#EDE9FE', borderWidth: 1.5, borderColor: '#7C5CFC' },
+  peopleOptionText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  peopleOptionTextActive: { color: '#7C5CFC', fontWeight: '700' },
+  clearBtn: { marginTop: 8, alignItems: 'center', paddingVertical: 10 },
+  clearBtnText: { fontSize: 13, color: '#9CA3AF' },
+
+  // ── Calendar ──
+  calSheet: {
+    backgroundColor: '#fff', borderRadius: 20, padding: 20, width: '100%',
+  },
+  calYearRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  calYearText: { fontSize: 16, fontWeight: '700', color: '#111' },
+  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calCell: {
+    width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 999, marginVertical: 2,
+  },
+  calCellActive: { backgroundColor: '#7C5CFC' },
+  calDayHeaderRow: { flexDirection: 'row', marginBottom: 6 },
+  calDayHeader: { flex: 1, textAlign: 'center', fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  calCellToday: { borderWidth: 1.5, borderColor: '#7C5CFC' },
+  calCellText: { fontSize: 13, color: '#374151', fontWeight: '500' },
+  calCellTextActive: { color: '#fff', fontWeight: '700' },
+  calCellTextToday: { color: '#7C5CFC', fontWeight: '700' },
+  calCellPast: { opacity: 0.3 },
+  calCellTextPast: {},
 
   suggestionBox: {
     backgroundColor: '#fff', borderRadius: 12, marginTop: 4,

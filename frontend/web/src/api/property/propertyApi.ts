@@ -34,4 +34,8 @@ export const propertyApi = {
     const { data } = await api.post<Property>(ENDPOINTS.properties.create, payload)
     return data
   },
+
+  delete: async (propertyId: string): Promise<void> => {
+    await api.delete(ENDPOINTS.properties.delete(propertyId))
+  },
 }

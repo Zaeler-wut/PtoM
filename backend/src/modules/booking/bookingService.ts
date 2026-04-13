@@ -83,17 +83,22 @@ export const assignRoom = async (bookingId: string, propertyId: string) => {
     preparingDays
   )
 
-  // Priority: ให้ PREPARING ก่อน เพื่อเซฟ AVAILABLE ไว้ให้คนเข้าเร็วกว่า
-  const assignRoom = preparingRooms[0] ?? availableRooms[0]
-  if (!assignRoom) throw new Error("No available room for this date")
+  // Priority: ให้ PREPARING/OCCUPIED-NOTICE ก่อน เพื่อเซฟ AVAILABLE ไว้ให้คนเข้าเร็วกว่า
+  const selectedRoom = preparingRooms[0] ?? availableRooms[0]
+  if (!selectedRoom) throw new Error("No available room for this date")
 
-  await repo.assignRoomToBooking(bookingId, assignRoom.id)
-  await repo.reserveRoom(assignRoom.id)
+  await repo.assignRoomToBooking(bookingId, selectedRoom.id)
+
+  // ห้อง OCCUPIED ยังมีผู้เช่าอยู่ → ไม่เปลี่ยนสถานะ (ปล่อยให้กระบวนการ move-out จัดการ)
+  // ห้อง AVAILABLE / PREPARING → เปลี่ยนเป็น RESERVED
+  if (selectedRoom.status !== "OCCUPIED") {
+    await repo.reserveRoom(selectedRoom.id)
+  }
 
   return {
     bookingId,
-    roomId: assignRoom.id,
-    roomNumber: assignRoom.roomNumber,
+    roomId: selectedRoom.id,
+    roomNumber: selectedRoom.roomNumber,
     assignedAt: new Date(),
   }
 }

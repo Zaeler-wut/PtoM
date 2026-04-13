@@ -16,6 +16,9 @@ import uploadRouter from "./modules/upload/uploadRouter"
 import mobilePropertyRouter from "./modules-mobile/property/propertyRouter"
 import mobileMeterRouter from "./modules-mobile/meter/meterRouter"
 import mobileProfileRouter from "./modules-mobile/profile/profileRouter"
+import mobileBookingRouter from "./modules-mobile/booking/bookingRouter"
+import mobileBillRouter from "./modules-mobile/billing/billRouter"
+import mobileContractRouter from "./modules-mobile/contract/contractRouter"
 import superadminRouter from "./modules/superadmin/superadminRouter"
 
 
@@ -48,6 +51,9 @@ app.use("/api/admin", dashboardRouter)
 app.use("/api/mobile", mobilePropertyRouter)
 app.use("/api/mobile", mobileMeterRouter)
 app.use("/api/mobile", mobileProfileRouter)
+app.use("/api/mobile", mobileBookingRouter)
+app.use("/api/mobile", mobileBillRouter)
+app.use("/api/mobile", mobileContractRouter)
 app.use("/api/superadmin", superadminRouter)
 
 app.listen(port, () => {

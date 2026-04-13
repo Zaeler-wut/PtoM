@@ -1345,19 +1345,16 @@ function BillDetailModal({ bill, propertyId, month, year, onClose }: {
       noteTitle.textContent = "● หมายเหตุ"
       Object.assign(noteTitle.style, { margin: "0 0 8px", fontSize: "12px", fontWeight: "600", color: "#7c3aed" })
       noteSection.appendChild(noteTitle)
-      const noteList = document.createElement("ol")
-      Object.assign(noteList.style, { margin: "0", paddingLeft: "16px", fontSize: "12px", color: "#4b5563", lineHeight: "1.8" })
-      const notes = [
-        "กรุณาชำระภายในวันที่ 5 ของทุกเดือน พร้อมส่งสลิปการโอน",
-        "หากเลยกำหนดชำระ (ภายในวันที่ 5 ของทุกเดือน) ปรับวันละ 50 บาท",
-        ...(invoice.property.bankAccount
-          ? [`โอนเข้าบัญชี ${invoice.property.bankName} เลขที่ ${invoice.property.bankAccount} ชื่อบัญชี ${invoice.property.bankHolder}`]
-          : []),
-      ]
+      const noteList = document.createElement("div")
+      Object.assign(noteList.style, { margin: "0", fontSize: "12px", color: "#4b5563", lineHeight: "1.8" })
+      const notes = invoice.property.billNote
+        ? invoice.property.billNote.split("\n").map(l => l.trim()).filter(Boolean)
+        : []
       notes.forEach((n) => {
-        const li = document.createElement("li")
-        li.textContent = n
-        noteList.appendChild(li)
+        const p = document.createElement("p")
+        Object.assign(p.style, { margin: "0 0 2px" })
+        p.textContent = n
+        noteList.appendChild(p)
       })
       noteSection.appendChild(noteList)
       container.appendChild(noteSection)
@@ -1522,13 +1519,13 @@ function BillDetailModal({ bill, propertyId, month, year, onClose }: {
               {/* Notes */}
               <div className="mt-4 border border-gray-200 rounded-xl p-4">
                 <p className="text-xs font-semibold text-purple-600 mb-2">● หมายเหตุ</p>
-                <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside leading-relaxed">
-                  <li>กรุณาชำระภายในวันที่ <span className="font-semibold text-gray-800">5 ของทุกเดือน</span> พร้อมส่งสลิปการโอน</li>
-                  <li>หากเลยกำหนดชำระ (ภายในวันที่ 5 ของทุกเดือน) <span className="text-red-600 font-medium">ปรับวันละ 50 บาท</span></li>
-                  {invoice.property.bankAccount && (
-                    <li>โอนเข้าบัญชี {invoice.property.bankName} เลขที่ {invoice.property.bankAccount} ชื่อบัญชี {invoice.property.bankHolder}</li>
-                  )}
-                </ol>
+                <div className="text-xs text-gray-600 space-y-1 leading-relaxed">
+                  {invoice.property.billNote
+                    ? invoice.property.billNote.split("\n").map(l => l.trim()).filter(Boolean).map((line, i) => (
+                        <p key={i}>{line}</p>
+                      ))
+                    : null}
+                </div>
                 <p className="text-xs text-gray-400 text-right mt-3">ผู้จัดทำ: ผู้ดูแลระบบ</p>
               </div>
             </div>

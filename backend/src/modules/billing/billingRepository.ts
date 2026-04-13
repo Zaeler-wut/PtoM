@@ -275,6 +275,7 @@ export const getPropertyForInvoice = async (propertyId: string) => {
       bankHolder: true,
       paymentQrUrl: true,
       logoUrl: true,
+      billNote: true,
     },
   })
 }

@@ -17,7 +17,5 @@ export default function Index() {
 
   console.log('user role:', user.role)
 
-  if (user.role === 'ADMIN') return <Redirect href={'/(app)/(admin)' as any} />
-  
   return <Redirect href={'/(app)/(tenant)' as any} />
 }

@@ -3,6 +3,7 @@ export interface BookingInfoResponse {
   propertyName: string
   roomTypeName: string
   roomPrice: number
+  furniturePrice: number
   bookingFee: number
   // ข้อมูลการชำระเงิน (สำหรับหน้าชำระ)
   payment: {

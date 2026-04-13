@@ -1,96 +1,134 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Alert, Image, Modal,
+} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { MOCK_BILLS, formatAmount, formatMonth, type MockBill } from './mockData'
+import { useState, useEffect } from 'react'
+import * as ImagePicker from 'expo-image-picker'
+import { financeApi, type BillCard, type BillPaymentInfo } from '../../api/finance/financeApi'
+import { BillStatusBadge } from './StatusBadges'
 
-function BillCard({ bill }: { bill: MockBill }) {
-  const isPaid = bill.status === 'PAID'
+function formatAmount(n: number) {
+  return n.toLocaleString('th-TH')
+}
 
-  if (isPaid) {
-    return (
-      <View style={s.card}>
-        <View style={s.greenHeader}>
-          <View style={s.headerRow}>
-            <View style={s.headerLeft}>
-              <Ionicons name="location-sharp" size={11} color="rgba(255,255,255,0.85)" />
-              <Text style={s.greenProp}>{bill.propertyName}</Text>
-            </View>
-            <View style={s.greenBadge}>
-              <Ionicons name="checkmark-circle-outline" size={10} color="#27500A" />
-              <Text style={s.greenBadgeText}>ชำระแล้ว</Text>
-            </View>
-          </View>
-          <Text style={s.greenMonth}>{formatMonth(bill.month, bill.year)}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="person-outline" size={13} color="rgba(255,255,255,0.85)" />
-            <Text style={[s.greenSub, { fontWeight: '700' }]}>{bill.tenantName}</Text>
-            <Text style={s.greenSub}>·</Text>
-            <Ionicons name="home-outline" size={13} color="rgba(255,255,255,0.85)" />
-            <Text style={[s.greenSub, { fontWeight: '700' }]}>ห้อง {bill.roomNumber}</Text>
-          </View>
-        </View>
+function itemIcon(title: string): any {
+  if (title.includes('ไฟ')) return { name: 'flash', color: '#FBBF24' }
+  if (title.includes('น้ำ')) return { name: 'water', color: '#378ADD' }
+  return { name: 'grid', color: '#8B8A9B' }
+}
 
-        <View style={s.cardBody}>
-          <View style={s.row}>
-            <View style={s.rowLabelWrap}>
-              <Ionicons name="cash-outline" size={14} color="#F5A623" />
-              <Text style={s.rowLabel}>ค่าเช่า</Text>
-            </View>
-            <Text style={s.rowVal}>{formatAmount(bill.roomRent)} ฿</Text>
+// ─── Payment Modal ────────────────────────────────────────────
+
+function PaymentModal({
+  visible, info, onClose, onSubmit, submitting,
+}: {
+  visible: boolean
+  info: BillPaymentInfo | null
+  onClose: () => void
+  onSubmit: (slip: string) => void
+  submitting: boolean
+}) {
+  const [slip, setSlip] = useState<string | null>(null)
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') { Alert.alert('ขออนุญาต', 'ต้องการสิทธิ์เข้าถึงรูปภาพ'); return }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: false, quality: 0.8,
+    })
+    if (!result.canceled) setSlip(result.assets[0].uri)
+  }
+
+  if (!info) return null
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={pm.overlay}>
+        <View style={pm.sheet}>
+          <View style={pm.sheetHeader}>
+            <Text style={pm.sheetTitle}>ชำระบิลค่าเช่า</Text>
+            <TouchableOpacity onPress={onClose}><Ionicons name="close" size={22} color="#888" /></TouchableOpacity>
           </View>
-          {bill.items.map(item => (
-            <View key={item.id} style={s.row}>
-              <View style={s.rowLabelWrap}>
-                <Ionicons
-                  name={item.title.includes('ไฟ') ? 'flash' : item.title.includes('น้ำ') ? 'water' : 'grid'}
-                  size={14}
-                  color={item.title.includes('ไฟ') ? '#FBBF24' : item.title.includes('น้ำ') ? '#378ADD' : '#8B8A9B'}
-                />
-                <Text style={s.rowLabel}>{item.title}</Text>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={pm.period}>{info.billingPeriod}</Text>
+            <Text style={pm.prop}>{info.propertyName}</Text>
+
+            {info.paymentQrUrl && (
+              <View style={pm.qrWrap}>
+                <Image source={{ uri: info.paymentQrUrl }} style={pm.qrImg} resizeMode="contain" />
               </View>
-              <Text style={s.rowVal}>{formatAmount(item.amount)} ฿</Text>
+            )}
+
+            <View style={pm.bankCard}>
+              <Text style={pm.bankTitle}>{info.bankName}</Text>
+              <Text style={pm.bankDetail}>เลขบัญชี: {info.bankAccount}</Text>
+              <Text style={pm.bankDetail}>ชื่อบัญชี: {info.bankHolder}</Text>
             </View>
-          ))}
-        </View>
 
-        <View style={s.totalBlock}>
-          <Text style={s.totalLabel}>รวมทั้งหมด</Text>
-          <Text style={s.totalVal}>{formatAmount(bill.total)} ฿</Text>
-        </View>
+            <View style={pm.totalRow}>
+              <Text style={pm.totalLabel}>ยอดชำระ</Text>
+              <Text style={pm.totalVal}>{formatAmount(info.total)} ฿</Text>
+            </View>
 
-        <View style={s.paidInfoRow}>
-          <Ionicons name="checkmark-circle" size={13} color="#3B6D11" />
-          <Text style={s.paidInfoText}>ชำระเมื่อ {bill.dueDate} 07:00 น.</Text>
-        </View>
+            {slip ? (
+              <View style={pm.slipWrap}>
+                <Image source={{ uri: slip }} style={pm.slipImg} resizeMode="cover" />
+                <TouchableOpacity style={pm.changeBtn} onPress={pickImage}>
+                  <Text style={pm.changeBtnText}>เปลี่ยนรูป</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={pm.uploadBox} onPress={pickImage} activeOpacity={0.8}>
+                <Ionicons name="cloud-upload-outline" size={32} color="#9CA3AF" />
+                <Text style={pm.uploadTitle}>อัปโหลดสลิปการโอนเงิน</Text>
+              </TouchableOpacity>
+            )}
 
-        <View style={s.cardFooter}>
-          <TouchableOpacity style={[s.btnOutline, { flex: 1 }]}>
-            <Ionicons name="download-outline" size={14} color="#2C2C2A" />
-            <Text style={s.btnOutlineText}>ดาวน์โหลด</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[pm.submitBtn, (!slip || submitting) && { opacity: 0.5 }]}
+              onPress={() => slip && onSubmit(slip)}
+              disabled={!slip || submitting}
+              activeOpacity={0.85}
+            >
+              {submitting
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={pm.submitBtnText}>ยืนยันการชำระเงิน</Text>
+              }
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </View>
-    )
-  }
+    </Modal>
+  )
+}
+
+// ─── Bill Card ────────────────────────────────────────────────
+
+function BillCard({ bill, onPay }: { bill: BillCard; onPay: (id: string) => void }) {
+  const isPaid = bill.status === 'PAID'
+  const isVerifying = bill.status === 'VERIFYING'
+  const headerBg = isPaid ? '#00C853' : isVerifying ? '#3B82F6' : '#F4B400'
+
+  const allItems: { title: string; amount: number }[] = []
+  if (bill.electricCharge > 0) allItems.push({ title: 'ค่าไฟฟ้า', amount: bill.electricCharge })
+  if (bill.waterCharge > 0) allItems.push({ title: 'ค่าน้ำประปา', amount: bill.waterCharge })
+  bill.extraFees.forEach(f => allItems.push(f))
 
   return (
     <View style={s.card}>
-      <View style={s.orangeHeader}>
+      <View style={[s.cardHeader, { backgroundColor: headerBg }]}>
         <View style={s.headerRow}>
           <View style={s.headerLeft}>
             <Ionicons name="location-sharp" size={11} color="rgba(255,255,255,0.85)" />
-            <Text style={s.orangeProp}>{bill.propertyName}</Text>
+            <Text style={s.headerProp}>{bill.propertyName}</Text>
           </View>
-          <View style={s.orangeBadge}>
-            <Ionicons name="time-outline" size={10} color="#854F0B" />
-            <Text style={s.orangeBadgeText}>รอชำระ</Text>
-          </View>
+          <BillStatusBadge status={bill.status} />
         </View>
-        <Text style={s.orangeMonth}>{formatMonth(bill.month, bill.year)}</Text>
+        <Text style={s.headerPeriod}>{bill.billingPeriod}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Ionicons name="person-outline" size={13} color="rgba(255,255,255,0.85)" />
-          <Text style={[s.orangeSub, { fontWeight: '700' }]}>{bill.tenantName}</Text>
           <Ionicons name="home-outline" size={13} color="rgba(255,255,255,0.85)" />
-          <Text style={[s.orangeSub, { fontWeight: '700' }]}>ห้อง {bill.roomNumber}</Text>
+          <Text style={s.headerSub}>ห้อง {bill.roomNumber}</Text>
         </View>
       </View>
 
@@ -102,19 +140,18 @@ function BillCard({ bill }: { bill: MockBill }) {
           </View>
           <Text style={s.rowVal}>{formatAmount(bill.roomRent)} ฿</Text>
         </View>
-        {bill.items.map(item => (
-          <View key={item.id} style={s.row}>
-            <View style={s.rowLabelWrap}>
-              <Ionicons
-                name={item.title.includes('ไฟ') ? 'flash' : item.title.includes('น้ำ') ? 'water' : 'grid'}
-                size={14}
-                color={item.title.includes('ไฟ') ? '#FBBF24' : item.title.includes('น้ำ') ? '#378ADD' : '#8B8A9B'}
-              />
-              <Text style={s.rowLabel}>{item.title}</Text>
+        {allItems.map((item, i) => {
+          const ico = itemIcon(item.title)
+          return (
+            <View key={i} style={s.row}>
+              <View style={s.rowLabelWrap}>
+                <Ionicons name={ico.name} size={14} color={ico.color} />
+                <Text style={s.rowLabel}>{item.title}</Text>
+              </View>
+              <Text style={s.rowVal}>{formatAmount(item.amount)} ฿</Text>
             </View>
-            <Text style={s.rowVal}>{formatAmount(item.amount)} ฿</Text>
-          </View>
-        ))}
+          )
+        })}
       </View>
 
       <View style={s.totalBlock}>
@@ -122,45 +159,124 @@ function BillCard({ bill }: { bill: MockBill }) {
         <Text style={s.totalVal}>{formatAmount(bill.total)} ฿</Text>
       </View>
 
-      <View style={s.dueRow}>
-        <Ionicons name="alert-circle-outline" size={13} color="#A32D2D" />
-        <Text style={s.dueText}>ครบกำหนด {bill.dueDate}</Text>
-      </View>
+      {isPaid && (
+        <View style={s.infoRow}>
+          <Ionicons name="checkmark-circle" size={13} color="#3B6D11" />
+          <Text style={[s.infoText, { color: '#3B6D11' }]}>ชำระเรียบร้อยแล้ว</Text>
+        </View>
+      )}
+      {isVerifying && (
+        <View style={s.infoRow}>
+          <Ionicons name="search-outline" size={13} color="#185FA5" />
+          <Text style={[s.infoText, { color: '#185FA5' }]}>กำลังตรวจสอบหลักฐานการชำระ</Text>
+        </View>
+      )}
+      {!isPaid && !isVerifying && bill.dueDate && (
+        <View style={s.infoRow}>
+          <Ionicons name="alert-circle-outline" size={13} color="#A32D2D" />
+          <Text style={[s.infoText, { color: '#A32D2D' }]}>ครบกำหนด {bill.dueDate}</Text>
+        </View>
+      )}
 
       <View style={s.cardFooter}>
-        <TouchableOpacity style={s.btnOutline}>
-          <Ionicons name="download-outline" size={14} color="#2C2C2A" />
-          <Text style={s.btnOutlineText}>ดาวน์โหลด</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.btnFill}>
-          <Ionicons name="card-outline" size={14} color="#fff" />
-          <Text style={s.btnFillText}>ชำระเงิน</Text>
-        </TouchableOpacity>
+        {!isPaid && !isVerifying && (
+          <TouchableOpacity style={s.btnFill} onPress={() => onPay(bill.billId)}>
+            <Ionicons name="card-outline" size={14} color="#fff" />
+            <Text style={s.btnFillText}>ชำระเงิน</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   )
 }
 
+// ─── BillTab ──────────────────────────────────────────────────
+
 export default function BillTab() {
-  const pendingTotal = MOCK_BILLS
-    .filter(b => b.status !== 'PAID')
-    .reduce((sum, b) => sum + b.total, 0)
+  const [bills, setBills] = useState<BillCard[]>([])
+  const [totalUnpaid, setTotalUnpaid] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [payInfo, setPayInfo] = useState<BillPaymentInfo | null>(null)
+  const [modalVisible, setModalVisible] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  const load = async () => {
+    try {
+      const data = await financeApi.getBills()
+      setBills(data.bills)
+      setTotalUnpaid(data.totalUnpaid)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const handlePay = async (billId: string) => {
+    try {
+      const info = await financeApi.getBillPaymentInfo(billId)
+      setPayInfo(info)
+      setModalVisible(true)
+    } catch (e: any) {
+      Alert.alert('ข้อผิดพลาด', e.message)
+    }
+  }
+
+  const handleSubmit = async (slipUri: string) => {
+    if (!payInfo) return
+    setSubmitting(true)
+    try {
+      const slipUrl = await financeApi.uploadSlip(slipUri)
+      await financeApi.submitPayment(payInfo.billId, slipUrl, payInfo.total)
+      setModalVisible(false)
+      setPayInfo(null)
+      Alert.alert('สำเร็จ', 'ส่งหลักฐานการชำระเงินแล้ว รอการยืนยัน')
+      load()
+    } catch (e: any) {
+      Alert.alert('ข้อผิดพลาด', e.response?.data?.error ?? e.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) return <ActivityIndicator color="#7C5CFC" style={{ marginTop: 60 }} />
 
   return (
-    <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-      {pendingTotal > 0 && (
-        <TouchableOpacity style={s.summaryCard} activeOpacity={0.85}>
-          <View>
-            <Text style={s.summaryLabel}>ยอดค้างชำระ</Text>
-            <Text style={s.summaryAmount}>{formatAmount(pendingTotal)} ฿</Text>
+    <>
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        {totalUnpaid > 0 && (
+          <View style={s.summaryCard}>
+            <View>
+              <Text style={s.summaryLabel}>ยอดค้างชำระ</Text>
+              <Text style={s.summaryAmount}>{formatAmount(totalUnpaid)} ฿</Text>
+            </View>
+            <View style={s.summaryBadge}>
+              <Ionicons name="alert-circle" size={14} color="#FF8C00" />
+              <Text style={s.summaryBadgeText}>รอชำระ</Text>
+            </View>
           </View>
-          <View style={s.summaryBtn}>
-            <Text style={s.summaryBtnText}>ชำระเงิน →</Text>
+        )}
+
+        {bills.length === 0 ? (
+          <View style={s.empty}>
+            <Ionicons name="receipt-outline" size={48} color="#C4B5FD" />
+            <Text style={s.emptyText}>ยังไม่มีบิล</Text>
           </View>
-        </TouchableOpacity>
-      )}
-      {MOCK_BILLS.map(bill => <BillCard key={bill.id} bill={bill} />)}
-    </ScrollView>
+        ) : (
+          bills.map(bill => <BillCard key={bill.billId} bill={bill} onPay={handlePay} />)
+        )}
+      </ScrollView>
+
+      <PaymentModal
+        visible={modalVisible}
+        info={payInfo}
+        onClose={() => setModalVisible(false)}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+      />
+    </>
   )
 }
 
@@ -173,42 +289,25 @@ const s = StyleSheet.create({
   },
   summaryLabel: { fontSize: 11, color: 'rgba(255,255,255,0.85)', marginBottom: 4 },
   summaryAmount: { fontSize: 26, fontWeight: '700', color: '#fff' },
-  summaryBtn: { backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  summaryBtnText: { fontSize: 12, fontWeight: '600', color: '#FF8C00' },
+  summaryBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  summaryBadgeText: { fontSize: 12, fontWeight: '600', color: '#FF8C00' },
+
+  empty: { alignItems: 'center', marginTop: 60, gap: 10 },
+  emptyText: { fontSize: 14, color: '#9CA3AF' },
 
   card: {
     backgroundColor: '#fff', borderRadius: 16,
     borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)', overflow: 'hidden',
   },
-
-  // Orange header (pending)
-  orangeHeader: { backgroundColor: '#F4B400', padding: 14, gap: 0 },
-  orangeProp: { fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
-  orangeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#FFF8E6', borderRadius: 999,
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 0.5, borderColor: '#FBBF24',
-  },
-  orangeBadgeText: { fontSize: 10, color: '#854F0B', fontWeight: '600' },
-  orangeMonth: { fontSize: 17, fontWeight: '700', color: '#fff', marginTop: 2, marginBottom: 8 },
-  orangeSub: { fontSize: 11, color: '#fff', fontWeight: '600' },
-
-  // Green header (paid)
-  greenHeader: { backgroundColor: '#00C853', padding: 14, gap: 0 },
-  greenProp: { fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
-  greenBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#EAF3DE', borderRadius: 999,
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 0.5, borderColor: '#97C459',
-  },
-  greenBadgeText: { fontSize: 10, color: '#27500A', fontWeight: '600' },
-  greenMonth: { fontSize: 17, fontWeight: '700', color: '#fff', marginTop: 2, marginBottom: 8 },
-  greenSub: { fontSize: 11, color: '#fff', fontWeight: '600' },
-
+  cardHeader: { padding: 14, gap: 2 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  headerProp: { fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
+  headerPeriod: { fontSize: 17, fontWeight: '700', color: '#fff', marginTop: 2, marginBottom: 8 },
+  headerSub: { fontSize: 11, color: '#fff', fontWeight: '600' },
 
   cardBody: { padding: 14, gap: 6 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 },
@@ -225,23 +324,62 @@ const s = StyleSheet.create({
   totalLabel: { fontSize: 15, fontWeight: '600', color: '#fff' },
   totalVal: { fontSize: 20, fontWeight: '700', color: '#fff' },
 
-  dueRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
-  dueText: { fontSize: 12, color: '#A32D2D' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
+  infoText: { fontSize: 12 },
 
-  paidInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
-  paidInfoText: { fontSize: 12, color: '#3B6D11' },
-
-  cardFooter: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 14 },
-  btnOutline: {
-    flex: 1, height: 40, borderRadius: 999,
-    borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.15)',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-  },
-  btnOutlineText: { fontSize: 13, fontWeight: '500', color: '#2C2C2A' },
+  cardFooter: { paddingHorizontal: 14, paddingBottom: 14 },
   btnFill: {
-    flex: 1, height: 40, borderRadius: 999,
+    height: 40, borderRadius: 999,
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   btnFillText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+})
+
+// Payment Modal styles
+const pm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, maxHeight: '90%',
+  },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sheetTitle: { fontSize: 17, fontWeight: '700', color: '#1F1D2E' },
+  period: { fontSize: 15, fontWeight: '600', color: '#7C5CFC', marginBottom: 2 },
+  prop: { fontSize: 12, color: '#9CA3AF', marginBottom: 16 },
+  qrWrap: {
+    alignSelf: 'center', width: 180, height: 180, borderRadius: 12,
+    backgroundColor: '#F5F3FF', overflow: 'hidden', marginBottom: 14,
+  },
+  qrImg: { width: '100%', height: '100%' },
+  bankCard: {
+    backgroundColor: '#F5F3FF', borderRadius: 12,
+    padding: 14, marginBottom: 14,
+  },
+  bankTitle: { fontSize: 15, fontWeight: '700', color: '#1F1D2E', marginBottom: 4 },
+  bankDetail: { fontSize: 13, color: '#6B7280' },
+  totalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: '#7C5CFC', borderRadius: 12, padding: 14, marginBottom: 16,
+  },
+  totalLabel: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  totalVal: { fontSize: 22, fontWeight: '700', color: '#fff' },
+  uploadBox: {
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.1)', borderStyle: 'dashed',
+    borderRadius: 14, padding: 24, alignItems: 'center', gap: 8,
+    backgroundColor: '#FAFAFA', marginBottom: 16,
+  },
+  uploadTitle: { fontSize: 14, fontWeight: '600', color: '#1F1D2E' },
+  slipWrap: { alignItems: 'center', gap: 10, marginBottom: 16 },
+  slipImg: { width: '100%', height: 280, borderRadius: 12 },
+  changeBtn: {
+    borderWidth: 1, borderColor: '#7C5CFC', borderRadius: 8,
+    paddingHorizontal: 16, paddingVertical: 8,
+  },
+  changeBtnText: { fontSize: 13, color: '#7C5CFC', fontWeight: '500' },
+  submitBtn: {
+    backgroundColor: '#00C853', borderRadius: 14,
+    height: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+  },
+  submitBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 })

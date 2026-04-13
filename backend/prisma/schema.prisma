@@ -90,6 +90,8 @@ model Property {
   lat           Float?
   lng           Float?
 
+  billNote      String?
+
   createdAt DateTime @default(now())
 
   roomTypes RoomType[]
@@ -267,8 +269,6 @@ model Booking {
   user User @relation(fields: [userId], references: [id])
 
   contract Contract?
-
-  @@unique([roomId, moveInDate])
 }
 
 enum BookingStatus {

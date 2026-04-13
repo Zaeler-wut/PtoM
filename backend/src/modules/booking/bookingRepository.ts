@@ -38,6 +38,7 @@ export const getAvailableRoomsForDate = async (
     where: { propertyId, roomTypeId, status: "AVAILABLE" },
   })
 
+  // PREPARING: ออกไปแล้ว รอทำความสะอาด
   const preparingRooms = await prisma.room.findMany({
     where: { propertyId, roomTypeId, status: "PREPARING" },
     include: {
@@ -47,13 +48,38 @@ export const getAvailableRoomsForDate = async (
 
   const readyPreparingRooms = preparingRooms.filter((room) => {
     const latestMoveOut = room.moveOutBills[0]
-    if (!latestMoveOut) return false
+    // ไม่มี moveOutBill = admin ตั้งสถานะเองว่าเตรียมว่าง → พร้อมจองได้เลย
+    if (!latestMoveOut) return true
     const readyDate = new Date(latestMoveOut.moveOutDate)
     readyDate.setDate(readyDate.getDate() + preparingDays)
     return readyDate <= moveInDate
   })
 
-  return { availableRooms, preparingRooms: readyPreparingRooms }
+  // OCCUPIED ที่แจ้งออกแล้ว (MOVE_OUT_NOTICE) — พร้อมหลัง moveOutNoticeDate + preparingDays
+  const occupiedWithNotice = await prisma.room.findMany({
+    where: { propertyId, roomTypeId, status: "OCCUPIED" },
+    include: {
+      contracts: {
+        where: { status: "MOVE_OUT_NOTICE" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { moveOutNoticeDate: true },
+      },
+    },
+  })
+
+  const readyNoticeRooms = occupiedWithNotice.filter((room) => {
+    const contract = room.contracts[0]
+    if (!contract?.moveOutNoticeDate) return false
+    const readyDate = new Date(contract.moveOutNoticeDate)
+    readyDate.setDate(readyDate.getDate() + preparingDays)
+    return readyDate <= moveInDate
+  })
+
+  return {
+    availableRooms,
+    preparingRooms: [...readyPreparingRooms, ...readyNoticeRooms],
+  }
 }
 
 export const assignRoomToBooking = async (bookingId: string, roomId: string) => {

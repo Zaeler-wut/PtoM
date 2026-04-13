@@ -28,6 +28,9 @@ export interface Property {
   images?: PropertyImage[]
   facilities?: string[]
   amenities?: string[]
+  lat?: number | null
+  lng?: number | null
+  billNote?: string | null
 }
 
 export type PropertyListItem = Property
@@ -54,6 +57,7 @@ export interface UpdatePropertyPayload {
   priceMin?: number
   priceMax?: number
   contractTerm?: string
+  preparingDays?: number
   bankName?: string
   bankAccount?: string
   bankHolder?: string
@@ -61,6 +65,9 @@ export interface UpdatePropertyPayload {
   facilities?: string[]
   logoUrl?: string | null
   paymentQrUrl?: string | null
+  lat?: number | null
+  lng?: number | null
+  billNote?: string | null
 }
 
 export interface PropertyState {

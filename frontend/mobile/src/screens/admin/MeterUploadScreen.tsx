@@ -76,7 +76,7 @@ export default function MeterUploadScreen() {
 
   const handleNext = () => {
     router.push({
-      pathname: '/(app)/(admin)/meter/readings' as any,
+      pathname: '/(app)/(tenant)/meter/readings' as any,
       params: { propertyId, propertyName },
     })
   }

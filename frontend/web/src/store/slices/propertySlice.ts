@@ -55,6 +55,18 @@ export const updateProperty = createAsyncThunk(
   }
 )
 
+export const deleteProperty = createAsyncThunk(
+  "property/delete",
+  async (propertyId: string, { rejectWithValue }) => {
+    try {
+      await propertyApi.delete(propertyId)
+      return propertyId
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error ?? "ลบสถานที่ไม่สำเร็จ")
+    }
+  }
+)
+
 const SELECTED_KEY = "ptom_selected_property"
 
 const loadSelected = (): PropertyState["selected"] => {
@@ -118,6 +130,18 @@ const propertySlice = createSlice({
         if (idx !== -1) state.list[idx] = action.payload
       })
       .addCase(updateProperty.rejected, (state, action) => { state.isLoading = false; state.error = action.payload as string })
+
+    builder
+      .addCase(deleteProperty.pending, (state) => { state.isLoading = true; state.error = null })
+      .addCase(deleteProperty.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.list = state.list.filter((p) => p.id !== action.payload)
+        if (state.selected?.id === action.payload) {
+          state.selected = null
+          try { localStorage.removeItem(SELECTED_KEY) } catch {}
+        }
+      })
+      .addCase(deleteProperty.rejected, (state, action) => { state.isLoading = false; state.error = action.payload as string })
   },
 })
 

@@ -1,18 +1,12 @@
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity,
+  TouchableOpacity, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
-
-const MOCK_BOOKING = {
-  propertyName: 'Purple Residence',
-  roomName: 'Standard',
-  rentPerMonth: 4500,
-  bookingFee: 2000,
-}
+import { mobileBookingApi, type BookingInfo } from '../../api/booking/mobileBookingApi'
 
 const MONTH_TH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
@@ -26,23 +20,31 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay()
 }
 
-function Calendar({ selectedDate, onSelect }: {
+function Calendar({ selectedDate, onSelect, minDate, maxDate }: {
   selectedDate: Date | null
   onSelect: (date: Date) => void
+  minDate: Date
+  maxDate: Date
 }) {
-  const today = new Date()
-  const [viewYear, setViewYear] = useState(today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(today.getMonth())
+  const [viewYear, setViewYear] = useState(minDate.getFullYear())
+  const [viewMonth, setViewMonth] = useState(minDate.getMonth())
 
   const daysInMonth = getDaysInMonth(viewYear, viewMonth)
   const firstDay = getFirstDayOfMonth(viewYear, viewMonth)
 
+  const isBeforeMinMonth = viewYear < minDate.getFullYear() ||
+    (viewYear === minDate.getFullYear() && viewMonth <= minDate.getMonth())
+  const isAfterMaxMonth = viewYear > maxDate.getFullYear() ||
+    (viewYear === maxDate.getFullYear() && viewMonth >= maxDate.getMonth())
+
   const prevMonth = () => {
+    if (isBeforeMinMonth) return
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
     else setViewMonth(m => m - 1)
   }
 
   const nextMonth = () => {
+    if (isAfterMaxMonth) return
     if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
     else setViewMonth(m => m + 1)
   }
@@ -54,12 +56,12 @@ function Calendar({ selectedDate, onSelect }: {
       selectedDate.getFullYear() === viewYear
   }
 
-  const isPast = (day: number) => {
+  const isDisabled = (day: number) => {
     const d = new Date(viewYear, viewMonth, day)
     d.setHours(0, 0, 0, 0)
-    const t = new Date()
-    t.setHours(0, 0, 0, 0)
-    return d < t
+    const min = new Date(minDate); min.setHours(0, 0, 0, 0)
+    const max = new Date(maxDate); max.setHours(0, 0, 0, 0)
+    return d < min || d > max
   }
 
   const cells: (number | null)[] = [
@@ -77,11 +79,11 @@ function Calendar({ selectedDate, onSelect }: {
   return (
     <View style={s.calendar}>
       <View style={s.calNavRow}>
-        <TouchableOpacity onPress={prevMonth} style={s.calNavBtn}>
+        <TouchableOpacity onPress={prevMonth} style={[s.calNavBtn, isBeforeMinMonth && { opacity: 0.3 }]}>
           <Ionicons name="chevron-back" size={18} color="#7C5CFC" />
         </TouchableOpacity>
         <Text style={s.calTitle}>{MONTH_TH[viewMonth]} {viewYear}</Text>
-        <TouchableOpacity onPress={nextMonth} style={s.calNavBtn}>
+        <TouchableOpacity onPress={nextMonth} style={[s.calNavBtn, isAfterMaxMonth && { opacity: 0.3 }]}>
           <Ionicons name="chevron-forward" size={18} color="#7C5CFC" />
         </TouchableOpacity>
       </View>
@@ -96,20 +98,20 @@ function Calendar({ selectedDate, onSelect }: {
         <View key={wi} style={s.calWeekRow}>
           {week.map((day, di) => {
             if (!day) return <View key={di} style={s.calCell} />
-            const past = isPast(day)
+            const disabled = isDisabled(day)
             const sel = isSelected(day)
             return (
               <TouchableOpacity
                 key={di}
-                style={[s.calCell, sel && s.calCellSelected, past && s.calCellPast]}
+                style={[s.calCell, sel && s.calCellSelected, disabled && s.calCellPast]}
                 onPress={() => {
-                  if (past) return
+                  if (disabled) return
                   if (!isSelected(day)) onSelect(new Date(viewYear, viewMonth, day))
                 }}
-                disabled={past}
+                disabled={disabled}
                 activeOpacity={0.7}
               >
-                <Text style={[s.calCellText, sel && s.calCellTextSelected, past && s.calCellTextPast]}>
+                <Text style={[s.calCellText, sel && s.calCellTextSelected, disabled && s.calCellTextPast]}>
                   {day}
                 </Text>
               </TouchableOpacity>
@@ -124,8 +126,17 @@ function Calendar({ selectedDate, onSelect }: {
 export default function BookingScreen() {
   const { id, propertyId } = useLocalSearchParams<{ id: string; propertyId: string }>()
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [bookingInfo, setBookingInfo] = useState<BookingInfo | null>(null)
+  const [loading, setLoading] = useState(true)
   const scrollRef = useRef<ScrollView>(null)
-  const booking = MOCK_BOOKING
+
+  useEffect(() => {
+    if (!id || !propertyId) return
+    mobileBookingApi.getBookingInfo(propertyId as string, id as string)
+      .then(setBookingInfo)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [id, propertyId])
 
   useFocusEffect(
     useCallback(() => {
@@ -133,9 +144,25 @@ export default function BookingScreen() {
     }, [])
   )
 
+  if (loading) return (
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <ActivityIndicator color="#7C5CFC" style={{ marginTop: 80 }} />
+    </SafeAreaView>
+  )
+
+  const today = new Date()
+  const minDate = bookingInfo?.minMoveInDate
+    ? new Date(bookingInfo.minMoveInDate)
+    : new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+  const maxDate = bookingInfo?.maxMoveInDate
+    ? new Date(bookingInfo.maxMoveInDate)
+    : new Date(today.getFullYear(), today.getMonth(), today.getDate() + 45)
+
   const formatDate = (date: Date) => {
     return `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
   }
+
+  const monthlyRent = (bookingInfo?.roomPrice ?? 0) + (bookingInfo?.furniturePrice ?? 0)
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -155,17 +182,17 @@ export default function BookingScreen() {
           <View style={s.roomCard}>
             <View style={s.roomCardLeft}>
               <Ionicons name="location-sharp" size={12} color="#7C5CFC" />
-              <Text style={s.roomPropName}>{booking.propertyName}</Text>
+              <Text style={s.roomPropName}>{bookingInfo?.propertyName}</Text>
             </View>
-            <Text style={s.roomName}>{booking.roomName}</Text>
+            <Text style={s.roomName}>{bookingInfo?.roomTypeName}</Text>
             <View style={s.roomPriceRow}>
               <View>
                 <Text style={s.roomPriceLabel}>ค่าเช่า/เดือน</Text>
-                <Text style={s.roomPriceVal}>{booking.rentPerMonth.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.roomPriceVal}>{monthlyRent.toLocaleString('th-TH')} ฿</Text>
               </View>
               <View>
                 <Text style={s.roomPriceLabel}>ค่าจองห้อง</Text>
-                <Text style={s.roomPriceVal}>{booking.bookingFee.toLocaleString('th-TH')} ฿</Text>
+                <Text style={s.roomPriceVal}>{bookingInfo?.bookingFee.toLocaleString('th-TH')} ฿</Text>
               </View>
             </View>
           </View>
@@ -176,7 +203,7 @@ export default function BookingScreen() {
               <Text style={s.sectionTitle}>เลือกวันที่เข้าอยู่</Text>
             </View>
 
-            <Calendar selectedDate={selectedDate} onSelect={setSelectedDate} />
+            <Calendar selectedDate={selectedDate} onSelect={setSelectedDate} minDate={minDate} maxDate={maxDate} />
 
             {selectedDate && (
               <View style={s.selectedDateBox}>

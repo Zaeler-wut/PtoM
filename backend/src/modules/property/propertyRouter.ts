@@ -26,6 +26,11 @@ router.put("/properties/:propertyId", authenticate, authorize("ADMIN"), authoriz
   catch (err: any) { res.status(400).json({ error: err.message }) }
 })
 
+router.delete("/properties/:propertyId", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
+  try { await service.deleteProperty(req.params.propertyId); res.json({ message: "Property deleted" }) }
+  catch (err: any) { res.status(400).json({ error: err.message }) }
+})
+
 router.post("/properties/:propertyId/images", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
   try { res.status(201).json(await service.addPropertyImages(req.params.propertyId, req.body.urls)) }
   catch (err: any) { res.status(400).json({ error: err.message }) }
@@ -74,6 +79,18 @@ router.post("/properties/:propertyId/room-types/:roomTypeId/images", authenticat
 router.delete("/properties/:propertyId/room-types/:roomTypeId/images/:imageId", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
   try { await service.deleteRoomTypeImage(req.params.roomTypeId, req.params.imageId); res.json({ message: "Image deleted" }) }
   catch (err: any) { res.status(400).json({ error: err.message }) }
+})
+
+// ── Resolve short Google Maps URL → ดึง final URL แล้วคืนกลับ ──
+router.get("/resolve-map-url", authenticate, authorize("ADMIN"), async (req: any, res) => {
+  const url = req.query.url as string
+  if (!url) return res.status(400).json({ error: "url is required" })
+  try {
+    const response = await fetch(url, { method: "HEAD", redirect: "follow" })
+    res.json({ resolvedUrl: response.url })
+  } catch {
+    res.status(400).json({ error: "ไม่สามารถ resolve URL ได้" })
+  }
 })
 
 export default router

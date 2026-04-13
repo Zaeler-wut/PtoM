@@ -13,6 +13,12 @@ export const getAllProperties = async () => {
             orderBy: { createdAt: "desc" },
             take: 1,
           },
+          contracts: {
+            where: { status: "MOVE_OUT_NOTICE" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { status: true, moveOutNoticeDate: true },
+          },
         },
       },
       roomTypes: {
@@ -39,6 +45,12 @@ export const getPropertyById = async (propertyId: string) => {
           moveOutBills: {
             orderBy: { createdAt: "desc" },
             take: 1,
+          },
+          contracts: {
+            where: { status: "MOVE_OUT_NOTICE" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { status: true, moveOutNoticeDate: true },
           },
         },
       },

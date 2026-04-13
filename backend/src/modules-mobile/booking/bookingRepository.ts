@@ -18,7 +18,7 @@ export const getBookingInfo = async (propertyId: string, roomTypeId: string) => 
   })
 }
 
-// สร้าง booking
+// สร้าง booking พร้อม smart room selection
 export const createBooking = async (data: {
   propertyId: string
   roomTypeId: string
@@ -27,7 +27,8 @@ export const createBooking = async (data: {
   bookingFee: number
   slipUrl: string
 }) => {
-  return prisma.booking.create({
+  // สร้าง booking โดยยังไม่ assign ห้อง — admin จะ assign ตอน confirm
+  const booking = await prisma.booking.create({
     data: {
       propertyId: data.propertyId,
       roomTypeId: data.roomTypeId,
@@ -38,6 +39,8 @@ export const createBooking = async (data: {
       status: "PENDING",
     },
   })
+
+  return booking
 }
 
 // ดึง booking พร้อม property และ roomType
@@ -66,6 +69,29 @@ export const releaseRoom = async (roomId: string) => {
     where: { id: roomId },
     data: { status: "AVAILABLE" },
   })
+}
+
+// ดึง rooms พร้อม preparingDays เพื่อคำนวณ minMoveInDate
+export const getRoomsForAvailabilityCheck = async (propertyId: string, roomTypeId: string) => {
+  const [rooms, property] = await Promise.all([
+    prisma.room.findMany({
+      where: { propertyId, roomTypeId },
+      include: {
+        moveOutBills: { orderBy: { createdAt: "desc" }, take: 1, select: { moveOutDate: true } },
+        contracts: {
+          where: { status: "MOVE_OUT_NOTICE" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { moveOutNoticeDate: true },
+        },
+      },
+    }),
+    prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { preparingDays: true },
+    }),
+  ])
+  return { rooms, preparingDays: property?.preparingDays ?? 3 }
 }
 
 // ดึงการจองทั้งหมดของ user

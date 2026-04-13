@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import type { BillStatus, BookingStatus, ContractStatus } from './mockData'
+import type { BillStatus, BookingStatus, ContractStatus } from '../../api/finance/financeApi'
 
 export function BillStatusBadge({ status }: { status: BillStatus }) {
   const config: Record<BillStatus, { label: string; color: string; bg: string; border: string; icon: keyof typeof Ionicons.glyphMap }> = {

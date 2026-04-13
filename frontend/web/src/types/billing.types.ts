@@ -43,6 +43,7 @@ export interface InvoiceResponse {
     bankHolder: string
     paymentQrUrl: string | null
     logoUrl: string | null
+    billNote: string | null
   }
   roomNumber: string
   roomType: string

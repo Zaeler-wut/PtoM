@@ -340,6 +340,7 @@ export const getInvoice = async (
       bankHolder: property.bankHolder,
       paymentQrUrl: property.paymentQrUrl,
       logoUrl: property.logoUrl,
+      billNote: property.billNote ?? null,
     },
     // ข้อมูลบิล
     roomNumber: contract.room.roomNumber,

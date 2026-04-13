@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { mobilePropertyApi } from '../../api/property/mobilePropertyApi'
 import type { MobilePropertyDetail } from '../../types/mobileProperty.types'
@@ -68,6 +68,13 @@ function RoomTypeCard({ roomType, propertyId }: { roomType: any; propertyId: str
           <Text style={s.roomPrice}>{roomType.roomPrice?.toLocaleString('th-TH')}</Text>
           <Text style={s.roomPriceSub}>฿ / เดือน</Text>
           <Text style={s.roomAvailable}>ว่าง {roomType.availableRooms ?? 0} ห้อง</Text>
+          {roomType.preparingCount > 0 && roomType.availableRooms === roomType.preparingCount && roomType.preparingAvailableDate && (
+            <View style={s.preparingTag}>
+              <Text style={s.preparingTagText}>
+                จะว่าง {new Date(roomType.preparingAvailableDate + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
       <TouchableOpacity
@@ -93,13 +100,16 @@ export default function PropertyDetailScreen() {
     }, [])
   )
 
-  useEffect(() => {
-    if (!id) return
-    mobilePropertyApi.getDetail(id)
-      .then(setProperty)
-      .catch(console.error)
-      .finally(() => setIsLoading(false))
-  }, [id])
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return
+      setIsLoading(true)
+      mobilePropertyApi.getDetail(id)
+        .then(setProperty)
+        .catch(console.error)
+        .finally(() => setIsLoading(false))
+    }, [id])
+  )
 
   if (isLoading) {
     return (
@@ -280,6 +290,12 @@ const s = StyleSheet.create({
   roomPrice: { fontSize: 20, fontWeight: '700', color: '#7C5CFC' },
   roomPriceSub: { fontSize: 10, color: '#9CA3AF' },
   roomAvailable: { fontSize: 11, color: '#7C5CFC', marginTop: 4 },
+  preparingTag: {
+    marginTop: 4, backgroundColor: '#FFF7ED',
+    borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+    borderWidth: 1, borderColor: '#FDBA74',
+  },
+  preparingTagText: { fontSize: 9, color: '#EA580C', fontWeight: '600' as const },
   roomDetailBtn: {
     backgroundColor: '#7C5CFC', borderRadius: 12,
     paddingVertical: 12, alignItems: 'center',
