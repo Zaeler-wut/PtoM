@@ -46,7 +46,7 @@ export default function BookingListPage() {
   const [bookings, setBookings] = useState<BookingListItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("ALL")
+  const [statusFilter, setStatusFilter] = useState("PENDING")
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [detailBookingId, setDetailBookingId] = useState<string | null>(null)
   const [slipUrl, setSlipUrl] = useState<string | null>(null)
@@ -84,8 +84,11 @@ export default function BookingListPage() {
     }
   }
 
-  const handleCancel = async (bookingId: string) => {
-    if (!propertyId || !window.confirm("ยืนยันการยกเลิกการจองนี้?")) return
+  const handleCancel = async (bookingId: string, isConfirmed = false) => {
+    const msg = isConfirmed
+      ? "การจองนี้ได้รับการยืนยันแล้ว หากยกเลิก ค่าจองห้องจะไม่ได้รับคืน\nยืนยันการยกเลิกหรือไม่?"
+      : "ยืนยันการยกเลิกการจองนี้?"
+    if (!propertyId || !window.confirm(msg)) return
     setActionLoading(bookingId)
     try {
       await cancelBooking(propertyId, bookingId)
@@ -199,12 +202,23 @@ export default function BookingListPage() {
                           </>
                         )}
                         {(b.status === "CONFIRMED" || b.status === "CHECKED_IN") && (
-                          <button
-                            onClick={() => setDetailBookingId(b.bookingId)}
-                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
-                          >
-                            <RiEyeLine size={12} /> ดูรายละเอียด
-                          </button>
+                          <>
+                            <button
+                              onClick={() => setDetailBookingId(b.bookingId)}
+                              className="flex items-center gap-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                              <RiEyeLine size={12} /> ดูรายละเอียด
+                            </button>
+                            {b.status === "CONFIRMED" && (
+                              <button
+                                onClick={() => handleCancel(b.bookingId, true)}
+                                disabled={actionLoading === b.bookingId}
+                                className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-red-200 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60"
+                              >
+                                <RiCloseLine size={12} /> ยกเลิก
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>

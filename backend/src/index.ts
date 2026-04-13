@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from "express"
 import { prisma } from './lib/prisma'
 import cors from "cors"
@@ -29,7 +30,7 @@ app.use(cors({
   origin: true,
   credentials: true
 }))
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
 app.use(cookieParser())
 
 console.log("uploadRouter loaded:", uploadRouter)  // ← เพิ่ม

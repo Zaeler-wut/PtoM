@@ -1,23 +1,32 @@
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Image, Alert,
+  ScrollView, Image, Alert, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
+import { readMetersFromImages } from '../../lib/geminiService'
+import { aiMeterStore } from '../../store/aiMeterStore'
+
+interface PickedImage {
+  uri: string
+  base64: string
+}
 
 function UploadBox({
   label,
   icon,
   images,
   onPick,
+  onRemove,
 }: {
   label: string
   icon: 'flash-outline' | 'water-outline'
-  images: string[]
+  images: PickedImage[]
   onPick: () => void
+  onRemove: (index: number) => void
 }) {
   return (
     <View style={styles.uploadSection}>
@@ -28,8 +37,13 @@ function UploadBox({
 
       {images.length > 0 ? (
         <View style={styles.previewRow}>
-          {images.map((uri, i) => (
-            <Image key={i} source={{ uri }} style={styles.previewImage} resizeMode="cover" />
+          {images.map((img, i) => (
+            <View key={i} style={styles.previewWrapper}>
+              <Image source={{ uri: img.uri }} style={styles.previewImage} resizeMode="cover" />
+              <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(i)}>
+                <Ionicons name="close-circle" size={20} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
           ))}
           <TouchableOpacity style={styles.addMoreBtn} onPress={onPick}>
             <Ionicons name="add" size={24} color="#7C5CFC" />
@@ -55,10 +69,11 @@ export default function MeterUploadScreen() {
     propertyName: string
   }>()
 
-  const [electricImages, setElectricImages] = useState<string[]>([])
-  const [waterImages, setWaterImages] = useState<string[]>([])
+  const [electricImages, setElectricImages] = useState<PickedImage[]>([])
+  const [waterImages, setWaterImages] = useState<PickedImage[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  const pickImages = async (setter: (uris: string[]) => void, current: string[]) => {
+  const pickImages = async (setter: (imgs: PickedImage[]) => void, current: PickedImage[]) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('ไม่ได้รับอนุญาต', 'กรุณาอนุญาตการเข้าถึงรูปภาพ')
@@ -68,15 +83,73 @@ export default function MeterUploadScreen() {
       mediaTypes: ['images'] as any,
       allowsMultipleSelection: true,
       quality: 0.8,
+      base64: true,
     })
     if (!result.canceled) {
-      setter([...current, ...result.assets.map((a) => a.uri)])
+      const picked: PickedImage[] = result.assets
+        .filter(a => a.base64)
+        .map(a => ({ uri: a.uri, base64: a.base64! }))
+      setter([...current, ...picked])
     }
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    const totalImages = electricImages.length + waterImages.length
+    if (totalImages === 0) {
+      // No images — go straight to manual entry
+      aiMeterStore.clear()
+      router.push({
+        pathname: '/(app)/(admin)/meter/readings' as any,
+        params: { propertyId, propertyName },
+      })
+      return
+    }
+
+    setIsProcessing(true)
+    try {
+      const results = await readMetersFromImages(electricImages, waterImages)
+      aiMeterStore.set(results)
+
+      const failed = results
+        .map((r, i) => {
+          if (r.roomNumber == null || r.meterValue == null) {
+            const isElectric = i < electricImages.length
+            const idx = isElectric ? i + 1 : i - electricImages.length + 1
+            return `${isElectric ? 'ไฟฟ้า' : 'น้ำ'}รูปที่ ${idx}`
+          }
+          return null
+        })
+        .filter(Boolean)
+
+      if (failed.length === results.length) {
+        Alert.alert(
+          'AI อ่านไม่ได้',
+          'ไม่สามารถอ่านข้อมูลจากรูปได้ทั้งหมด กรุณากรอกด้วยตนเอง',
+          [{ text: 'ตกลง', onPress: () => navigate() }]
+        )
+      } else if (failed.length > 0) {
+        Alert.alert(
+          'AI อ่านไม่ได้บางรูป',
+          `อ่านไม่ได้: ${failed.join(', ')}\nกรุณากรอกข้อมูลส่วนนั้นด้วยตนเอง`,
+          [{ text: 'ตกลง', onPress: () => navigate() }]
+        )
+      } else {
+        navigate()
+      }
+    } catch (e: any) {
+      Alert.alert(
+        'เกิดข้อผิดพลาด',
+        `ไม่สามารถเชื่อมต่อ AI ได้: ${e.message}\nกรุณากรอกด้วยตนเอง`,
+        [{ text: 'ตกลง', onPress: () => navigate() }]
+      )
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const navigate = () => {
     router.push({
-      pathname: '/(app)/(tenant)/meter/readings' as any,
+      pathname: '/(app)/(admin)/meter/readings' as any,
       params: { propertyId, propertyName },
     })
   }
@@ -102,9 +175,9 @@ export default function MeterUploadScreen() {
             <Ionicons name="sparkles" size={16} color="#7C5CFC" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.aiTitle}>AI อัตโนมัติ</Text>
+            <Text style={styles.aiTitle}>AI อ่านมิเตอร์อัตโนมัติ</Text>
             <Text style={styles.aiDesc}>
-              แทนที่ผลจากภาพมิเตอร์ได้ เพื่อให้ AI อ่านมิเตอร์ให้อัตโนมัติ
+              ถ่ายรูปมิเตอร์พร้อมป้ายเลขห้อง AI จะอ่านค่าและกรอกข้อมูลให้อัตโนมัติ
               คุณสามารถตรวจสอบและแก้ไขได้ในขั้นตอนถัดไป
             </Text>
           </View>
@@ -115,6 +188,7 @@ export default function MeterUploadScreen() {
           icon="flash-outline"
           images={electricImages}
           onPick={() => pickImages(setElectricImages, electricImages)}
+          onRemove={(i) => setElectricImages(prev => prev.filter((_, idx) => idx !== i))}
         />
 
         <UploadBox
@@ -122,13 +196,30 @@ export default function MeterUploadScreen() {
           icon="water-outline"
           images={waterImages}
           onPick={() => pickImages(setWaterImages, waterImages)}
+          onRemove={(i) => setWaterImages(prev => prev.filter((_, idx) => idx !== i))}
         />
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.nextBtn} activeOpacity={0.85} onPress={handleNext}>
-          <Ionicons name="create-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.nextBtnText}>กรอกมิเตอร์</Text>
+        <TouchableOpacity
+          style={[styles.nextBtn, isProcessing && { opacity: 0.75 }]}
+          activeOpacity={0.85}
+          onPress={handleNext}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <>
+              <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.nextBtnText}>AI กำลังอ่านมิเตอร์...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="sparkles" size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.nextBtnText}>
+                {electricImages.length + waterImages.length > 0 ? 'ให้ AI อ่านและกรอกมิเตอร์' : 'กรอกมิเตอร์เอง'}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -212,9 +303,21 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  previewWrapper: {
+    position: 'relative',
+    width: 90,
+    height: 90,
+  },
   previewImage: {
     width: 90,
     height: 90,
+    borderRadius: 10,
+  },
+  removeBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#fff',
     borderRadius: 10,
   },
   addMoreBtn: {

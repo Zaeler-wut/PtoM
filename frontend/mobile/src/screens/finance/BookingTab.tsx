@@ -31,10 +31,17 @@ function BookingCard({
     : '#3B82F6'
 
   const confirmCancel = () => {
-    Alert.alert('ยืนยันการยกเลิก', 'คุณต้องการยกเลิกการจองนี้ใช่ไหม?', [
-      { text: 'ไม่ใช่', style: 'cancel' },
-      { text: 'ยกเลิกการจอง', style: 'destructive', onPress: () => onCancel(booking.bookingId) },
-    ])
+    const isConfirmed = booking.status === 'CONFIRMED'
+    Alert.alert(
+      'ยืนยันการยกเลิก',
+      isConfirmed
+        ? 'หากยกเลิกการจองหลังจากได้รับการยืนยันแล้ว ค่าจองห้องจะไม่ได้รับคืน คุณต้องการยกเลิกหรือไม่?'
+        : 'คุณต้องการยกเลิกการจองนี้ใช่ไหม?',
+      [
+        { text: 'ไม่ใช่', style: 'cancel' },
+        { text: 'ยกเลิกการจอง', style: 'destructive', onPress: () => onCancel(booking.bookingId) },
+      ]
+    )
   }
 
   return (

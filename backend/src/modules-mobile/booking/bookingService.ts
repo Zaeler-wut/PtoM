@@ -204,6 +204,6 @@ export const getMyBookings = async (userId: string) => {
     roomPrice: b.roomType.roomPrice,
     createdAt: b.createdAt.toISOString().split("T")[0],
     status: b.status as any,
-    canCancel: b.status === "PENDING",
+    canCancel: b.status === "PENDING" || b.status === "CONFIRMED",
   }))
 }

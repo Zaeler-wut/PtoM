@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { router, useLocalSearchParams } from 'expo-router'
 import { adminMeterApi } from '../../api/admin/adminMeterApi'
 import type { RoomMeter } from '../../types/adminMeter.types'
+import { aiMeterStore } from '../../store/aiMeterStore'
 
 type FilterTab = 'all' | 'done' | 'pending'
 
@@ -87,7 +88,24 @@ export default function MeterFormScreen() {
   useEffect(() => {
     if (!propertyId) return
     adminMeterApi.getRooms(propertyId, month, yearAD)
-      .then(setRooms)
+      .then((data) => {
+        setRooms(data)
+        // Pre-fill drafts from AI results (if any)
+        const aiDrafts = aiMeterStore.drafts
+        if (Object.keys(aiDrafts).length > 0) {
+          const initial: Record<string, { electric: string; water: string }> = {}
+          for (const room of data) {
+            const ai = aiMeterStore.getForRoom(room.roomNumber)
+            if (ai && (ai.electric || ai.water)) {
+              initial[room.id] = { electric: ai.electric, water: ai.water }
+            }
+          }
+          if (Object.keys(initial).length > 0) {
+            setDrafts(initial)
+          }
+          aiMeterStore.clear()
+        }
+      })
       .catch(() => Alert.alert('ข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลห้องได้'))
       .finally(() => setIsLoading(false))
   }, [propertyId])
@@ -97,14 +115,22 @@ export default function MeterFormScreen() {
     return (d?.electric || room.electricMeter != null) && (d?.water || room.waterMeter != null)
   }, [drafts])
 
-  const filteredRooms = rooms.filter((r) => {
-    if (tab === 'done') return isDone(r)
-    if (tab === 'pending') return !isDone(r)
-    return true
-  })
+  const filteredRooms = rooms
+    .filter((r) => {
+      if (tab === 'done') return isDone(r)
+      if (tab === 'pending') return !isDone(r)
+      return true
+    })
+    .sort((a, b) => {
+      const na = parseInt(a.roomNumber)
+      const nb = parseInt(b.roomNumber)
+      if (!isNaN(na) && !isNaN(nb)) return na - nb
+      return a.roomNumber.localeCompare(b.roomNumber)
+    })
 
   const doneCount = rooms.filter(isDone).length
   const pendingCount = rooms.length - doneCount
+  const aiFilledCount = Object.keys(drafts).length
 
   const openEdit = (room: RoomMeter) => {
     const d = drafts[room.id]
@@ -226,15 +252,27 @@ export default function MeterFormScreen() {
               </View>
 
               {/* AI badge */}
-              <View style={styles.aiBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.aiTitle}>AI อ่านข้อมูลสำเร็จ</Text>
-                  <Text style={styles.aiDesc}>
-                    กรุณาตรวจสอบความถูกต้อง หากพบข้อผิดพลาดสามารถแก้ไขได้
-                  </Text>
+              {aiFilledCount > 0 ? (
+                <View style={styles.aiBadge}>
+                  <Ionicons name="sparkles" size={16} color="#059669" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.aiTitle}>AI อ่านข้อมูลสำเร็จ {aiFilledCount} ห้อง</Text>
+                    <Text style={styles.aiDesc}>
+                      กรุณาตรวจสอบความถูกต้อง หากพบข้อผิดพลาดสามารถแก้ไขได้
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              ) : (
+                <View style={[styles.aiBadge, { backgroundColor: '#FFF7ED' }]}>
+                  <Ionicons name="create-outline" size={16} color="#D97706" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.aiTitle, { color: '#92400E' }]}>กรอกข้อมูลด้วยตนเอง</Text>
+                    <Text style={[styles.aiDesc, { color: '#D97706' }]}>
+                      กดปุ่มดินสอที่การ์ดห้องเพื่อกรอกค่ามิเตอร์
+                    </Text>
+                  </View>
+                </View>
+              )}
             </>
           }
           ListEmptyComponent={

@@ -133,24 +133,10 @@ export default function RoomListPage() {
                     <td className="px-5 py-3.5 text-sm text-gray-600">{room.floor ?? "-"}</td>
                     <td className="px-5 py-3.5 text-sm text-gray-600">{room.roomType}</td>
                     <td className="px-5 py-3.5 text-sm text-gray-600">฿{room.price.toLocaleString()}</td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex flex-col gap-0.5">
-                        <StatusBadge
-                          status={room.contractStatus === "MOVE_OUT_NOTICE" ? "PREPARING" : room.status}
-                        />
-                        {(room.status === "PREPARING" || room.contractStatus === "MOVE_OUT_NOTICE") &&
-                          room.availableFromDate && (
-                            <span className="text-xs text-gray-400">
-                              ว่างตั้งแต่{" "}
-                              {new Date(room.availableFromDate).toLocaleDateString("th-TH", {
-                                day: "numeric", month: "short",
-                              })}
-                            </span>
-                          )}
-                        {room.status === "PREPARING" && !room.availableFromDate && (
-                          <span className="text-xs text-yellow-600">พร้อมแล้ว</span>
-                        )}
-                      </div>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <StatusBadge
+                        status={room.contractStatus === "MOVE_OUT_NOTICE" ? "PREPARING" : room.status}
+                      />
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex flex-col gap-0.5">
