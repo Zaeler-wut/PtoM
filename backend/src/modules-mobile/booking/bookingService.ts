@@ -96,6 +96,7 @@ export const createBooking = async (
 
   const moveInDate = new Date(data.moveInDate)
   if (isNaN(moveInDate.getTime())) throw new Error("moveInDate is invalid")
+  moveInDate.setHours(0, 0, 0, 0)
 
   // ดึง roomType + คำนวณ minMoveInDate ตาม availability จริง
   const [rt, { rooms, preparingDays }] = await Promise.all([
@@ -128,7 +129,7 @@ export const createBooking = async (
     if (earliest && earliest > tomorrow) minMoveInDate = earliest
   }
 
-  if (moveInDate < minMoveInDate) throw new Error("moveInDate is before the earliest available date")
+  if (moveInDate < minMoveInDate) throw new Error(`moveInDate (${moveInDate.toISOString().split("T")[0]}) is before the earliest available date (${minMoveInDate.toISOString().split("T")[0]})`)
   if (moveInDate > maxDate) throw new Error("moveInDate must be within 45 days from today")
 
   const booking = await repo.createBooking({
@@ -191,19 +192,28 @@ export const cancelBooking = async (
 // 4. ดึงรายการจองของฉัน (แท็บการจอง)
 
 export const getMyBookings = async (userId: string) => {
-  const bookings = await repo.getMyBookings(userId)
-  return bookings.map((b) => ({
-    bookingId: b.id,
-    propertyName: b.property.name,
-    roomTypeName: b.roomType.name,
-    roomNumber: b.room?.roomNumber ?? null,
-    firstName: b.user.firstName,
-    lastName: b.user.lastName,
-    moveInDate: b.moveInDate.toISOString().split("T")[0],
-    bookingFee: b.bookingFee,
-    roomPrice: b.roomType.roomPrice,
-    createdAt: b.createdAt.toISOString().split("T")[0],
-    status: b.status as any,
-    canCancel: b.status === "PENDING" || b.status === "CONFIRMED",
-  }))
+  const [bookings, userContracts] = await Promise.all([
+    repo.getMyBookings(userId),
+    repo.getContractsByUser(userId),
+  ])
+  return bookings.map((b) => {
+    const hasContract = !!b.contract || userContracts.some(
+      (c) => c.bookingId === b.id || (b.roomId !== null && c.roomId === b.roomId)
+    )
+    const status = (b.status === "CONFIRMED" && hasContract) ? "CHECKED_IN" : b.status
+    return {
+      bookingId: b.id,
+      propertyName: b.property.name,
+      roomTypeName: b.roomType.name,
+      roomNumber: b.room?.roomNumber ?? null,
+      firstName: b.user.firstName,
+      lastName: b.user.lastName,
+      moveInDate: b.moveInDate.toISOString().split("T")[0],
+      bookingFee: b.bookingFee,
+      roomPrice: b.roomType.roomPrice,
+      createdAt: b.createdAt.toISOString().split("T")[0],
+      status: status as any,
+      canCancel: status === "PENDING" || status === "CONFIRMED",
+    }
+  })
 }

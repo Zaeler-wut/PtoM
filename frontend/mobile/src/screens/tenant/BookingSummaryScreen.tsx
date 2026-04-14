@@ -39,7 +39,7 @@ export default function BookingSummaryScreen() {
     </SafeAreaView>
   )
 
-  const date = moveInDate ? new Date(moveInDate) : new Date()
+  const date = moveInDate ? (() => { const [y,m,d] = moveInDate.split('-').map(Number); return new Date(y, m-1, d) })() : new Date()
   const formattedDate = `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
 
   return (

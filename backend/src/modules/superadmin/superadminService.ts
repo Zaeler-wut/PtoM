@@ -1,5 +1,5 @@
 import * as repo from "./superadminRepository"
-import { hashPassword } from "../../utils/password"
+import { hashPassword, comparePassword } from "../../utils/password"
 import { generateAccessToken } from "../../utils/jwt"
 
 export const getDashboard = () => repo.getDashboardStats()
@@ -41,6 +41,27 @@ export const resetPassword = async (userId: string, newPassword: string) => {
   if (!user) throw new Error("User not found")
   const hashed = await hashPassword(newPassword)
   return repo.resetPassword(userId, hashed)
+}
+
+const verifyRequesterPassword = async (requesterId: string, password: string) => {
+  const requester = await repo.findUserPasswordById(requesterId)
+  if (!requester) throw new Error("Requester not found")
+  const valid = await comparePassword(password, requester.password)
+  if (!valid) throw new Error("รหัสผ่านไม่ถูกต้อง")
+}
+
+export const deleteAdmin = async (userId: string, requesterId: string, password: string) => {
+  await verifyRequesterPassword(requesterId, password)
+  const user = await repo.findUserById(userId)
+  if (!user) throw new Error("User not found")
+  return repo.deleteUser(userId)
+}
+
+export const deleteUserAccount = async (userId: string, requesterId: string, password: string) => {
+  await verifyRequesterPassword(requesterId, password)
+  const user = await repo.findUserById(userId)
+  if (!user) throw new Error("User not found")
+  return repo.deleteUser(userId)
 }
 
 // Impersonate — คืน access token ของ user นั้นให้ superadmin ใช้

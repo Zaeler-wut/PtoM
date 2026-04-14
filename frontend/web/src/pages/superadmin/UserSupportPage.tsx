@@ -2,7 +2,7 @@ import { useState } from "react"
 import { superadminApi } from "../../api/superadmin/superadminApi"
 import {
   RiSearchLine, RiUserLine, RiLockPasswordLine,
-  RiToggleLine, RiToggleFill,
+  RiToggleLine, RiToggleFill, RiDeleteBinLine,
 } from "react-icons/ri"
 
 interface User {
@@ -13,6 +13,44 @@ interface User {
   isActive: boolean
   createdAt: string
   lastLogin: string | null
+}
+
+function ConfirmDeleteModal({ name, onClose, onConfirm }: {
+  name: string; onClose: () => void; onConfirm: (password: string) => Promise<void>
+}) {
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">ลบบัญชีผู้ใช้</h2>
+        <p className="text-sm text-gray-500 mb-1">{name}</p>
+        <p className="text-sm text-red-500 mb-4">การดำเนินการนี้ไม่สามารถยกเลิกได้</p>
+        <label className="text-xs font-medium text-gray-500 mb-1 block">รหัสผ่านของคุณเพื่อยืนยัน</label>
+        <input className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 mb-3"
+          type="password" placeholder="รหัสผ่าน Superadmin"
+          value={password} onChange={e => { setPassword(e.target.value); setError("") }} />
+        {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+        <div className="flex gap-2">
+          <button onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
+            ยกเลิก
+          </button>
+          <button onClick={async () => {
+            if (!password) return
+            setLoading(true); setError("")
+            try { await onConfirm(password) }
+            catch (e: any) { setError(e.response?.data?.error ?? "เกิดข้อผิดพลาด") }
+            finally { setLoading(false) }
+          }} disabled={loading || !password}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50">
+            {loading ? "กำลังลบ..." : "ลบบัญชี"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function ResetPasswordModal({ name, onClose, onConfirm }: {
@@ -52,6 +90,7 @@ export default function UserSupportPage() {
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [resetTarget, setResetTarget] = useState<User | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -172,6 +211,10 @@ export default function UserSupportPage() {
                 >
                   {user.isActive ? <RiToggleFill size={20} /> : <RiToggleLine size={20} />}
                 </button>
+                <button onClick={() => setDeleteTarget(user)} title="ลบบัญชี"
+                  className="p-2 rounded-lg hover:bg-gray-50 text-gray-400 hover:text-red-500 transition-colors">
+                  <RiDeleteBinLine size={16} />
+                </button>
               </div>
             </div>
           ))}
@@ -185,6 +228,17 @@ export default function UserSupportPage() {
           onConfirm={async pw => {
             await superadminApi.resetUserPassword(resetTarget.id, pw)
             setResetTarget(null)
+          }}
+        />
+      )}
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          name={`${deleteTarget.firstName} ${deleteTarget.lastName}`}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={async (password) => {
+            await superadminApi.deleteUser(deleteTarget.id, password)
+            setUsers(p => p.filter(u => u.id !== deleteTarget.id))
+            setDeleteTarget(null)
           }}
         />
       )}

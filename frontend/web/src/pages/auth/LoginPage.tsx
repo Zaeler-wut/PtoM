@@ -107,6 +107,9 @@ export default function LoginPage() {
               </>
             ) : "Sign in"}
           </button>
+          <p className="text-center text-white/40 text-xs pt-1">
+            ต้องการใช้ระบบ? กรุณาติดต่อผู้ให้บริการ
+          </p>
         </form>
       </div>
     </div>

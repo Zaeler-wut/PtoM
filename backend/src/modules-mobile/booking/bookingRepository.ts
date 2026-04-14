@@ -1,5 +1,12 @@
 import { prisma } from "../../lib/prisma"
 
+export const getContractsByUser = async (userId: string) => {
+  return prisma.contract.findMany({
+    where: { userId },
+    select: { id: true, roomId: true, bookingId: true },
+  })
+}
+
 // ดึงข้อมูลสำหรับหน้าจอง
 export const getBookingInfo = async (propertyId: string, roomTypeId: string) => {
   return prisma.roomType.findFirst({
@@ -103,6 +110,7 @@ export const getMyBookings = async (userId: string) => {
       roomType: { select: { id: true, name: true, roomPrice: true } },
       room: { select: { roomNumber: true } },
       user: { select: { firstName: true, lastName: true } },
+      contract: { select: { id: true } },
     },
     orderBy: { createdAt: "desc" },
   })

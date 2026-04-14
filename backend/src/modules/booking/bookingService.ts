@@ -3,18 +3,24 @@ import { checkExistingContract } from "../contract/contractRepository"
 
 export const getBookings = async (propertyId: string) => {
   const bookings = await repo.getBookingsByProperty(propertyId)
-  return bookings.map((b) => ({
-    bookingId: b.id,
-    firstName: b.user.firstName,
-    lastName: b.user.lastName,
-    phone: b.user.phone,
-    roomNumber: b.room?.roomNumber ?? "-",
-    roomType: b.roomType.name,
-    moveInDate: b.moveInDate,
-    bookingFee: b.bookingFee,
-    slipUrl: b.slipUrl,
-    status: b.status,
-  }))
+  return bookings.map((b) => {
+    const hasContract = !!b.contract || b.user.contracts.some(
+      (c) => c.bookingId === b.id || (b.roomId !== null && c.roomId === b.roomId)
+    )
+    const status = (b.status === "CONFIRMED" && hasContract) ? "CHECKED_IN" : b.status
+    return {
+      bookingId: b.id,
+      firstName: b.user.firstName,
+      lastName: b.user.lastName,
+      phone: b.user.phone,
+      roomNumber: b.room?.roomNumber ?? "-",
+      roomType: b.roomType.name,
+      moveInDate: b.moveInDate,
+      bookingFee: b.bookingFee,
+      slipUrl: b.slipUrl,
+      status,
+    }
+  })
 }
 
 export const getBookingDetail = async (bookingId: string, propertyId: string) => {
@@ -122,7 +128,9 @@ export const confirmBooking = async (bookingId: string, propertyId: string) => {
 export const cancelBooking = async (bookingId: string, propertyId: string) => {
   const booking = await repo.getBookingDetail(bookingId, propertyId)
   if (!booking) throw new Error("Booking not found")
-  if (booking.status === "CHECKED_IN") throw new Error("Cannot cancel checked-in booking")
+  if (booking.status === "CHECKED_IN") throw new Error("ไม่สามารถยกเลิกการจองที่เข้าอยู่แล้วได้")
+  const existingContract = await checkExistingContract(bookingId)
+  if (existingContract) throw new Error("ไม่สามารถยกเลิกการจองที่มีสัญญาเช่าแล้วได้")
 
   await repo.cancelBooking(bookingId)
 

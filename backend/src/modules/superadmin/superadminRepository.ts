@@ -98,6 +98,36 @@ export const findUserById = async (id: string) => {
   })
 }
 
+export const findUserPasswordById = async (id: string) => {
+  return prisma.user.findUnique({
+    where: { id },
+    select: { id: true, password: true },
+  })
+}
+
+export const deleteUser = async (id: string) => {
+  return prisma.$transaction(async (tx) => {
+    const bills = await tx.bill.findMany({ where: { userId: id }, select: { id: true } })
+    const billIds = bills.map(b => b.id)
+
+    const moveOutBills = await tx.moveOutBill.findMany({ where: { userId: id }, select: { id: true } })
+    const moveOutBillIds = moveOutBills.map(b => b.id)
+
+    await tx.payment.deleteMany({ where: { userId: id } })
+    await tx.billItem.deleteMany({ where: { billId: { in: billIds } } })
+    await tx.bill.deleteMany({ where: { userId: id } })
+    await tx.moveOutBillItem.deleteMany({ where: { moveOutBillId: { in: moveOutBillIds } } })
+    await tx.moveOutBill.deleteMany({ where: { userId: id } })
+    await tx.contract.deleteMany({ where: { userId: id } })
+    await tx.booking.deleteMany({ where: { userId: id } })
+    await tx.vehicle.deleteMany({ where: { userId: id } })
+    await tx.refreshToken.deleteMany({ where: { userId: id } })
+    await tx.adminLimit.deleteMany({ where: { userId: id } })
+    await tx.propertyAdmin.deleteMany({ where: { userId: id } })
+    await tx.user.delete({ where: { id } })
+  })
+}
+
 // ── Properties ───────────────────────────────────────────────
 export const getAllProperties = async () => {
   return prisma.property.findMany({

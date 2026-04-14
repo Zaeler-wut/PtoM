@@ -17,6 +17,8 @@ export const superadminApi = {
     api.post(`${BASE}/admins/${id}/reset-password`, { password }).then(r => r.data),
   impersonate: (id: string) =>
     api.post(`${BASE}/admins/${id}/impersonate`).then(r => r.data),
+  deleteAdmin: (id: string, password: string) =>
+    api.delete(`${BASE}/admins/${id}`, { data: { password } }).then(r => r.data),
 
   // Properties
   getProperties: () => api.get(`${BASE}/properties`).then(r => r.data),
@@ -28,4 +30,6 @@ export const superadminApi = {
     api.patch(`${BASE}/users/${id}/status`, { isActive }).then(r => r.data),
   resetUserPassword: (id: string, password: string) =>
     api.post(`${BASE}/users/${id}/reset-password`, { password }).then(r => r.data),
+  deleteUser: (id: string, password: string) =>
+    api.delete(`${BASE}/users/${id}`, { data: { password } }).then(r => r.data),
 }

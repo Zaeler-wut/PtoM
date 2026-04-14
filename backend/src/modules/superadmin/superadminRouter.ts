@@ -1,7 +1,10 @@
 import express from "express"
-import { authenticate } from "../../middlewares/authenticate"
+import { authenticate, AuthenticatedRequest } from "../../middlewares/authenticate"
 import { authorize } from "../../middlewares/authorize"
 import * as service from "./superadminService"
+import { Request } from "express"
+
+const getRequesterId = (req: Request) => (req as AuthenticatedRequest).user.id
 
 const router = express.Router()
 
@@ -61,6 +64,15 @@ router.post("/admins/:id/reset-password", ...guard, async (req, res) => {
   }
 })
 
+router.delete("/admins/:id", ...guard, async (req, res) => {
+  try {
+    await service.deleteAdmin(req.params.id as string, getRequesterId(req), req.body.password)
+    res.json({ message: "Deleted successfully" })
+  } catch (err: any) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 // Impersonate
 router.post("/admins/:id/impersonate", ...guard, async (req, res) => {
   try {
@@ -103,6 +115,15 @@ router.post("/users/:id/reset-password", ...guard, async (req, res) => {
   try {
     await service.resetPassword(req.params.id as string, req.body.password)
     res.json({ message: "Password reset successfully" })
+  } catch (err: any) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+router.delete("/users/:id", ...guard, async (req, res) => {
+  try {
+    await service.deleteUserAccount(req.params.id as string, getRequesterId(req), req.body.password)
+    res.json({ message: "Deleted successfully" })
   } catch (err: any) {
     res.status(400).json({ error: err.message })
   }

@@ -295,12 +295,17 @@ export const createOfflineContract = async (propertyId: string, data: any) => {
   const room = await repo.findRoomInProperty(data.roomId, propertyId)
   if (!room) throw new Error("Room not found in this property")
   if (room.status === "OCCUPIED") throw new Error("Room is already occupied")
+  if (data.bookingId) {
+    const existing = await repo.checkExistingContract(data.bookingId)
+    if (existing) throw new Error("Contract already exists for this booking")
+  }
   const address = buildAddress(data)
   const user = await resolveUser({ ...data, address })
   if (Array.isArray(data.vehicles)) await repo.replaceVehicles(user.id, data.vehicles)
   const contract = await repo.createContract({
     userId: user.id,
     roomId: data.roomId,
+    bookingId: data.bookingId,
     startDate,
     endDate,
     securityDeposit: data.securityDeposit,
@@ -308,6 +313,7 @@ export const createOfflineContract = async (propertyId: string, data: any) => {
     pdfUrl: data.pdfUrl,
   })
   await repo.updateRoomStatus(data.roomId, "OCCUPIED")
+  if (data.bookingId) await repo.updateBookingStatus(data.bookingId)
   return {
     contractId: contract.id,
     contractType: contract.contractType,

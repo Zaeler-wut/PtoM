@@ -17,6 +17,8 @@ import {
   updateContract,
 } from "../../api/contract/contractApi"
 import { getRooms } from "../../api/room/roomApi"
+import { getBookings, getContractPrefill } from "../../api/booking/bookingApi"
+import type { BookingListItem } from "../../types/booking.types"
 import type {
   ContractStatus,
   ContractListItem,
@@ -240,11 +242,16 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
 }) {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [source, setSource] = useState<"manual" | "booking">("manual")
   const [rooms, setRooms] = useState<{ id: string; roomNumber: string; roomTypeName: string; securityDeposit: number; advanceRent: number }[]>([])
+  const [bookings, setBookings] = useState<BookingListItem[]>([])
+  const [loadingBookings, setLoadingBookings] = useState(false)
+  const [loadingPrefill, setLoadingPrefill] = useState(false)
   const [roomTypeName, setRoomTypeName] = useState("")
   const [duration, setDuration] = useState("")
   const [vehiclePlate, setVehiclePlate] = useState("")
   const [vehicleType, setVehicleType] = useState("__none__")
+  const [bookingId, setBookingId] = useState("")
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "", lineId: "",
     roomId: "", startDate: "", securityDeposit: "",
@@ -252,16 +259,62 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
 
   useEffect(() => {
     if (!open) return
+    setSource("manual")
     setForm({ firstName: "", lastName: "", email: "", phone: "", lineId: "", roomId: "", startDate: "", securityDeposit: "" })
     setRoomTypeName(""); setDuration(""); setVehiclePlate(""); setVehicleType("__none__")
+    setBookingId(""); setBookings([])
     getRooms(propertyId)
       .then((roomList) => {
         setRooms((roomList as any[])
-          .filter((r) => r.status === "AVAILABLE")
+          .filter((r) => r.status === "AVAILABLE" || r.status === "RESERVED" || r.status === "PREPARING")
           .map((r: any) => ({ id: r.id, roomNumber: r.roomNumber, roomTypeName: r.roomType ?? "", securityDeposit: r.securityDeposit ?? 0, advanceRent: r.advanceRent ?? 0 }))
         )
       }).catch(() => {})
   }, [open, propertyId])
+
+  useEffect(() => {
+    if (source !== "booking" || !open) return
+    setLoadingBookings(true)
+    getBookings(propertyId)
+      .then((data) => setBookings(data.filter((b) => b.status === "CONFIRMED")))
+      .catch(() => {})
+      .finally(() => setLoadingBookings(false))
+  }, [source, open, propertyId])
+
+  const handleSourceChange = (s: "manual" | "booking") => {
+    setSource(s)
+    setBookingId("")
+    setForm({ firstName: "", lastName: "", email: "", phone: "", lineId: "", roomId: "", startDate: "", securityDeposit: "" })
+    setRoomTypeName(""); setDuration("")
+  }
+
+  const handleBookingSelect = async (bid: string) => {
+    if (!bid) return
+    setLoadingPrefill(true)
+    try {
+      const data = await getContractPrefill(propertyId, bid)
+      setBookingId(data.bookingId)
+      setForm((p) => ({
+        ...p,
+        firstName: data.firstName ?? "",
+        lastName: data.lastName ?? "",
+        email: data.email ?? "",
+        phone: data.phone ?? "",
+        lineId: data.lineId ?? "",
+        roomId: data.roomId ?? p.roomId,
+        startDate: data.moveInDate ? new Date(data.moveInDate).toISOString().split("T")[0] : p.startDate,
+        securityDeposit: data.securityDeposit ? String(data.securityDeposit) : p.securityDeposit,
+      }))
+      if (data.roomId) {
+        const room = rooms.find((r) => r.id === data.roomId)
+        setRoomTypeName(room?.roomTypeName ?? data.roomType ?? "")
+      }
+    } catch (e: any) {
+      toast(e?.response?.data?.error ?? "ไม่สามารถดึงข้อมูลการจองได้", "error")
+    } finally {
+      setLoadingPrefill(false)
+    }
+  }
 
   const set = (field: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -292,6 +345,7 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
         ...form,
         endDate: computedEndDate,
         securityDeposit: Number(form.securityDeposit),
+        ...(bookingId ? { bookingId } : {}),
         ...(vehiclePlate && vehicleType !== "__none__"
           ? { vehicles: [{ plateNumber: vehiclePlate, type: vehicleType }] }
           : {}),
@@ -311,6 +365,11 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
     label: r.roomTypeName ? `ห้อง ${r.roomNumber} — ${r.roomTypeName}` : `ห้อง ${r.roomNumber}`,
   }))
 
+  const bookingOptions = bookings.map((b) => ({
+    value: b.bookingId,
+    label: `${b.firstName} ${b.lastName} — ห้อง ${b.roomNumber} (${b.roomType})`,
+  }))
+
   return (
     <Modal
       open={open}
@@ -320,6 +379,52 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
       size="lg"
     >
       <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+
+        {/* source selector */}
+        <div>
+          <label className="text-sm font-medium text-gray-700 mb-2 block">ประเภทการสร้างสัญญา</label>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => handleSourceChange("manual")}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                source === "manual"
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}>
+              สร้างเอง
+            </button>
+            <button type="button" onClick={() => handleSourceChange("booking")}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                source === "booking"
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}>
+              จากการจอง
+            </button>
+          </div>
+        </div>
+
+        {/* booking selector */}
+        {source === "booking" && (
+          <div className="space-y-2">
+            {loadingBookings ? (
+              <p className="text-sm text-gray-400">กำลังโหลดรายการจอง...</p>
+            ) : bookingOptions.length === 0 ? (
+              <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-4 py-3">
+                ไม่มีการจองที่ยืนยันแล้วรอสร้างสัญญา
+              </p>
+            ) : (
+              <SelectInput
+                label="เลือกการจอง"
+                options={bookingOptions}
+                placeholder="เลือกการจอง..."
+                onValueChange={handleBookingSelect}
+              />
+            )}
+            {loadingPrefill && <p className="text-sm text-gray-400">กำลังดึงข้อมูล...</p>}
+          </div>
+        )}
+
+        <hr className="border-gray-100" />
 
         {/* ชื่อ | นามสกุล */}
         <div className="grid grid-cols-2 gap-3">

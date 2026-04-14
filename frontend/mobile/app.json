@@ -28,6 +28,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-media-library",
+        {
+          "photosPermission": "ต้องการสิทธิ์เพื่อบันทึก QR Code ลงในอัลบั้ม",
+          "savePhotosPermission": "ต้องการสิทธิ์เพื่อบันทึก QR Code ลงในอัลบั้ม"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

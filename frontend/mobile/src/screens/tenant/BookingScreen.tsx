@@ -151,11 +151,13 @@ export default function BookingScreen() {
   )
 
   const today = new Date()
-  const minDate = bookingInfo?.minMoveInDate
-    ? new Date(bookingInfo.minMoveInDate)
-    : new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+  const minDateRaw = bookingInfo?.minMoveInDate
+    ? (() => { const [y,m,d] = bookingInfo.minMoveInDate.split('-').map(Number); return new Date(y, m-1, d) })()
+    : tomorrow
+  const minDate = minDateRaw < tomorrow ? tomorrow : minDateRaw
   const maxDate = bookingInfo?.maxMoveInDate
-    ? new Date(bookingInfo.maxMoveInDate)
+    ? (() => { const [y,m,d] = bookingInfo.maxMoveInDate.split('-').map(Number); return new Date(y, m-1, d) })()
     : new Date(today.getFullYear(), today.getMonth(), today.getDate() + 45)
 
   const formatDate = (date: Date) => {
@@ -219,7 +221,7 @@ export default function BookingScreen() {
             activeOpacity={0.85}
             onPress={() => router.push({
               pathname: '/(app)/(tenant)/booking-summary/[id]',
-              params: { id, propertyId, moveInDate: selectedDate?.toISOString() }
+              params: { id, propertyId, moveInDate: selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}` : undefined }
             } as any)}
           >
             <Text style={s.nextBtnText}>ถัดไป →</Text>

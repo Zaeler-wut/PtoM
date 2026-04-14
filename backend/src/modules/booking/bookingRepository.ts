@@ -3,7 +3,16 @@ import { prisma } from "../../lib/prisma"
 export const getBookingsByProperty = async (propertyId: string) => {
   return prisma.booking.findMany({
     where: { propertyId },
-    include: { user: true, roomType: true, room: true },
+    include: {
+      user: {
+        include: {
+          contracts: { where: { room: { propertyId } }, select: { id: true, roomId: true, bookingId: true } },
+        },
+      },
+      roomType: true,
+      room: true,
+      contract: { select: { id: true } },
+    },
     orderBy: { createdAt: "desc" },
   })
 }
