@@ -26,21 +26,9 @@ function formatBillingPeriod(
   return `${start.toString().padStart(2, "0")} - ${end.toString().padStart(2, "0")} ${m} ${y}`
 }
 
-// แยก items ออกเป็น ค่าไฟ / ค่าน้ำ / ค่าเช่า / ค่าบริการคงที่
-function parseItems(items: { title: string; amount: number }[]) {
-  let electricCharge = 0
-  let waterCharge = 0
-  const extraFees: { title: string; amount: number }[] = []
-
-  items.forEach((item) => {
-    if (item.title.includes("ค่าไฟ")) electricCharge = item.amount
-    else if (item.title.includes("ค่าน้ำ")) waterCharge = item.amount
-    else if (!item.title.includes("ค่าเช่า") && !item.title.includes("ค่าเฟอร์นิเจอร์")) {
-      extraFees.push(item)
-    }
-  })
-
-  return { electricCharge, waterCharge, extraFees }
+// ทำความสะอาด title: ตัด " × ฿X" ออก
+function cleanItemTitle(title: string): string {
+  return title.replace(/ × ฿[\d.]+/g, "")
 }
 
 // 1. ดึงรายการบิลทั้งหมด
@@ -53,7 +41,10 @@ export const getBills = async (userId: string): Promise<BillListResponse> => {
 
   const billCards = bills.map((bill) => {
     const property = bill.contract.room.property
-    const { electricCharge, waterCharge, extraFees } = parseItems(bill.items)
+    const items = bill.items.map((i) => ({
+      title: cleanItemTitle(i.title),
+      amount: i.amount,
+    }))
 
     return {
       billId: bill.id,
@@ -62,10 +53,7 @@ export const getBills = async (userId: string): Promise<BillListResponse> => {
       firstName: bill.user?.firstName ?? "",
       lastName: bill.user?.lastName ?? "",
       roomNumber: bill.room.roomNumber,
-      roomRent: bill.roomRent,
-      electricCharge,
-      waterCharge,
-      extraFees,
+      items,
       total: bill.total,
       status: bill.status as any,
       dueDate: null,
@@ -101,7 +89,54 @@ export const getBillPaymentInfo = async (
   }
 }
 
-// 3. ชำระเงิน + อัพโหลดสลิป
+// 3. ดึงข้อมูลครบสำหรับ PDF
+export const getBillDetail = async (billId: string, userId: string) => {
+  const bill = await repo.getBillDetailById(billId, userId)
+  if (!bill) throw new Error("Bill not found")
+
+  const property = bill.contract.room.property
+  const [meter, prevMeter] = await Promise.all([
+    repo.getMeterReading(bill.roomId, bill.month!, bill.year!),
+    repo.getPreviousMeterReading(bill.roomId, bill.month!, bill.year!),
+  ])
+
+  const waterPrev = prevMeter?.waterMeter ?? 0
+  const waterCurrent = meter?.waterMeter ?? 0
+  const electricPrev = prevMeter?.electricMeter ?? 0
+  const electricCurrent = meter?.electricMeter ?? 0
+
+  const today = new Date()
+  const dateStr = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "long", year: "numeric" }).format(today)
+
+  return {
+    billId: bill.id,
+    billingPeriod: formatBillingPeriod(bill.month, bill.year),
+    property: {
+      name: property.name,
+      address: property.address ?? "",
+      bankName: property.bankName ?? "",
+      bankAccount: property.bankAccount ?? "",
+      bankHolder: property.bankHolder ?? "",
+      paymentQrUrl: property.paymentQrUrl ?? null,
+      logoUrl: property.logoUrl ?? null,
+      billNote: property.billNote ?? null,
+    },
+    roomNumber: bill.room.roomNumber,
+    roomTypeName: bill.room.roomType.name,
+    tenantName: `${bill.user?.firstName ?? ""} ${bill.user?.lastName ?? ""}`.trim(),
+    items: bill.items.map((i) => ({ title: i.title, amount: i.amount })),
+    total: bill.total,
+    meter: { waterPrev, waterCurrent, electricPrev, electricCurrent },
+    dateStr,
+    issuerName: (() => {
+      const admin = property.admins?.[0]?.user
+      if (!admin) return ""
+      return `${admin.firstName} ${admin.lastName}`.trim()
+    })(),
+  }
+}
+
+// 4. ชำระเงิน + อัพโหลดสลิป
 export const submitPayment = async (
   billId: string,
   userId: string,

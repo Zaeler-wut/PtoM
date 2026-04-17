@@ -33,6 +33,7 @@ export interface PropertyDetailMobile {
   id: string
   name: string
   address: string
+  phone: string | null
   googleMap: string | null
   description: string | null
   contractTerm: string | null

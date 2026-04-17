@@ -36,6 +36,7 @@ export const ENDPOINTS = {
 
   mobileBills: {
     list: "/mobile/bills",
+    detail: (billId: string) => `/mobile/bills/${billId}/detail`,
     paymentInfo: (billId: string) => `/mobile/bills/${billId}/payment-info`,
     submitPayment: (billId: string) => `/mobile/bills/${billId}/payments`,
   },

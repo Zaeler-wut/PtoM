@@ -178,7 +178,7 @@ function FieldInput({ field, value, onChange }: {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F8FB' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff',
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#F5F5FA', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 16, gap: 8 },
   sectionTitle: { fontSize: 13, fontWeight: '600', color: '#7C5CFC', marginTop: 8, marginBottom: 4, marginLeft: 2 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 12, borderWidth: 1, borderColor: '#F0F0F5' },

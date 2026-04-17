@@ -67,7 +67,7 @@ export default function RoomDetailScreen() {
         </View>
       </View>
 
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 24 }}>
 
         <View style={s.imageWrap}>
           {room!.images?.[0] ? (
@@ -222,7 +222,7 @@ export default function RoomDetailScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F3FF' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,

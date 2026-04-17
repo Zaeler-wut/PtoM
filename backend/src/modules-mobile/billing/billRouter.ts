@@ -15,7 +15,18 @@ router.get("/bills", authenticate, async (req: any, res) => {
   }
 })
 
-// 2. ดึงข้อมูลสำหรับหน้าชำระเงิน
+// 2. ดึงข้อมูลครบถ้วนสำหรับ PDF
+// GET /bills/:billId/detail
+router.get("/bills/:billId/detail", authenticate, async (req: any, res) => {
+  try {
+    const data = await service.getBillDetail(req.params.billId, req.user.id)
+    res.json(data)
+  } catch (err: any) {
+    res.status(404).json({ error: err.message })
+  }
+})
+
+// 3. ดึงข้อมูลสำหรับหน้าชำระเงิน
 // GET /bills/:billId/payment-info
 router.get("/bills/:billId/payment-info", authenticate, async (req: any, res) => {
   try {

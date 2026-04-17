@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { useAppSelector } from "../../store/hooks"
 import {
   RiReceiptLine, RiCheckboxCircleLine, RiAlarmWarningLine,
   RiSendPlaneLine, RiMoneyDollarCircleLine, RiPercentLine,
@@ -576,9 +577,9 @@ export default function BillingPage() {
                                 className="text-gray-400 hover:text-gray-700 transition-colors">
                                 <RiEditLine size={15} />
                               </button>
-                              <button onClick={() => setDetailBill(bill)} title="ดูใบแจ้งหนี้"
-                                className="text-gray-400 hover:text-gray-700 transition-colors">
-                                <RiFileTextLine size={15} />
+                              <button onClick={() => setDetailBill(bill)} title="ดูบิล"
+                                className="flex items-center gap-1 px-2 py-1 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap">
+                                <RiFileTextLine size={12} /> ดูบิล
                               </button>
                               <button onClick={() => handleSendBill(bill)} title="ส่งบิล"
                                 className="text-purple-400 hover:text-purple-700 transition-colors">
@@ -1111,9 +1112,12 @@ function BillDetailModal({ bill, propertyId, month, year, onClose }: {
   onClose: () => void
 }) {
   const { toast } = useToast()
+  const authUser = useAppSelector((s) => s.auth.user)
+  const adminName = authUser?.name ?? "ผู้ดูแลระบบ"
   const [invoice, setInvoice] = useState<InvoiceResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [isSavingImage, setIsSavingImage] = useState(false)
   const previewRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -1122,6 +1126,26 @@ function BillDetailModal({ bill, propertyId, month, year, onClose }: {
       .catch(() => toast("โหลดข้อมูลไม่สำเร็จ", "error"))
       .finally(() => setIsLoading(false))
   }, [])
+
+  const handleSaveImage = async () => {
+    if (!previewRef.current) return
+    setIsSavingImage(true)
+    try {
+      const { default: html2canvas } = await import("html2canvas")
+      const canvas = await html2canvas(previewRef.current, {
+        scale: 2, useCORS: true, allowTaint: true, backgroundColor: "#ffffff",
+      })
+      const link = document.createElement("a")
+      link.download = `ใบแจ้งหนี้-ห้อง${bill.roomNumber}.png`
+      link.href = canvas.toDataURL("image/png")
+      link.click()
+    } catch (e) {
+      console.error(e)
+      toast("ไม่สามารถบันทึกภาพได้", "error")
+    } finally {
+      setIsSavingImage(false)
+    }
+  }
 
   const handleDownloadPDF = async () => {
     if (!invoice) return
@@ -1357,6 +1381,10 @@ function BillDetailModal({ bill, propertyId, month, year, onClose }: {
         noteList.appendChild(p)
       })
       noteSection.appendChild(noteList)
+      const issuerEl = document.createElement("p")
+      issuerEl.textContent = `ผู้จัดทำ: ${adminName}`
+      Object.assign(issuerEl.style, { margin: "8px 0 0", fontSize: "11px", color: "#9ca3af", textAlign: "right" })
+      noteSection.appendChild(issuerEl)
       container.appendChild(noteSection)
 
       document.body.appendChild(container)
@@ -1526,7 +1554,7 @@ function BillDetailModal({ bill, propertyId, month, year, onClose }: {
                       ))
                     : null}
                 </div>
-                <p className="text-xs text-gray-400 text-right mt-3">ผู้จัดทำ: ผู้ดูแลระบบ</p>
+                <p className="text-xs text-gray-400 text-right mt-3">ผู้จัดทำ: {adminName}</p>
               </div>
             </div>
           </div>
@@ -1537,7 +1565,11 @@ function BillDetailModal({ bill, propertyId, month, year, onClose }: {
               className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
               ปิด
             </button>
-            <button onClick={handleDownloadPDF} disabled={isDownloading}
+            <button onClick={handleSaveImage} disabled={isSavingImage || isLoading}
+              className="flex items-center gap-2 px-5 py-2.5 border border-purple-600 text-purple-600 text-sm rounded-xl hover:bg-purple-50 transition-colors disabled:opacity-60">
+              <RiImageLine size={16} /> {isSavingImage ? "กำลังบันทึก..." : "บันทึกเป็นภาพ"}
+            </button>
+            <button onClick={handleDownloadPDF} disabled={isDownloading || isLoading}
               className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white text-sm rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-60">
               <RiFileTextLine size={16} /> {isDownloading ? "กำลังสร้าง PDF..." : "โหลด PDF"}
             </button>

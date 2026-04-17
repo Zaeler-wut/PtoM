@@ -4,7 +4,7 @@ import { authenticate, type AuthenticatedRequest } from "../../middlewares/authe
 import Anthropic from "@anthropic-ai/sdk"
 
 function getAnthropicClient() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 45000 })
 }
 
 const router = express.Router()

@@ -110,6 +110,7 @@ export default function MeterListScreen() {
           renderItem={({ item }) => <PropertyCard item={item} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          style={{ flex: 1, backgroundColor: '#fff' }}
           ListEmptyComponent={
             <Text style={styles.emptyText}>ไม่พบสถานที่ที่คุณดูแล</Text>
           }
@@ -120,7 +121,7 @@ export default function MeterListScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
 
   header: {
     paddingHorizontal: 20,

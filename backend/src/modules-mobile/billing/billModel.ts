@@ -10,10 +10,7 @@ export interface BillCardItem {
   firstName: string
   lastName: string
   roomNumber: string
-  roomRent: number
-  electricCharge: number
-  waterCharge: number
-  extraFees: { title: string; amount: number }[]  // ค่าบริการคงที่
+  items: { title: string; amount: number }[]
   total: number
   status: BillStatus
   dueDate: string | null  // วันครบกำหนด

@@ -12,8 +12,6 @@ export default function MainLayout() {
 
   useEffect(() => {
     if (!propertyId) return;
-    // ถ้า property ที่โหลดอยู่เป็นคนละตัว ให้ clear แล้ว fetch ใหม่
-    // ถ้าเป็นตัวเดิม (รีเฟรช) ให้ fetch ซ้ำโดยไม่ clear เพื่อกันหาย
     if (property?.id && property.id !== propertyId) {
       dispatch(clearSelected());
     }

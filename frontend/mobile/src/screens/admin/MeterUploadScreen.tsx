@@ -82,7 +82,7 @@ export default function MeterUploadScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'] as any,
       allowsMultipleSelection: true,
-      quality: 0.8,
+      quality: 0.5,
       base64: true,
     })
     if (!result.canceled) {
@@ -168,7 +168,7 @@ export default function MeterUploadScreen() {
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: '#fff' }}>
         {/* AI badge */}
         <View style={styles.aiBadge}>
           <View style={styles.aiIcon}>
@@ -227,7 +227,7 @@ export default function MeterUploadScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
 
   header: {
     flexDirection: 'row',

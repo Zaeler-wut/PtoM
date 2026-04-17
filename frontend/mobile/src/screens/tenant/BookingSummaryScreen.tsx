@@ -39,8 +39,9 @@ export default function BookingSummaryScreen() {
     </SafeAreaView>
   )
 
-  const date = moveInDate ? (() => { const [y,m,d] = moveInDate.split('-').map(Number); return new Date(y, m-1, d) })() : new Date()
-  const formattedDate = `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
+  const date = moveInDate ? new Date(moveInDate) : new Date()
+  const _dp = date.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }).split('-').map(Number)
+  const formattedDate = `${_dp[2]} ${MONTH_TH[_dp[1] - 1]} ${_dp[0]}`
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -54,7 +55,7 @@ export default function BookingSummaryScreen() {
         <Text style={s.headerTitle}>จองห้องพัก</Text>
       </View>
 
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={s.body}>
 
           <View style={s.roomCard}>
@@ -158,7 +159,7 @@ export default function BookingSummaryScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F3FF' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,

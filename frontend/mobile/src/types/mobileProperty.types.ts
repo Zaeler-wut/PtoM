@@ -27,11 +27,13 @@ export interface MobileRoomType {
   preparingCount: number
   preparingAvailableDate: string | null
   facilities: string[]
+  maxOccupants: number | null
 }
 
 export interface MobilePropertyDetail extends MobilePropertyCard {
   allowOnlineBooking: boolean
   description: string | null
+  phone: string | null
   roomTypes: MobileRoomType[]
 }
 

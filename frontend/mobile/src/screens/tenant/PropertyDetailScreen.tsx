@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, ScrollView, Image,
-  TouchableOpacity, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator, Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -18,6 +18,39 @@ const FACILITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   'CCTV 24 ชม.': 'camera-outline',
   'ร้านสะดวกซื้อ': 'storefront-outline',
   'ห้องซักผ้า': 'water-outline',
+}
+
+function MapView({ lat, lng, googleMap }: { lat: number | null; lng: number | null; googleMap: string | null }) {
+  const mapUrl = lat && lng
+    ? `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=400x200&markers=${lat},${lng},red-pushpin`
+    : null
+
+  const openMap = () => {
+    if (googleMap) {
+      Linking.openURL(googleMap)
+    } else if (lat && lng) {
+      Linking.openURL(`https://www.google.com/maps?q=${lat},${lng}`)
+    }
+  }
+
+  return (
+    <View>
+      {mapUrl ? (
+        <TouchableOpacity onPress={openMap} activeOpacity={0.9}>
+          <Image source={{ uri: mapUrl }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+          <View style={s.mapOverlayBtn}>
+            <Ionicons name="map-outline" size={14} color="#fff" />
+            <Text style={s.mapOverlayBtnText}>เปิด Google Maps</Text>
+          </View>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={s.mapFallback} onPress={openMap} activeOpacity={0.85}>
+          <Ionicons name="map-outline" size={28} color="#7C5CFC" />
+          <Text style={s.mapFallbackText}>เปิด Google Maps</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  )
 }
 
 function FacilityItem({ label }: { label: string }) {
@@ -49,17 +82,25 @@ function RoomTypeCard({ roomType, propertyId }: { roomType: any; propertyId: str
         <View style={{ flex: 1 }}>
           <Text style={s.roomName}>{roomType.name}</Text>
           <View style={s.roomTagRow}>
-            <View style={s.roomTag}>
-              <Text style={s.roomTagText}>ขนาด {roomType.size} ตร.ม.</Text>
-            </View>
-            {roomType.facilities?.slice(0, 3).map((f: string, i: number) => (
+            {roomType.size && (
+              <View style={s.roomTag}>
+                <Text style={s.roomTagText}>ขนาด {roomType.size} ตร.ม.</Text>
+              </View>
+            )}
+            {roomType.maxOccupants && (
+              <View style={s.roomTag}>
+                <Ionicons name="people-outline" size={11} color="#7C5CFC" />
+                <Text style={s.roomTagText}>รองรับ {roomType.maxOccupants} คน</Text>
+              </View>
+            )}
+            {roomType.facilities?.slice(0, 2).map((f: string, i: number) => (
               <View key={i} style={s.roomTag}>
                 <Text style={s.roomTagText}>{f}</Text>
               </View>
             ))}
-            {roomType.facilities?.length > 3 && (
+            {roomType.facilities?.length > 2 && (
               <View style={s.roomTag}>
-                <Text style={s.roomTagText}>+{roomType.facilities.length - 3}</Text>
+                <Text style={s.roomTagText}>+{roomType.facilities.length - 2}</Text>
               </View>
             )}
           </View>
@@ -89,7 +130,8 @@ function RoomTypeCard({ roomType, propertyId }: { roomType: any; propertyId: str
 }
 
 export default function PropertyDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, maxOccupants: maxOccupantsParam } = useLocalSearchParams<{ id: string; maxOccupants?: string }>()
+  const maxOccupants = maxOccupantsParam ? Number(maxOccupantsParam) : undefined
   const [property, setProperty] = useState<MobilePropertyDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const scrollRef = useRef<ScrollView>(null)
@@ -104,11 +146,11 @@ export default function PropertyDetailScreen() {
     useCallback(() => {
       if (!id) return
       setIsLoading(true)
-      mobilePropertyApi.getDetail(id)
+      mobilePropertyApi.getDetail(id, maxOccupants)
         .then(setProperty)
         .catch(console.error)
         .finally(() => setIsLoading(false))
-    }, [id])
+    }, [id, maxOccupants])
   )
 
   if (isLoading) {
@@ -136,7 +178,7 @@ export default function PropertyDetailScreen() {
         <Text style={s.headerTitle}>รายละเอียดที่พัก</Text>
       </View>
 
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 40 }}>
 
         <View style={s.imageWrap}>
           {property.coverImage ? (
@@ -196,6 +238,35 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
+          {(property.phone || property.googleMap || (property.lat && property.lng)) && (
+            <View style={s.section}>
+              <SectionHeader icon="call-outline" title="ติดต่อและแผนที่" />
+
+              {property.phone && (
+                <TouchableOpacity
+                  style={s.contactRow}
+                  onPress={() => Linking.openURL(`tel:${property.phone}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={s.contactIconWrap}>
+                    <Ionicons name="call-outline" size={18} color="#7C5CFC" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.contactLabel}>เบอร์โทรติดต่อ</Text>
+                    <Text style={s.contactValue}>{property.phone}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#C4B5FD" />
+                </TouchableOpacity>
+              )}
+
+              {(property.googleMap || (property.lat && property.lng)) && (
+                <View style={s.mapWrap}>
+                  <MapView lat={property.lat} lng={property.lng} googleMap={property.googleMap} />
+                </View>
+              )}
+            </View>
+          )}
+
           {property.roomTypes?.length > 0 && (
             <View style={s.section}>
               <SectionHeader
@@ -216,7 +287,7 @@ export default function PropertyDetailScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F3FF' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -280,6 +351,7 @@ const s = StyleSheet.create({
   roomTag: {
     backgroundColor: '#EDE9FE', borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
   },
   roomTagText: { fontSize: 11, color: '#7C5CFC', fontWeight: '500' },
   roomPriceBox: {
@@ -301,4 +373,28 @@ const s = StyleSheet.create({
     paddingVertical: 12, alignItems: 'center',
   },
   roomDetailBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  contactRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: 'rgba(0,0,0,0.06)',
+    marginBottom: 4,
+  },
+  contactIconWrap: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center',
+  },
+  contactLabel: { fontSize: 11, color: '#9CA3AF' },
+  contactValue: { fontSize: 15, fontWeight: '600', color: '#7C5CFC', marginTop: 2 },
+  mapWrap: { marginTop: 8, borderRadius: 14, overflow: 'hidden' },
+  mapOverlayBtn: {
+    position: 'absolute', bottom: 10, right: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  mapOverlayBtnText: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  mapFallback: {
+    height: 100, backgroundColor: '#F5F3FF', borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  mapFallbackText: { fontSize: 14, color: '#7C5CFC', fontWeight: '600' },
 })

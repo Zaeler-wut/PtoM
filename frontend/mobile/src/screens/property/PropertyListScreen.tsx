@@ -48,6 +48,7 @@ export default function PropertyListScreen({ properties, isLoading, onSelectProp
         keyExtractor={item => item.id}
         contentContainerStyle={[styles.list, properties.length === 0 && styles.listEmpty]}
         showsVerticalScrollIndicator={false}
+          style={{ flex: 1, backgroundColor: '#fff' }}
         ListEmptyComponent={
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
@@ -107,7 +108,7 @@ function StatChip({ icon, value, label, color = '#7C5CFC' }: {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F8FB' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   header: {

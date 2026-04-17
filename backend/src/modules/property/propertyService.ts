@@ -45,7 +45,7 @@ export const getPropertyDetail = async (propertyId: string) => {
     contractTerm: p.contractTerm, preparingDays: p.preparingDays,
     bankName: p.bankName, bankAccount: p.bankAccount, bankHolder: p.bankHolder,
     paymentQrUrl: p.paymentQrUrl, logoUrl: p.logoUrl,
-    lat: p.lat, lng: p.lng, billNote: p.billNote,
+    lat: p.lat, lng: p.lng, billNote: p.billNote, phone: p.phone,
     facilities: p.facilities.map((f) => f.facility.name),
     images: p.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover })),
   }

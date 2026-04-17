@@ -127,14 +127,14 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={20} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>โปรไฟล์ของฉัน</Text>
+      </View>
 
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>โปรไฟล์ของฉัน</Text>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: '#fff' }}>
 
         {/* User Card */}
         <View style={styles.userCardWrap}>
@@ -359,7 +359,7 @@ function MenuItem({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F3FF' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
 
   header: {
     backgroundColor: '#7C5CFC',

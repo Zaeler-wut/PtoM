@@ -291,6 +291,7 @@ export const getPropertyDetail = async (
     id: property.id,
     name: property.name,
     address: property.address,
+    phone: property.phone ?? null,
     googleMap: property.googleMap,
     description: property.description,
     contractTerm: property.contractTerm,

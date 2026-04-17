@@ -1,4 +1,7 @@
 import * as repo from "./bookingRepository"
+
+const toBkk = (d: Date) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(d)
 import type {
   BookingInfoResponse,
   CreateBookingInput,
@@ -78,8 +81,8 @@ export const getBookingInfo = async (
       bankAccount: rt.property.bankAccount,
       bankHolder: rt.property.bankHolder,
     },
-    minMoveInDate: minMoveInDate.toISOString().split("T")[0],
-    maxMoveInDate: maxDate.toISOString().split("T")[0],
+    minMoveInDate: toBkk(minMoveInDate),
+    maxMoveInDate: toBkk(maxDate),
   }
 }
 
@@ -129,7 +132,7 @@ export const createBooking = async (
     if (earliest && earliest > tomorrow) minMoveInDate = earliest
   }
 
-  if (moveInDate < minMoveInDate) throw new Error(`moveInDate (${moveInDate.toISOString().split("T")[0]}) is before the earliest available date (${minMoveInDate.toISOString().split("T")[0]})`)
+  if (moveInDate < minMoveInDate) throw new Error(`moveInDate (${toBkk(moveInDate)}) is before the earliest available date (${toBkk(minMoveInDate)})`)
   if (moveInDate > maxDate) throw new Error("moveInDate must be within 45 days from today")
 
   const booking = await repo.createBooking({
@@ -151,7 +154,7 @@ export const createBooking = async (
     roomTypeName: full.roomType.name,
     roomPrice: full.roomType.roomPrice,
     bookingFee: full.bookingFee,
-    moveInDate: full.moveInDate.toISOString().split("T")[0],
+    moveInDate: toBkk(full.moveInDate),
     firstName: full.user.firstName,
     lastName: full.user.lastName,
     status: full.status as any,
@@ -208,10 +211,10 @@ export const getMyBookings = async (userId: string) => {
       roomNumber: b.room?.roomNumber ?? null,
       firstName: b.user.firstName,
       lastName: b.user.lastName,
-      moveInDate: b.moveInDate.toISOString().split("T")[0],
+      moveInDate: toBkk(b.moveInDate),
       bookingFee: b.bookingFee,
       roomPrice: b.roomType.roomPrice,
-      createdAt: b.createdAt.toISOString().split("T")[0],
+      createdAt: toBkk(b.createdAt),
       status: status as any,
       canCancel: status === "PENDING" || status === "CONFIRMED",
     }

@@ -67,6 +67,51 @@ export const getBillById = async (billId: string, userId: string) => {
   })
 }
 
+// ดึงบิลพร้อมข้อมูลครบสำหรับ PDF
+export const getBillDetailById = async (billId: string, userId: string) => {
+  return prisma.bill.findFirst({
+    where: { id: billId, userId },
+    include: {
+      items: true,
+      user: { select: { firstName: true, lastName: true } },
+      room: { include: { roomType: { select: { name: true } } } },
+      contract: {
+        include: {
+          room: {
+            include: {
+              property: {
+                select: {
+                  name: true, address: true,
+                  bankName: true, bankAccount: true, bankHolder: true,
+                  paymentQrUrl: true, logoUrl: true, billNote: true,
+                  admins: {
+                    take: 1,
+                    include: { user: { select: { firstName: true, lastName: true } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+}
+
+export const getMeterReading = async (roomId: string, month: number, year: number) => {
+  return prisma.meterReading.findUnique({
+    where: { roomId_month_year: { roomId, month, year } },
+  })
+}
+
+export const getPreviousMeterReading = async (roomId: string, month: number, year: number) => {
+  const prevMonth = month === 1 ? 12 : month - 1
+  const prevYear = month === 1 ? year - 1 : year
+  return prisma.meterReading.findUnique({
+    where: { roomId_month_year: { roomId, month: prevMonth, year: prevYear } },
+  })
+}
+
 // สร้าง payment
 export const createPayment = async (data: {
   userId: string

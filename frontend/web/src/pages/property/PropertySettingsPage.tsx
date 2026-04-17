@@ -8,8 +8,10 @@ import { useToast } from "../../components/shared/Toast";
 import {
   RiImageAddLine, RiQrCodeLine, RiMapPinLine, RiMoneyDollarCircleLine,
   RiFileTextLine, RiAddLine, RiCloseLine, RiCheckLine, RiSaveLine, RiStickyNoteLine,
-  RiTimeLine,
+  RiTimeLine, RiPhoneLine,
 } from "react-icons/ri";
+import { FormInput } from "../../components/shared/FormInput";
+import { FormTextarea } from "../../components/shared/FormTextarea";
 
 function parseLatLngFromGoogleMapsUrl(url: string): { lat: number; lng: number } | null {
   // @lat,lng,zoom  →  google.com/maps/@13.72,100.53,15z
@@ -39,6 +41,7 @@ interface SettingsForm {
   billNote: string;
   lat: string;
   lng: string;
+  phone: string;
 }
 
 export default function PropertySettingsPage() {
@@ -50,7 +53,7 @@ export default function PropertySettingsPage() {
   const [amenityInput, setAmenityInput] = useState("");
   const { toast } = useToast();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<SettingsForm>();
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<SettingsForm>({ mode: "onTouched" });
   const googleMapValue = watch("googleMap");
 
   // ── ดึง lat/lng จาก Google Maps URL อัตโนมัติ ──
@@ -100,6 +103,7 @@ export default function PropertySettingsPage() {
       preparingDays: property.preparingDays ?? 3,
       lat: property.lat != null ? String(property.lat) : "",
       lng: property.lng != null ? String(property.lng) : "",
+      phone: property.phone ?? "",
     });
     setAmenities(property.facilities ?? property.amenities ?? []);
   }, [property?.id]);
@@ -118,6 +122,7 @@ export default function PropertySettingsPage() {
         lat: data.lat !== "" ? Number(data.lat) : null,
         lng: data.lng !== "" ? Number(data.lng) : null,
         billNote: data.billNote?.trim() || null,
+        phone: data.phone?.trim() || null,
       },
     }));
     if (updateProperty.fulfilled.match(result)) {
@@ -159,13 +164,11 @@ export default function PropertySettingsPage() {
 
           {/* ชื่อสถานที่ */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">ชื่อสถานที่</label>
-            <input
-              type="text"
+            <FormInput
+              label="ชื่อสถานที่"
+              error={errors.name?.message}
               {...register("name", { required: "กรุณากรอกชื่อสถานที่" })}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400"
             />
-            {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
           </div>
 
           {/* ช่วงราคา + สิ่งอำนวยความสะดวก */}
@@ -177,18 +180,18 @@ export default function PropertySettingsPage() {
                 <h3 className="text-sm font-semibold text-gray-700">ช่วงราคา</h3>
               </div>
               <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">ราคาเริ่มต้น (บาท)</label>
-                  <input type="number" {...register("priceMin", { required: "กรุณากรอกราคา" })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
-                  {errors.priceMin && <p className="text-red-400 text-xs mt-1">{errors.priceMin.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">ราคาสูงสุด (บาท)</label>
-                  <input type="number" {...register("priceMax", { required: "กรุณากรอกราคา" })}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
-                  {errors.priceMax && <p className="text-red-400 text-xs mt-1">{errors.priceMax.message}</p>}
-                </div>
+                <FormInput
+                  label="ราคาเริ่มต้น (บาท)"
+                  type="number"
+                  error={errors.priceMin?.message}
+                  {...register("priceMin", { required: "กรุณากรอกราคา" })}
+                />
+                <FormInput
+                  label="ราคาสูงสุด (บาท)"
+                  type="number"
+                  error={errors.priceMax?.message}
+                  {...register("priceMax", { required: "กรุณากรอกราคา" })}
+                />
               </div>
               {priceMin && priceMax && (
                 <div className="bg-blue-50 rounded-xl px-4 py-2.5 text-sm font-medium text-blue-900">
@@ -233,9 +236,11 @@ export default function PropertySettingsPage() {
               <RiFileTextLine className="text-purple-500" size={18} />
               <h3 className="text-sm font-semibold text-gray-700">ระยะเวลาสัญญาเช่า</h3>
             </div>
-            <input type="text" placeholder='6 เดือน - 1 ปี' {...register("contractTerm")}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
-            <p className="text-xs text-gray-400 mt-1">ระบุระยะเวลาสัญญาเช่า เช่น "6 เดือน - 1 ปี" หรือ "1 ปี"</p>
+            <FormInput
+              placeholder='6 เดือน - 1 ปี'
+              hint='ระบุระยะเวลาสัญญาเช่า เช่น "6 เดือน - 1 ปี" หรือ "1 ปี"'
+              {...register("contractTerm")}
+            />
           </div>
 
           {/* จำนวนวันเตรียมห้องหลังผู้เช่าออก */}
@@ -262,9 +267,12 @@ export default function PropertySettingsPage() {
           {/* รายละเอียดหอพัก */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm ">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">รายละเอียดหอพัก</h3>
-            <textarea rows={5} placeholder="อธิบายรายละเอียดของหอพัก..." {...register("description")}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 resize-none" />
-            <p className="text-xs text-gray-400 mt-1">{watch("description")?.length ?? 0} ตัวอักษร</p>
+            <FormTextarea
+              rows={5}
+              placeholder="อธิบายรายละเอียดของหอพัก..."
+              hint={`${watch("description")?.length ?? 0} ตัวอักษร`}
+              {...register("description")}
+            />
           </div>
 
           {/* ที่อยู่และแผนที่ */}
@@ -274,17 +282,18 @@ export default function PropertySettingsPage() {
               <h3 className="text-sm font-semibold text-gray-700">ที่อยู่และแผนที่</h3>
             </div>
             <div className="space-y-4">
+              <FormTextarea
+                label="ที่อยู่เต็ม"
+                rows={2}
+                {...register("address")}
+              />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">ที่อยู่เต็ม</label>
-                <textarea rows={2} {...register("address")}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 resize-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Google Maps URL</label>
-                <input type="text" placeholder="https://maps.google.com/?q=13.7248936,100.5357075"
+                <FormInput
+                  label="Google Maps URL"
+                  placeholder="https://maps.google.com/?q=13.7248936,100.5357075"
+                  hint="วิธีหา: เปิด Google Maps → คลิกขวาที่แผนที่ → คัดลอก URL"
                   {...register("googleMap")}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
-                <p className="text-xs text-gray-400 mt-1">วิธีหา: เปิด Google Maps → คลิกขวาที่แผนที่ → คัดลอก URL</p>
+                />
                 {googleMapValue && (
                   <div className="mt-2 flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5">
                     <RiCheckLine className="text-green-600" size={16} />
@@ -293,29 +302,24 @@ export default function PropertySettingsPage() {
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">ละติจูด (Latitude)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="13.7563"
-                    {...register("lat")}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">ลองจิจูด (Longitude)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="100.5018"
-                    {...register("lng")}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400"
-                  />
-                </div>
+                <FormInput label="ละติจูด (Latitude)" type="number" step="any" placeholder="13.7563" {...register("lat")} />
+                <FormInput label="ลองจิจูด (Longitude)" type="number" step="any" placeholder="100.5018" {...register("lng")} />
               </div>
               <p className="text-xs text-gray-400">วาง Google Maps URL ด้านบน ระบบจะดึงค่าให้อัตโนมัติ หรือกรอกเองก็ได้</p>
             </div>
+          </div>
+
+          {/* เบอร์โทรติดต่อ */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <RiPhoneLine className="text-purple-500" size={18} />
+              <h3 className="text-sm font-semibold text-gray-700">เบอร์โทรติดต่อ</h3>
+            </div>
+            <FormInput
+              placeholder="0XX-XXX-XXXX"
+              hint="เบอร์โทรจะแสดงในหน้ารายละเอียดที่พักบนแอพมือถือ"
+              {...register("phone")}
+            />
           </div>
 
           {/* รูปภาพโปรโมท */}
@@ -455,21 +459,18 @@ export default function PropertySettingsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 ">
             <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">ชื่อธนาคาร</h3>
-              <input type="text" {...register("bankName")}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
+              <FormInput {...register("bankName")} />
             </div>
             <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">เลขที่บัญชี</h3>
-              <input type="text" {...register("bankAccount")}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
+              <FormInput {...register("bankAccount")} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 ">
             <div className="bg-white rounded-2xl pt-5 p-6 border border-gray-100 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">ชื่อบัญชี</h3>
-              <input type="text" {...register("bankHolder")}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400" />
+              <FormInput {...register("bankHolder")} />
             </div>
           </div>
 

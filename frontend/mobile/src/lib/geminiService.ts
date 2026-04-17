@@ -31,6 +31,6 @@ export async function readMetersFromImages(
     })),
   ]
 
-  const response = await api.post<GeminiMeterResult[]>('/mobile/admin/meter/ai-read', { images }, { timeout: 120000 })
+  const response = await api.post<GeminiMeterResult[]>('/mobile/admin/meter/ai-read', { images }, { timeout: 60000 })
   return response.data
 }

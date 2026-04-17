@@ -1,30 +1,17 @@
 import { forwardRef, useState } from "react";
 
-interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface FormTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
   hint?: string;
   labelClassName?: string;
-  inputClassName?: string;
 }
 
-export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
-  (
-    {
-      label,
-      error,
-      hint,
-      className,
-      labelClassName,
-      inputClassName,
-      onBlur,
-      ...props
-    },
-    ref
-  ) => {
+export const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
+  ({ label, error, hint, className, labelClassName, onBlur, ...props }, ref) => {
     const [isEmpty, setIsEmpty] = useState(false);
 
-    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
       setIsEmpty(!e.target.value.trim());
       onBlur?.(e);
     };
@@ -42,16 +29,15 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
             {label}
           </label>
         )}
-        <input
+        <textarea
           ref={ref}
           onBlur={handleBlur}
-          className={`w-full px-3 py-2.5 text-sm border rounded-lg outline-none transition-colors bg-white
+          className={`w-full px-3 py-2.5 text-sm border rounded-lg outline-none transition-colors bg-white resize-none
             ${
               displayError
                 ? "border-red-400 focus:border-red-500 bg-red-50/30"
                 : "border-gray-200 focus:border-purple-400"
-            }
-            ${inputClassName ?? ""}`}
+            }`}
           {...props}
         />
         {displayError && (
@@ -65,4 +51,4 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
   }
 );
 
-FormInput.displayName = "FormInput";
+FormTextarea.displayName = "FormTextarea";

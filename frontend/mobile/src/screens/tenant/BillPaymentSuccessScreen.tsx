@@ -35,7 +35,7 @@ export default function BillPaymentSuccessScreen() {
         <Text style={s.headerTitle}>ชำระค่าเช่า</Text>
       </View>
 
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 32 }}>
         <View style={s.body}>
 
           {/* Top card */}
@@ -101,7 +101,7 @@ export default function BillPaymentSuccessScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F3FF' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,

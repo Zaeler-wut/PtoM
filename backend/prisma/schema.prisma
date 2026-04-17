@@ -91,6 +91,7 @@ model Property {
   lng           Float?
 
   billNote      String?
+  phone         String?
 
   createdAt DateTime @default(now())
 

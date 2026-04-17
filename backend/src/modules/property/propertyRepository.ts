@@ -70,6 +70,7 @@ export const updateProperty = async (propertyId: string, data: any) => {
       lat: data.lat,
       lng: data.lng,
       billNote: data.billNote,
+      phone: data.phone,
     },
   })
 }

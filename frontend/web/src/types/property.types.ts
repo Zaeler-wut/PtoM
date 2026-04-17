@@ -31,6 +31,7 @@ export interface Property {
   lat?: number | null
   lng?: number | null
   billNote?: string | null
+  phone?: string | null
 }
 
 export type PropertyListItem = Property
@@ -68,6 +69,7 @@ export interface UpdatePropertyPayload {
   lat?: number | null
   lng?: number | null
   billNote?: string | null
+  phone?: string | null
 }
 
 export interface PropertyState {

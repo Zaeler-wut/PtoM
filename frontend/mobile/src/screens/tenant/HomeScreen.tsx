@@ -147,9 +147,12 @@ export default function HomeScreen() {
       const data = await mobilePropertyApi.search({ lat, lng, month, year, day, radius: 100, maxOccupants: people ?? undefined })
       if (data.length > 0) {
         setProperties(data)
-      } else {
+      } else if (!people) {
+        // fallback ไป featured เฉพาะตอนไม่ได้กรองจำนวนคน
         const featured = await mobilePropertyApi.getFeatured()
         setProperties(featured)
+      } else {
+        setProperties([])
       }
     } catch {
       const featured = await mobilePropertyApi.getFeatured()
@@ -288,7 +291,6 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.searchRow}>
-            {/* วันที่เข้าอยู่ */}
             <TouchableOpacity
               style={[styles.searchField, { flex: 1, marginRight: 8 }]}
               onPress={() => { setCalView(selectedDate ?? new Date()); setShowCalendar(true) }}
@@ -302,7 +304,6 @@ export default function HomeScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* จำนวนคน */}
             <TouchableOpacity
               style={[styles.searchField, { flex: 1 }]}
               onPress={() => setShowPeopleModal(true)}
@@ -378,10 +379,14 @@ export default function HomeScreen() {
         renderItem={({ item }) => (
           <PropertyCard
             item={item}
-            onPress={() => router.push(`/(app)/(tenant)/property/${item.id}` as any)}
+            onPress={() => router.push({
+              pathname: '/(app)/(tenant)/property/[id]',
+              params: { id: item.id, ...(selectedPeople ? { maxOccupants: selectedPeople } : {}) },
+            } as any)}
           />
         )}
         ListHeaderComponent={ListHeader}
+        style={{ flex: 1, backgroundColor: '#fff' }}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -480,7 +485,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
 
   header: { paddingHorizontal: 20, paddingTop: 25, paddingBottom: 16 },
   headerTitle: { fontSize: 22, fontWeight: '700', color: '#fff' },

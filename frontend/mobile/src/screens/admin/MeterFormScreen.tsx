@@ -207,6 +207,7 @@ export default function MeterFormScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <RoomCard item={item} onEdit={openEdit} />}
           showsVerticalScrollIndicator={false}
+          style={{ flex: 1, backgroundColor: '#fff' }}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
             <>
@@ -345,7 +346,7 @@ export default function MeterFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
 
   header: {
     flexDirection: 'row', alignItems: 'center',

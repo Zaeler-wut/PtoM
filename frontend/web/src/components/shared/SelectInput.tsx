@@ -1,5 +1,6 @@
 import * as Select from "@radix-ui/react-select";
 import { RiArrowDownSLine, RiCheckLine } from "react-icons/ri";
+import { useState } from "react";
 
 export interface SelectOption {
   value: string;
@@ -27,17 +28,48 @@ export function SelectInput({
   disabled,
   className,
 }: SelectInputProps) {
+  const [touched, setTouched] = useState(false);
+  const [hasSelected, setHasSelected] = useState(!!value);
   const selected = options.find((o) => o.value === value);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) setTouched(true);
+  };
+
+  const handleValueChange = (v: string) => {
+    setHasSelected(!!v);
+    onValueChange(v);
+  };
+
+  const cleanLabel = label?.replace(/\s*\*+\s*$/, "").trim();
+  const effectiveHasValue = !!value || hasSelected;
+  const internalError =
+    touched && !effectiveHasValue
+      ? `กรุณาเลือก${cleanLabel ?? "ข้อมูล"}`
+      : undefined;
+
+  const displayError = error || internalError;
 
   return (
     <div className={`w-full ${className ?? ""}`}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          {label}
+        </label>
       )}
-      <Select.Root value={value} onValueChange={onValueChange} disabled={disabled}>
+      <Select.Root
+        value={value}
+        onValueChange={handleValueChange}
+        disabled={disabled}
+        onOpenChange={handleOpenChange}
+      >
         <Select.Trigger
           className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm border rounded-xl outline-none bg-white transition-colors cursor-pointer
-            ${error ? "border-red-300" : "border-gray-200 hover:border-purple-400 focus:border-purple-400"}
+            ${
+              displayError
+                ? "border-red-400 bg-red-50/30"
+                : "border-gray-200 hover:border-purple-400 focus:border-purple-400"
+            }
             ${disabled ? "opacity-50 cursor-not-allowed bg-gray-50" : ""}
             data-[placeholder]:text-gray-400`}
         >
@@ -76,7 +108,9 @@ export function SelectInput({
         </Select.Portal>
       </Select.Root>
 
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      {displayError && (
+        <p className="mt-1 text-xs text-red-500">{displayError}</p>
+      )}
     </div>
   );
 }

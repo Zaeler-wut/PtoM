@@ -27,7 +27,8 @@ export default function BookingSuccessScreen() {
 
   const scrollRef = useRef<ScrollView>(null)
   const date = moveInDate ? new Date(moveInDate) : new Date()
-  const formattedDate = `${date.getDate()} ${MONTH_TH[date.getMonth()]} ${date.getFullYear()}`
+  const _dateParts = date.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }).split('-').map(Number)
+  const formattedDate = `${_dateParts[2]} ${MONTH_TH[_dateParts[1] - 1]} ${_dateParts[0]}`
 
   const rentNum = Number(rentPerMonth) || 0
   const feeNum = Number(bookingFee) || 0
@@ -48,7 +49,7 @@ export default function BookingSuccessScreen() {
         <Text style={s.headerTitle}>จองห้องพัก</Text>
       </View>
 
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={s.body}>
 
           <View style={s.roomCard}>
@@ -128,7 +129,7 @@ export default function BookingSuccessScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F3FF' },
+  safe: { flex: 1, backgroundColor: '#7C5CFC' },
   header: {
     backgroundColor: '#7C5CFC',
     flexDirection: 'row', alignItems: 'center', gap: 12,

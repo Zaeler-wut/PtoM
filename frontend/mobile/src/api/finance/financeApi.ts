@@ -19,10 +19,7 @@ export interface BillCard {
   firstName: string
   lastName: string
   roomNumber: string
-  roomRent: number
-  electricCharge: number
-  waterCharge: number
-  extraFees: BillFeeItem[]
+  items: BillFeeItem[]
   total: number
   status: BillStatus
   dueDate: string | null
@@ -79,6 +76,25 @@ export const financeApi = {
   getBills: async (): Promise<BillListResponse> => {
     const res = await api.get(ENDPOINTS.mobileBills.list)
     return res.data
+  },
+
+  getBillDetail: async (billId: string) => {
+    const res = await api.get(ENDPOINTS.mobileBills.detail(billId))
+    return res.data as {
+      billId: string
+      billingPeriod: string
+      dateStr: string
+      property: {
+        name: string; address: string
+        bankName: string; bankAccount: string; bankHolder: string
+        paymentQrUrl: string | null; logoUrl: string | null; billNote: string | null
+      }
+      roomNumber: string; roomTypeName: string; tenantName: string
+      items: { title: string; amount: number }[]
+      total: number
+      meter: { waterPrev: number; waterCurrent: number; electricPrev: number; electricCurrent: number }
+      issuerName: string
+    }
   },
 
   getBillPaymentInfo: async (billId: string): Promise<BillPaymentInfo> => {

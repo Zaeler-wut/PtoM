@@ -242,6 +242,7 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
 }) {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [source, setSource] = useState<"manual" | "booking">("manual")
   const [rooms, setRooms] = useState<{ id: string; roomNumber: string; roomTypeName: string; securityDeposit: number; advanceRent: number }[]>([])
   const [bookings, setBookings] = useState<BookingListItem[]>([])
@@ -302,7 +303,7 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
         phone: data.phone ?? "",
         lineId: data.lineId ?? "",
         roomId: data.roomId ?? p.roomId,
-        startDate: data.moveInDate ? new Date(data.moveInDate).toISOString().split("T")[0] : p.startDate,
+        startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" }),
         securityDeposit: data.securityDeposit ? String(data.securityDeposit) : p.securityDeposit,
       }))
       if (data.roomId) {
@@ -317,8 +318,10 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
   }
 
   const set = (field: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       setForm((p) => ({ ...p, [field]: e.target.value }))
+      if (formErrors[field]) setFormErrors((p) => { const n = { ...p }; delete n[field]; return n })
+    }
 
   const handleRoomSelect = (roomId: string) => {
     const room = rooms.find((r) => r.id === roomId)
@@ -335,10 +338,18 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
     : ""
 
   const handleSubmit = async () => {
-    if (!form.firstName || !form.lastName || !form.email || !form.roomId || !form.startDate || !computedEndDate) {
-      toast("กรุณากรอกข้อมูลให้ครบถ้วน", "error")
+    const errs: Record<string, string> = {}
+    if (!form.firstName) errs.firstName = "กรุณากรอกชื่อ"
+    if (!form.lastName) errs.lastName = "กรุณากรอกนามสกุล"
+    if (!form.email) errs.email = "กรุณากรอกอีเมล"
+    if (!form.roomId) errs.roomId = "กรุณาเลือกห้อง"
+    if (!duration) errs.duration = "กรุณาเลือกระยะเวลาสัญญา"
+    if (!form.startDate) errs.startDate = "กรุณาเลือกวันที่เริ่มสัญญา"
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs)
       return
     }
+    setFormErrors({})
     setIsSubmitting(true)
     try {
       const payload: CreateContractInput = {
@@ -428,14 +439,14 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
 
         {/* ชื่อ | นามสกุล */}
         <div className="grid grid-cols-2 gap-3">
-          <FormInput label="ชื่อ *" value={form.firstName} onChange={set("firstName")} placeholder="ชื่อ" />
-          <FormInput label="นามสกุล *" value={form.lastName} onChange={set("lastName")} placeholder="นามสกุล" />
+          <FormInput label="ชื่อ *" required value={form.firstName} onChange={set("firstName")} placeholder="ชื่อ" error={formErrors.firstName} />
+          <FormInput label="นามสกุล *" required value={form.lastName} onChange={set("lastName")} placeholder="นามสกุล" error={formErrors.lastName} />
         </div>
 
         {/* โทรศัพท์ | อีเมล */}
         <div className="grid grid-cols-2 gap-3">
           <FormInput label="เบอร์โทรศัพท์" value={form.phone} onChange={set("phone")} placeholder="0812345678" />
-          <FormInput label="อีเมล *" type="email" value={form.email} onChange={set("email")} placeholder="example@email.com" />
+          <FormInput label="อีเมล *" required type="email" value={form.email} onChange={set("email")} placeholder="example@email.com" error={formErrors.email} />
         </div>
 
         {/* LINE ID */}
@@ -445,10 +456,12 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
         <div className="grid grid-cols-2 gap-3">
           <SelectInput
             label="ห้อง *"
+            required
             placeholder="เลือกห้อง"
             options={roomOptions}
             value={form.roomId}
             onValueChange={handleRoomSelect}
+            error={formErrors.roomId}
           />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -468,12 +481,14 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
         <div className="grid grid-cols-2 gap-3">
           <SelectInput
             label="ระยะเวลาสัญญา *"
+            required
             placeholder="เลือกระยะเวลา"
             options={DURATION_OPTIONS}
             value={duration}
             onValueChange={setDuration}
+            error={formErrors.duration}
           />
-          <FormInput label="วันที่เริ่มสัญญา *" type="date" value={form.startDate} onChange={set("startDate")} />
+          <FormInput label="วันที่เริ่มสัญญา *" required type="date" value={form.startDate} onChange={set("startDate")} error={formErrors.startDate} />
         </div>
 
         {computedEndDate && (

@@ -61,7 +61,6 @@ export function Sidebar({ propertyId, propertyName, propertyLogoUrl }: SidebarPr
 
       {/* Property */}
       <div className="p-5 border-b border-slate-700">
-        <p className="text-xs text-purple-400 mb-1">สถานที่เลือก</p>
         <p className="text-sm font-medium">{propertyName ?? "หอพักสวนสยาม"}</p>
       </div>
 
@@ -72,7 +71,6 @@ export function Sidebar({ propertyId, propertyName, propertyLogoUrl }: SidebarPr
             <RiUserLine size={20} className="text-purple-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-400">ผู้จัดการ</p>
             <p className="text-sm font-medium">
               {user?.name ?? "-"}
             </p>

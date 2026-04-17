@@ -12,7 +12,9 @@ const MONTH_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค
 
 function formatDate(iso: string) {
   const d = new Date(iso)
-  return `${d.getDate()} ${MONTH_TH[d.getMonth()]} ${d.getFullYear() + 543}`
+  const str = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
+  const [y, m, day] = str.split('-').map(Number)
+  return `${day} ${MONTH_TH[m - 1]} ${y + 543}`
 }
 
 function ContractCard({ contract }: { contract: MyContractItem }) {
