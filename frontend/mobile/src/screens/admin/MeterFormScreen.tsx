@@ -1,11 +1,11 @@
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Image, Modal, TextInput, Alert, ActivityIndicator,
+  Modal, TextInput, Alert, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useState, useEffect, useCallback } from 'react'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useState, useCallback } from 'react'
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { adminMeterApi } from '../../api/admin/adminMeterApi'
 import type { RoomMeter } from '../../types/adminMeter.types'
 import { aiMeterStore } from '../../store/aiMeterStore'
@@ -24,7 +24,6 @@ function RoomCard({
   item: RoomMeter & { draft?: { electric: string; water: string } }
   onEdit: (room: RoomMeter) => void
 }) {
-  const hasMeter = item.electricMeter != null || item.draft?.electric
   const electric = item.draft?.electric ?? (item.electricMeter != null ? String(item.electricMeter) : null)
   const water = item.draft?.water ?? (item.waterMeter != null ? String(item.waterMeter) : null)
 
@@ -64,15 +63,32 @@ function RoomCard({
 }
 
 export default function MeterFormScreen() {
-  const { propertyId, propertyName } = useLocalSearchParams<{
+  const { propertyId, propertyName, month: monthParam, year: yearParam } = useLocalSearchParams<{
     propertyId: string
     propertyName: string
+    month?: string
+    year?: string
   }>()
 
   const now = new Date()
-  const month = now.getMonth() + 1
-  const year = now.getFullYear() + 543 // พ.ศ.
-  const yearAD = now.getFullYear()
+  const [selectedMonth, setSelectedMonth] = useState(monthParam ? parseInt(monthParam) : now.getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(yearParam ? parseInt(yearParam) : now.getFullYear())
+
+  const year = selectedYear + 543
+  const yearAD = selectedYear
+
+  const isNextMonthFuture = (m: number, y: number) => y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth() + 1)
+
+  const changeMonth = (delta: number) => {
+    setSelectedMonth(prev => {
+      let m = prev + delta
+      let y = selectedYear
+      if (m < 1) { m = 12; y = y - 1; setSelectedYear(y) }
+      else if (m > 12) { m = 1; y = y + 1; setSelectedYear(y) }
+      if (isNextMonthFuture(m, y)) return prev
+      return m
+    })
+  }
 
   const [rooms, setRooms] = useState<RoomMeter[]>([])
   const [drafts, setDrafts] = useState<Record<string, { electric: string; water: string }>>({})
@@ -85,12 +101,15 @@ export default function MeterFormScreen() {
   const [editElectric, setEditElectric] = useState('')
   const [editWater, setEditWater] = useState('')
 
-  useEffect(() => {
-    if (!propertyId) return
-    adminMeterApi.getRooms(propertyId, month, yearAD)
-      .then((data) => {
+  useFocusEffect(
+    useCallback(() => {
+      if (!propertyId) return
+      setDrafts({})
+      setIsLoading(true)
+      const loadData = async () => {
+        await aiMeterStore.load()
+        const data = await adminMeterApi.getRooms(propertyId, selectedMonth, yearAD)
         setRooms(data)
-        // Pre-fill drafts from AI results (if any)
         const aiDrafts = aiMeterStore.drafts
         if (Object.keys(aiDrafts).length > 0) {
           const initial: Record<string, { electric: string; water: string }> = {}
@@ -100,15 +119,14 @@ export default function MeterFormScreen() {
               initial[room.id] = { electric: ai.electric, water: ai.water }
             }
           }
-          if (Object.keys(initial).length > 0) {
-            setDrafts(initial)
-          }
-          aiMeterStore.clear()
+          if (Object.keys(initial).length > 0) setDrafts(initial)
         }
-      })
-      .catch(() => Alert.alert('ข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลห้องได้'))
-      .finally(() => setIsLoading(false))
-  }, [propertyId])
+      }
+      loadData()
+        .catch(() => Alert.alert('ข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลห้องได้'))
+        .finally(() => setIsLoading(false))
+    }, [propertyId, selectedMonth, selectedYear])
+  )
 
   const isDone = useCallback((room: RoomMeter) => {
     const d = drafts[room.id]
@@ -145,13 +163,18 @@ export default function MeterFormScreen() {
       ...prev,
       [editRoom.id]: { electric: editElectric, water: editWater },
     }))
+    aiMeterStore.setForRoom(editRoom.roomNumber, { electric: editElectric, water: editWater })
     setEditRoom(null)
   }
 
   const handleSubmit = async () => {
+    // รวม draft กับค่า DB ที่มีอยู่: ใช้ draft ก่อน ถ้าไม่มีใช้ค่าใน DB
     const toSave = rooms.filter((r) => {
       const d = drafts[r.id]
-      return d?.electric && d?.water
+      const electric = d?.electric || (r.electricMeter != null ? String(r.electricMeter) : null)
+      const water = d?.water || (r.waterMeter != null ? String(r.waterMeter) : null)
+      // บันทึกเฉพาะห้องที่มีการเปลี่ยนแปลง (draft) และครบทั้งสองค่า
+      return (d?.electric || d?.water) && electric != null && water != null
     })
     if (toSave.length === 0) {
       Alert.alert('แจ้งเตือน', 'กรุณากรอกข้อมูลมิเตอร์อย่างน้อย 1 ห้อง')
@@ -160,16 +183,20 @@ export default function MeterFormScreen() {
     setIsSaving(true)
     try {
       await Promise.all(
-        toSave.map((r) =>
-          adminMeterApi.saveMeter({
+        toSave.map((r) => {
+          const d = drafts[r.id]
+          const electric = d?.electric || String(r.electricMeter)
+          const water = d?.water || String(r.waterMeter)
+          return adminMeterApi.saveMeter({
             roomId: r.id,
-            month,
+            month: selectedMonth,
             year: yearAD,
-            electricMeter: parseFloat(drafts[r.id].electric),
-            waterMeter: parseFloat(drafts[r.id].water),
+            electricMeter: parseFloat(electric),
+            waterMeter: parseFloat(water),
           })
-        )
+        })
       )
+      await aiMeterStore.clear()
       Alert.alert('สำเร็จ', `บันทึกมิเตอร์ ${toSave.length} ห้องเรียบร้อย`, [
         { text: 'ตกลง', onPress: () => router.back() },
       ])
@@ -211,6 +238,17 @@ export default function MeterFormScreen() {
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
             <>
+              {/* Month picker */}
+              <View style={styles.monthPickerRow}>
+                <TouchableOpacity onPress={() => changeMonth(-1)} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
+                  <Ionicons name="chevron-back" size={20} color="#7C5CFC" />
+                </TouchableOpacity>
+                <Text style={styles.monthPickerText}>{MONTH_NAMES[selectedMonth]} {year}</Text>
+                <TouchableOpacity onPress={() => changeMonth(1)} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
+                  <Ionicons name="chevron-forward" size={20} color="#7C5CFC" />
+                </TouchableOpacity>
+              </View>
+
               {/* Month summary */}
               <View style={styles.summaryCard}>
                 <View style={styles.summaryLeft}>
@@ -219,7 +257,7 @@ export default function MeterFormScreen() {
                   </View>
                   <View>
                     <Text style={styles.summaryMonth}>
-                      รอบเดือน {MONTH_NAMES[month]} {year}
+                      รอบเดือน {MONTH_NAMES[selectedMonth]} {year}
                     </Text>
                     <Text style={styles.summaryCount}>
                       จดแล้ว {doneCount}/{rooms.length} ห้อง
@@ -358,6 +396,24 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 12, color: '#7C5CFC', marginTop: 1 },
 
   listContent: { padding: 16, paddingBottom: 32 },
+
+  monthPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    paddingVertical: 10,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  monthPickerText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F1D2E',
+    minWidth: 150,
+    textAlign: 'center',
+  },
 
   summaryCard: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

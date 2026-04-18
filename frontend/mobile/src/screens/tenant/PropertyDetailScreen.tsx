@@ -8,6 +8,7 @@ import { useState, useCallback, useRef } from 'react'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { mobilePropertyApi } from '../../api/property/mobilePropertyApi'
 import type { MobilePropertyDetail } from '../../types/mobileProperty.types'
+import MapView, { Marker } from 'react-native-maps'
 
 const FACILITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Wi-Fi': 'wifi-outline',
@@ -20,11 +21,7 @@ const FACILITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   'ห้องซักผ้า': 'water-outline',
 }
 
-function MapView({ lat, lng, googleMap }: { lat: number | null; lng: number | null; googleMap: string | null }) {
-  const mapUrl = lat && lng
-    ? `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=400x200&markers=${lat},${lng},red-pushpin`
-    : null
-
+function PropertyMap({ lat, lng, googleMap }: { lat: number | null; lng: number | null; googleMap: string | null }) {
   const openMap = () => {
     if (googleMap) {
       Linking.openURL(googleMap)
@@ -33,22 +30,45 @@ function MapView({ lat, lng, googleMap }: { lat: number | null; lng: number | nu
     }
   }
 
+  if (!lat || !lng) {
+    return (
+      <TouchableOpacity style={s.mapFallback} onPress={openMap} activeOpacity={0.85}>
+        <Ionicons name="map-outline" size={28} color="#7C5CFC" />
+        <Text style={s.mapFallbackText}>เปิดแผนที่</Text>
+      </TouchableOpacity>
+    )
+  }
+
+  const coordLat = lat as number
+  const coordLng = lng as number
+
   return (
-    <View>
-      {mapUrl ? (
-        <TouchableOpacity onPress={openMap} activeOpacity={0.9}>
-          <Image source={{ uri: mapUrl }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
-          <View style={s.mapOverlayBtn}>
-            <Ionicons name="map-outline" size={14} color="#fff" />
-            <Text style={s.mapOverlayBtnText}>เปิด Google Maps</Text>
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity style={s.mapFallback} onPress={openMap} activeOpacity={0.85}>
-          <Ionicons name="map-outline" size={28} color="#7C5CFC" />
-          <Text style={s.mapFallbackText}>เปิด Google Maps</Text>
-        </TouchableOpacity>
-      )}
+    <View style={{ height: 180, borderRadius: 14, overflow: 'hidden' }}>
+      <MapView
+        style={{ flex: 1 }}
+        initialRegion={{
+          latitude: coordLat,
+          longitude: coordLng,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }}
+        scrollEnabled={false}
+        zoomEnabled={false}
+        pitchEnabled={false}
+        rotateEnabled={false}
+      >
+        <Marker coordinate={{ latitude: coordLat, longitude: coordLng }} />
+      </MapView>
+      <TouchableOpacity
+        style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', alignItems: 'flex-end', padding: 10 }]}
+        onPress={openMap}
+        activeOpacity={1}
+      >
+        <View style={s.mapOpenBtn}>
+          <Ionicons name="navigate-outline" size={13} color="#fff" />
+          <Text style={s.mapOpenBtnText}>เปิดแผนที่</Text>
+        </View>
+      </TouchableOpacity>
     </View>
   )
 }
@@ -261,7 +281,7 @@ export default function PropertyDetailScreen() {
 
               {(property.googleMap || (property.lat && property.lng)) && (
                 <View style={s.mapWrap}>
-                  <MapView lat={property.lat} lng={property.lng} googleMap={property.googleMap} />
+                  <PropertyMap lat={property.lat} lng={property.lng} googleMap={property.googleMap} />
                 </View>
               )}
             </View>
@@ -385,16 +405,15 @@ const s = StyleSheet.create({
   contactLabel: { fontSize: 11, color: '#9CA3AF' },
   contactValue: { fontSize: 15, fontWeight: '600', color: '#7C5CFC', marginTop: 2 },
   mapWrap: { marginTop: 8, borderRadius: 14, overflow: 'hidden' },
-  mapOverlayBtn: {
-    position: 'absolute', bottom: 10, right: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 6,
-  },
-  mapOverlayBtnText: { fontSize: 12, color: '#fff', fontWeight: '600' },
   mapFallback: {
     height: 100, backgroundColor: '#F5F3FF', borderRadius: 14,
     alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   mapFallbackText: { fontSize: 14, color: '#7C5CFC', fontWeight: '600' },
+  mapOpenBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  mapOpenBtnText: { fontSize: 12, color: '#fff', fontWeight: '600' },
 })

@@ -1,4 +1,14 @@
-import api from '../api/axiosInstance'
+import axios from 'axios'
+import { getAccessToken } from '../api/axiosInstance'
+
+// axios instance แยกสำหรับ AI เพื่อให้ timeout ยาวพอ (ไม่ใช้ global 10s)
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api'
+const aiApi = axios.create({ baseURL: BASE_URL, timeout: 120000 })
+aiApi.interceptors.request.use((config) => {
+  const token = getAccessToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
 export type MeterType = 'electric' | 'water'
 
@@ -14,11 +24,19 @@ function getMimeType(uri: string): string {
   return 'image/jpeg'
 }
 
+type ImagePayload = { base64: string; mimeType: string; type: MeterType }
+
+async function sendOne(image: ImagePayload): Promise<GeminiMeterResult> {
+  const response = await aiApi.post<GeminiMeterResult[]>('/mobile/admin/meter/ai-read', { images: [image] })
+  return response.data[0]
+}
+
 export async function readMetersFromImages(
   electricImages: Array<{ uri: string; base64: string }>,
   waterImages: Array<{ uri: string; base64: string }>,
+  onProgress?: (done: number, total: number) => void,
 ): Promise<GeminiMeterResult[]> {
-  const images = [
+  const allImages: ImagePayload[] = [
     ...electricImages.map(img => ({
       base64: img.base64,
       mimeType: getMimeType(img.uri),
@@ -31,6 +49,13 @@ export async function readMetersFromImages(
     })),
   ]
 
-  const response = await api.post<GeminiMeterResult[]>('/mobile/admin/meter/ai-read', { images }, { timeout: 60000 })
-  return response.data
+  const total = allImages.length
+  const results: GeminiMeterResult[] = []
+
+  for (let i = 0; i < total; i++) {
+    results.push(await sendOne(allImages[i]))
+    onProgress?.(i + 1, total)
+  }
+
+  return results
 }

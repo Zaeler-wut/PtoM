@@ -4,7 +4,7 @@ import { authenticate, type AuthenticatedRequest } from "../../middlewares/authe
 import Anthropic from "@anthropic-ai/sdk"
 
 function getAnthropicClient() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 45000 })
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 90000 })
 }
 
 const router = express.Router()
@@ -63,83 +63,68 @@ router.post("/admin/meter/ai-read", authenticate, async (req, res) => {
       return res.status(400).json({ error: "images array is required" })
     }
 
-    const results = await Promise.all(images.map(async (img) => {
+    const results: Array<{ roomNumber: string | null; meterValue: number | null; type: string }> = []
+
+    for (const img of images) {
       const prompt = img.type === 'electric'
-        ? 'วิเคราะห์ภาพมิเตอร์ไฟฟ้าเพื่อสกัดข้อมูลเลขห้องและค่าหน่วยไฟ (kWh) โดยใช้หลักเกณฑ์ดังนี้:\n\n' +
-          '1. การระบุทิศทางภาพ (Determine Orientation):\n' +
-          '- ค้นหาคำว่า "kWh", "MITSUBISHI" หรือ "International Power Group" บนหน้าปัด\n' +
-          '- หากคำเหล่านี้กลับหัวหรือเอียง ให้ปรับทิศทางการประมวลผลให้อักษรเหล่านี้อยู่ในระนาบปกติก่อนอ่านข้อมูล\n\n' +
-          '2. การสกัดหมายเลขห้อง (Room Number):\n' +
-          '- ค้นหาเลขห้องจากสติ๊กเกอร์ที่ติดเพิ่มบนตัวเครื่อง (ไม่ใช่ส่วนประกอบดั้งเดิมของมิเตอร์)\n' +
-          '- สติ๊กเกอร์อาจเป็นทรงใดก็ได้ สีใดก็ได้ และอาจมีตัวอักษรผสม เช่น A11, B3\n' +
-          '- เลขห้องอาจเป็นเลขไทย (๑,๒,๓) ให้แปลงเป็นเลขอารบิก\n' +
-          '- ให้อ่านเลขห้องตามทิศทางเดียวกับตัวเลขมิเตอร์หลักเสมอ วิธีนี้ช่วยแยก 6 กับ 9 ได้\n' +
-          '- ถ้าไม่มีสติ๊กเกอร์ที่ชัดเจน → null\n\n' +
-          '3. การอ่านค่าไฟฟ้า (Reading Value):\n' +
-          '- แบบ Digital: อ่านตัวเลขบนจอ LCD ที่อยู่หน้าหน่วย kWh ตรงๆ ไม่มีทศนิยม ใช้ค่าที่เห็นได้เลย\n' +
-          '- แบบ Analog (ลูกกลิ้ง): อ่านเฉพาะ 4 หลักหลัก (kWh) เท่านั้น ไม่ต้องสนใจหลักอื่นนอกจากนี้\n\n' +
-          'กฎเหล็ก:\n' +
-          '- ถ้ามีแสงสะท้อน แสงบัง หรือเห็นตัวเลขไม่ครบ/ไม่ต่อเนื่อง → null ทันที ห้ามเดาเด็ดขาด\n' +
-          '- ต้องเห็นตัวเลขชัดเจนครบทุกหลักจึงจะอ่านได้ ถ้าหลักใดไม่ชัดให้ถือว่าอ่านไม่ได้ทั้งค่า\n\n' +
-          'ตอบกลับเป็น JSON เท่านั้น: {"roomNumber":"101","meterValue":1234}\n' +
-          'ถ้าอ่านค่าใดไม่ได้ให้ใส่ null'
-        : 'วิเคราะห์ภาพมิเตอร์น้ำนี้เพื่อสกัดข้อมูลเลขห้องและค่ามิเตอร์ โดยใช้หลักเกณฑ์ทางตรรกะและโครงสร้างภาพดังนี้:\n\n' +
-          '1. การระบุทิศทางภาพ (Orientation Detection):\n' +
-          '- ค้นหาคำว่า "ลูกบาศก์เมตร" หรือ "ลิตร" บนหน้าปัดมิเตอร์\n' +
-          '- ทิศทางที่อ่านคำเหล่านี้ได้ปกติ (ไม่กลับหัว) ให้ถือเป็นทิศทางที่ถูกต้องในการอ่านตัวเลขทั้งหมด\n\n' +
-          '2. การอ่านหมายเลขห้องจากสติ๊กเกอร์ (Room Number with Underline Logic):\n' +
-          '- ค้นหาสติ๊กเกอร์หรือป้ายที่ติดเพิ่มภายหลัง ไม่ใช่ส่วนประกอบดั้งเดิมของมิเตอร์\n' +
-          '- สติ๊กเกอร์อาจเป็นทรงใดก็ได้ (วงกลม สี่เหลี่ยม หรืออื่นๆ) และสีใดก็ได้ ไม่จำเป็นต้องสีน้ำเงิน\n' +
-          '- เลขห้องอาจเป็นตัวเลขอย่างเดียว (1, 2, 9) หรือผสมตัวอักษร เช่น A11, B3, 101 ก็ได้\n' +
-          '- เลขห้องอาจเป็นเลขไทย (๑,๒,๓) ให้แปลงเป็นเลขอารบิก\n' +
-          '- กฎพิเศษแยก 6 กับ 9: หากพบขีดเส้นใต้บนตัวเลข ให้ถือว่าเส้นนั้นคือฐานล่างเสมอ (เลข 6 ขีดเส้นใต้ = อ่านว่า 6 ไม่ใช่ 9 กลับหัว)\n' +
-          '- หากไม่มีขีดเส้นใต้ ให้อ่านตามทิศทางเดียวกับ "ลูกบาศก์เมตร"\n' +
-          '- ถ้าไม่มีสติ๊กเกอร์ที่ชัดเจน → null\n\n' +
-          '3. การอ่านค่ามิเตอร์ (Meter Reading):\n' +
-          '- อ่านตัวเลขในช่องสี่เหลี่ยมเรียงจากซ้ายไปขวาตามทิศทางที่ระบุในข้อ 1\n' +
-          '- cubic_meters: ชุดเลข 4–5 หลักแรกที่มีพื้นหลังสีดำ\n' +
-          '- liters: ชุดเลข 2–3 หลักสุดท้ายที่มีพื้นหลังสีแดง\n' +
-          '- ตัวเลขที่ปั๊ม/แกะสลักบนขอบทองเหลืองรอบนอก = Serial Number ไม่ใช่ค่ามิเตอร์\n\n' +
-          '4. การจัดการตัวเลขที่คาบเกี่ยว (Digit Rolling):\n' +
-          '- หากตัวเลขในช่องกำลังเลื่อน (เห็นสองเลขในช่องเดียว) ให้เลือกเลขที่ปรากฏเต็มหลักมากกว่า\n\n' +
-          '5. การคำนวณผลลัพธ์:\n' +
-          '- นำ cubic_meters (ตัดศูนย์นำหน้า) ถ้า liters ไม่ใช่ 0 → บวก 1\n' +
-          '- ตัวอย่าง: cubic=0004 liters=72 → meterValue=5\n' +
-          '- ตัวอย่าง: cubic=0009 liters=9  → meterValue=10\n' +
-          '- ตัวอย่าง: cubic=0042 liters=0  → meterValue=42\n\n' +
-          'กฎเหล็ก:\n' +
-          '- ถ้ามีแสงสะท้อน แสงบัง หรือเห็นตัวเลขไม่ครบ/ไม่ต่อเนื่อง → null ทันที ห้ามเดาเด็ดขาด\n' +
-          '- ต้องเห็นตัวเลขชัดเจนครบทุกหลักจึงจะอ่านได้ ถ้าหลักใดหลักหนึ่งไม่ชัดให้ถือว่าอ่านไม่ได้ทั้งค่า\n\n' +
-          'ตอบกลับเป็น JSON เท่านั้น: {"roomNumber":"1","meterValue":5}\n' +
-          'ถ้าอ่านค่าใดไม่ได้ให้ใส่ null'
-
-      const response = await getAnthropicClient().messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: img.mimeType as any, data: img.base64 } },
-            { type: 'text', text: prompt },
-          ],
-        }],
-      })
-
-      const text = response.content.find(b => b.type === 'text')?.text ?? '{}'
-      const jsonMatches = text.match(/\{[^{}]*\}/g)
-      const clean = jsonMatches ? jsonMatches[jsonMatches.length - 1] : '{}'
+        ? 'Read this electricity meter image. Extract room number and kWh reading.\n\n' +
+          'ORIENTATION: Find "kWh", "MITSUBISHI", or "IPG" text. If upside-down, flip mentally first.\n\n' +
+          'ROOM NUMBER: Find a sticker added to the meter body (not original part). Any color/shape, may have letters (A11, B3). Thai numerals → Arabic. No sticker → null.\n\n' +
+          'METER READING — two types:\n' +
+          '• Digital LCD (IPG/International Power Group): read the integer number shown on screen before "kWh". Example: "63 kWh" → 63\n' +
+          '• Analog roller wheels (Mitsubishi): read the 4 digits directly below the brand name. Ignore the decimal point and any digits after it. Example: "1741.0" → 1741\n\n' +
+          'STRICT RULE: If any digit is unclear, blurry, or partially obscured → set that value to null. DO NOT guess under any circumstances.\n\n' +
+          'Reply with a single JSON object and nothing else — no explanation, no markdown. Start your response with { directly.\n' +
+          'Format: {"roomNumber":"4","meterValue":63}'
+        : 'อ่านค่ามิเตอร์น้ำจากภาพนี้\n\n' +
+          'ภาพอาจถูกหมุน — ให้มองหาข้อความ "หน่วยลูกบาศก์เมตร" หรือ "หน่วยลิตร" หรือ "DUSS" แล้วหมุนภาพในใจให้ตรงก่อน\n\n' +
+          'เลขห้อง: มองหาสติ๊กเกอร์ที่ติดทีหลังบนหน้าปัด เช่น วงกลมสีแดงมีตัวเลขขนาดใหญ่ → roomNumber หรือ null\n\n' +
+          'ค่ามิเตอร์:\n' +
+          '  - หน้าปัดมีช่องตัวเลข 2 กลุ่ม: 4 ช่องใต้คำว่า "หน่วยลูกบาศก์เมตร" และ 3 ช่องใต้คำว่า "หน่วยลิตร"\n' +
+          '  - อ่านเฉพาะ 4 ช่องที่อยู่ใต้ "หน่วยลูกบาศก์เมตร" เท่านั้น ตัดศูนย์นำหน้า\n' +
+          '  - อ่านเฉพาะตัวเลขสีดำเท่านั้น ห้ามอ่านตัวเลขสีแดงหรือตัวเลขที่อยู่ในกรอบสีแดง\n' +
+          '  - 3 ช่องใต้ "หน่วยลิตร" ละเว้นทั้งหมด แม้จะเบลอหรือกำลังหมุนอยู่ก็ไม่ต้องสนใจ\n' +
+          '  - กฎเด็ดขาด: ทุกหลักใน 4 ช่อง cubic ต้องมองเห็นชัดเจน 100% ถึงจะอ่านได้\n' +
+          '  - ถ้ามีเงาบัง / แสงจ้า / เบลอ / เห็นครึ่งตัว / สงสัยแม้แต่หลักเดียว → cubic = null ทันที ห้ามเดาโดยเด็ดขาด\n' +
+          '  - การเดาค่าที่ไม่ชัดเจนถือว่าผิดร้ายแรงกว่าการคืน null\n\n' +
+          'ตอบ JSON เท่านั้น เริ่มด้วย { ทันที:\n' +
+          '{"roomNumber":"5","cubic":75}'
 
       try {
+        const response = await getAnthropicClient().messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 150,
+          temperature: 0,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: img.mimeType as any, data: img.base64 } },
+              { type: 'text', text: prompt },
+            ],
+          }],
+        })
+
+        const text = response.content.find(b => b.type === 'text')?.text ?? '{}'
+        const jsonMatches = text.match(/\{[^{}]*\}/g)
+        const clean = jsonMatches ? jsonMatches[jsonMatches.length - 1] : '{}'
         const parsed = JSON.parse(clean)
-        return {
-          roomNumber: parsed.roomNumber != null ? String(parsed.roomNumber).trim() : null,
-          meterValue: parsed.meterValue != null ? Math.ceil(Number(parsed.meterValue)) : null,
-          type: img.type,
+        const roomNumber = parsed.roomNumber != null ? String(parsed.roomNumber).trim() : null
+
+        let meterValue: number | null = null
+        if (parsed.cubic != null) {
+          meterValue = Math.floor(Number(parsed.cubic))
+          if (meterValue >= 10000) {
+            meterValue = Math.floor(meterValue / Math.pow(10, Math.floor(Math.log10(meterValue)) - 3))
+          }
+        } else if (parsed.meterValue != null) {
+          meterValue = Math.floor(Number(parsed.meterValue))
         }
+
+        results.push({ roomNumber, meterValue, type: img.type })
       } catch {
-        return { roomNumber: null, meterValue: null, type: img.type }
+        results.push({ roomNumber: null, meterValue: null, type: img.type })
       }
-    }))
+    }
 
     res.json(results)
   } catch (err: any) {

@@ -28,7 +28,7 @@ export function Sidebar({ propertyId, propertyName, propertyLogoUrl }: SidebarPr
     { icon: RiReceiptLine, label: "ออกบิลรายเดือน", path: `/properties/${propertyId}/billing` },
     { icon: RiDoorOpenLine, label: "บิลแจ้งออก", path: `/properties/${propertyId}/move-out` },
     { icon: RiPriceTag3Line, label: "ประเภทห้องและราคา", path: `/properties/${propertyId}/room-types` },
-    { icon: RiSettings3Line, label: "ตั้งค่าระบบและเลือกสาขา", path: `/properties/${propertyId}/settings` },
+    { icon: RiSettings3Line, label: "ตั้งค่าระบบ", path: `/properties/${propertyId}/settings` },
   ];
 
   const handleLogout = async () => {
