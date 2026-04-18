@@ -71,15 +71,23 @@ export const mobileBookingApi = {
   },
 
   uploadSlip: async (uri: string): Promise<string> => {
-    const formData = new FormData()
-    const filename = uri.split('/').pop() ?? 'slip.jpg'
-    const match = /\.(\w+)$/.exec(filename)
-    const type = match ? `image/${match[1]}` : 'image/jpeg'
-    formData.append('file', { uri, name: filename, type } as any)
-    const res = await api.post(ENDPOINTS.upload.image, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    return res.data.url as string
+    const buildForm = () => {
+      const formData = new FormData()
+      const filename = uri.split('/').pop() ?? 'slip.jpg'
+      const match = /\.(\w+)$/.exec(filename)
+      const type = match ? `image/${match[1]}` : 'image/jpeg'
+      formData.append('file', { uri, name: filename, type } as any)
+      return formData
+    }
+    const opts = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 }
+    try {
+      const res = await api.post(ENDPOINTS.upload.image, buildForm(), opts)
+      return res.data.url as string
+    } catch {
+      // token was refreshed by interceptor — rebuild FormData and retry once
+      const res = await api.post(ENDPOINTS.upload.image, buildForm(), opts)
+      return res.data.url as string
+    }
   },
 
   createBooking: async (

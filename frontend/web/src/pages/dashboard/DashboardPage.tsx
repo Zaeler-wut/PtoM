@@ -69,7 +69,7 @@ export default function DashboardPage() {
     },
     {
       title: "ห้องที่มีผู้เช่า",
-      value: summary?.occupied ?? 0,
+      value: (summary?.occupied ?? 0) + (summary?.preparing ?? 0),
       subtitle: "ห้อง",
       icon: RiUser3Line,
       bgColor: "bg-pink-50/40",
@@ -122,7 +122,7 @@ export default function DashboardPage() {
       borderColor: "border-sky-100",
     },
     {
-      title: "บิลรอยืนยัน",
+      title: "บิลรอตรวจสอบชำระเงิน",
       value: summary?.verifyingBills ?? 0,
       subtitle: "รายการ",
       icon: RiFileCheckLine,

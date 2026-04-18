@@ -96,9 +96,7 @@ export default function LoginScreen() {
             secureToggle
           />
 
-          <TouchableOpacity style={styles.forgot}>
-            <Text style={styles.forgotText}>ลืมรหัสผ่าน?</Text>
-          </TouchableOpacity>
+
 
           {error && <Text style={styles.apiError}>{error}</Text>}
 

@@ -256,4 +256,20 @@ router.patch(
   }
 )
 
+// GET /properties/:propertyId/billing/available-months
+router.get(
+  "/properties/:propertyId/billing/available-months",
+  authenticate,
+  authorize("ADMIN"),
+  authorizePropertyAdmin(),
+  async (req: any, res) => {
+    try {
+      const rows = await service.getAvailableMonths(req.params.propertyId)
+      res.json(rows)
+    } catch (err: any) {
+      res.status(400).json({ error: err.message })
+    }
+  }
+)
+
 export default router

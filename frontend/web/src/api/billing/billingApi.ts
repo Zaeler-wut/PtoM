@@ -56,3 +56,6 @@ export const confirmPayment = (propertyId: string, paymentId: string) =>
 
 export const rejectPayment = (propertyId: string, paymentId: string) =>
   api.patch(ENDPOINTS.billing.rejectPayment(propertyId, paymentId), {}).then((r) => r.data)
+
+export const getAvailableMonths = (propertyId: string) =>
+  api.get<{ month: number; year: number }[]>(ENDPOINTS.billing.availableMonths(propertyId)).then((r) => r.data)

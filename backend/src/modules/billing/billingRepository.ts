@@ -279,3 +279,14 @@ export const getPropertyForInvoice = async (propertyId: string) => {
     },
   })
 }
+
+export const getAvailableBillingMonths = async (propertyId: string) => {
+  const rows = await prisma.bill.findMany({
+    where: { room: { propertyId } },
+    select: { month: true, year: true },
+    distinct: ["month", "year"],
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+  })
+  return rows
+}
+

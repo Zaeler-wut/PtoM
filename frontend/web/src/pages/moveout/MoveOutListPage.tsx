@@ -5,6 +5,7 @@ import {
   RiCheckboxCircleLine, RiAddLine, RiEyeLine,
 } from "react-icons/ri"
 import { SelectInput } from "../../components/shared/SelectInput"
+import { Pagination } from "../../components/shared/Pagination"
 import { Modal } from "../../components/shared/Modal"
 import { FormInput } from "../../components/shared/FormInput"
 import { SummaryRow } from "../../components/shared/SummaryRow"
@@ -49,6 +50,8 @@ export default function MoveOutListPage() {
   const [modalKey, setModalKey] = useState(0)
   const [viewBillId, setViewBillId] = useState<string | null>(null)
   const [yearFilter, setYearFilter] = useState<string>(String(new Date().getFullYear()))
+  const [completedPage, setCompletedPage] = useState(1)
+  const [completedRowsPerPage, setCompletedRowsPerPage] = useState(10)
 
   const openBillModal = (contractId?: string) => {
     setInitialContractId(contractId)
@@ -157,24 +160,28 @@ export default function MoveOutListPage() {
           const availableYears = [...new Set([currentYear, ...completed.map((c) => new Date(c.moveOutDate).getFullYear())])]
             .sort((a, b) => b - a)
           const yearOptions = availableYears.map((y) => ({ value: String(y), label: String(y) }))
-          const filtered = completed.filter(
+          const filteredCompleted = completed.filter(
             (c) => String(new Date(c.moveOutDate).getFullYear()) === yearFilter
+          )
+          const pagedCompleted = filteredCompleted.slice(
+            (completedPage - 1) * completedRowsPerPage,
+            completedPage * completedRowsPerPage
           )
           return (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                <p className="text-base font-semibold text-gray-700">บิลที่สร้างแล้ว ({filtered.length})</p>
+                <p className="text-base font-semibold text-gray-700">บิลที่สร้างแล้ว ({filteredCompleted.length})</p>
                 <div className="w-32">
                   <SelectInput
                     label=""
                     options={yearOptions}
                     value={yearFilter}
-                    onValueChange={setYearFilter}
+                    onValueChange={(v) => { setYearFilter(v); setCompletedPage(1) }}
                     placeholder="เลือกปี"
                   />
                 </div>
               </div>
-              <div className="overflow-x-auto mx-6 mb-5 mt-4 rounded-xl border border-gray-200">
+              <div className="overflow-x-auto mx-6 mt-4 rounded-xl border border-gray-200">
                 <table className="w-full min-w-[500px]">
                   <thead className="border-b border-gray-200 bg-gray-50/50">
                     <tr>
@@ -184,9 +191,9 @@ export default function MoveOutListPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filtered.length === 0 ? (
+                    {filteredCompleted.length === 0 ? (
                       <tr><td colSpan={5} className="px-5 py-6 text-sm text-gray-400 text-center">ไม่มีรายการในปีนี้</td></tr>
-                    ) : filtered.map((c) => (
+                    ) : pagedCompleted.map((c) => (
                       <tr key={c.moveOutBillId} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-3.5 text-sm font-medium text-gray-800">{c.firstName} {c.lastName}</td>
                         <td className="px-5 py-3.5 text-sm text-gray-600">{c.roomNumber}</td>
@@ -209,6 +216,13 @@ export default function MoveOutListPage() {
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                total={filteredCompleted.length}
+                page={completedPage}
+                rowsPerPage={completedRowsPerPage}
+                onPageChange={setCompletedPage}
+                onRowsPerPageChange={(r) => { setCompletedRowsPerPage(r); setCompletedPage(1) }}
+              />
             </div>
           )
         })()}

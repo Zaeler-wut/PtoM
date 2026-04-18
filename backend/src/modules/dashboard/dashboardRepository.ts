@@ -5,8 +5,9 @@ export const getDashboardData = async (propertyId: string) => {
     where: { id: propertyId },
     include: { rooms: true, bookings: true },
   })
+  const now = new Date()
   const bills = await prisma.bill.findMany({
-    where: { room: { propertyId } },
+    where: { room: { propertyId }, month: now.getMonth() + 1, year: now.getFullYear() },
   })
   return { property, bills }
 }

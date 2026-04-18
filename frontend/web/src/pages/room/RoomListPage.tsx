@@ -9,6 +9,7 @@ import { useToast } from "../../components/shared/Toast";
 import { RiAddLine, RiSearchLine, RiFilterLine, RiEditLine, RiLineChartLine, RiDropLine, RiFlashlightLine } from "react-icons/ri";
 import { getRooms, createRoom, updateRoom, getMeterHistory, type Room, type RoomStatus, type MeterReading } from "../../api/room/roomApi";
 import { getRoomTypes, type RoomType } from "../../api/room/roomTypeApi";
+import { Pagination } from "../../components/shared/Pagination";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const STATUS_FILTER_OPTIONS = [
@@ -44,6 +45,8 @@ export default function RoomListPage() {
   const [addModal, setAddModal] = useState(false);
   const [editRoom, setEditRoom] = useState<Room | null>(null);
   const [meterRoom, setMeterRoom] = useState<Room | null>(null);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const fetchAll = async () => {
     if (!propertyId) return;
@@ -73,6 +76,9 @@ export default function RoomListPage() {
       return matchSearch && matchStatus;
     })
     .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }));
+
+  useEffect(() => { setPage(1); }, [search, statusFilter]);
+  const pagedFiltered = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   return (
     <div className="bg-purple-50 min-h-screen">
@@ -127,7 +133,7 @@ export default function RoomListPage() {
                   <tr><td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">กำลังโหลด...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">ไม่พบห้อง</td></tr>
-                ) : filtered.map((room) => (
+                ) : pagedFiltered.map((room) => (
                   <tr key={room.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-3.5 text-sm font-medium text-gray-700">{room.roomNumber}</td>
                     <td className="px-5 py-3.5 text-sm text-gray-600">{room.floor ?? "-"}</td>
@@ -165,6 +171,7 @@ export default function RoomListPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={filtered.length} page={page} rowsPerPage={rowsPerPage} onPageChange={setPage} onRowsPerPageChange={setRowsPerPage} />
         </div>
       </div>
 
@@ -350,11 +357,13 @@ function EditRoomModal({ open, room, propertyId, roomTypes, onClose, onSuccess }
           )} />
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">สถานะห้อง</label>
-          {room.status === "OCCUPIED" ? (
+          {room.status === "OCCUPIED" || room.contractStatus === "MOVE_OUT_NOTICE" ? (
             <div className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 text-gray-400">
-              {room.contractStatus === "MOVE_OUT_NOTICE"
-                ? "ผู้เช่าแจ้งย้ายออกแล้ว — ไม่สามารถแก้ไขสถานะได้"
-                : "ห้องมีผู้เช่าอยู่ — ไม่สามารถแก้ไขสถานะได้"}
+              ห้องมีผู้เช่าอยู่-ไม่สามารถแก้ไขได้
+            </div>
+          ) : room.status === "RESERVED" ? (
+            <div className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 text-gray-400">
+              มีผู้จองแล้ว-ไม่สามารถแก้ไขได้
             </div>
           ) : (
             <Controller name="status" control={control}

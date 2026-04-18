@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useParams } from "react-router-dom"
 import {
   RiAddLine, RiSearchLine, RiFilterLine,
-  RiFileTextLine, RiEditLine,
+  RiFileTextLine, RiEditLine, RiLogoutBoxLine,
 } from "react-icons/ri"
 import { Modal } from "../../components/shared/Modal"
 import { FormInput } from "../../components/shared/FormInput"
@@ -16,6 +16,7 @@ import {
   createOfflineContract,
   updateContract,
 } from "../../api/contract/contractApi"
+import { Pagination } from "../../components/shared/Pagination"
 import { getRooms } from "../../api/room/roomApi"
 import { getBookings, getContractPrefill } from "../../api/booking/bookingApi"
 import type { BookingListItem } from "../../types/booking.types"
@@ -75,6 +76,9 @@ export default function ContractListPage() {
   const [createModal, setCreateModal] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
+  const [moveOutId, setMoveOutId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   const load = useCallback(() => {
     if (!propertyId) return
@@ -94,6 +98,9 @@ export default function ContractListPage() {
       (statusFilter === "CURRENT" ? c.status === "ACTIVE" || c.status === "MOVE_OUT_NOTICE" : c.status === statusFilter)
     return matchSearch && matchStatus
   })
+
+  useEffect(() => { setPage(1) }, [search, statusFilter])
+  const pagedFiltered = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage)
 
   return (
     <div className="bg-purple-50 min-h-screen p-8">
@@ -147,8 +154,8 @@ export default function ContractListPage() {
               <thead className="border-b border-gray-200 bg-gray-50/50">
                 <tr>
                   {[
-                    { label: "ผู้เช่า" },
                     { label: "ห้อง" },
+                    { label: "ผู้เช่า" },
                     { label: "สถานะ" },
                     { label: "วันเริ่มสัญญา" },
                     { label: "วันสิ้นสุดสัญญา" },
@@ -164,12 +171,12 @@ export default function ContractListPage() {
                   <tr><td colSpan={7} className="px-4 py-8 text-sm text-gray-400 text-center">กำลังโหลด...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={7} className="px-4 py-8 text-sm text-gray-400 text-center">ไม่พบสัญญาเช่า</td></tr>
-                ) : filtered.map((c) => (
+                ) : pagedFiltered.map((c) => (
                   <tr key={c.contractId} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{c.roomNumber}</td>
                     <td className="px-4 py-3.5 text-sm font-medium text-gray-800 whitespace-nowrap">
                       {c.firstName} {c.lastName}
                     </td>
-                    <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{c.roomNumber}</td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <StatusBadge status={c.status} />
                     </td>
@@ -190,6 +197,14 @@ export default function ContractListPage() {
                         >
                           <RiEditLine size={12} /> แก้ไข
                         </button>
+                        {c.status === "ACTIVE" && (
+                          <button
+                            onClick={() => setMoveOutId(c.contractId)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-orange-200 rounded-lg text-orange-600 hover:bg-orange-50 transition-colors"
+                          >
+                            <RiLogoutBoxLine size={12} /> แจ้งออก
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -197,6 +212,7 @@ export default function ContractListPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={filtered.length} page={page} rowsPerPage={rowsPerPage} onPageChange={setPage} onRowsPerPageChange={setRowsPerPage} />
         </div>
       </div>
 
@@ -227,6 +243,17 @@ export default function ContractListPage() {
           onSuccess={() => { setEditId(null); load() }}
           propertyId={propertyId!}
           contractId={editId}
+        />
+      )}
+
+      {/* Move-out modal */}
+      {moveOutId && (
+        <MoveOutModal
+          open
+          onClose={() => setMoveOutId(null)}
+          onSuccess={() => { setMoveOutId(null); load() }}
+          propertyId={propertyId!}
+          contractId={moveOutId}
         />
       )}
     </div>
@@ -641,7 +668,7 @@ function ContractDetailModal({ open, onClose, propertyId, contractId }: {
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-1">ค่าเช่า/เดือน</p>
-                <p className="text-sm font-medium text-gray-800">฿{detail.room.roomPrice.toLocaleString()}</p>
+                <p className="text-sm font-medium text-gray-800">฿{(detail.room.roomPrice + (detail.financial.furniturePrice ?? 0)).toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -674,12 +701,13 @@ function ContractDetailModal({ open, onClose, propertyId, contractId }: {
           <div>
             <p className="text-sm font-semibold text-gray-900 mb-3">ข้อมูลทางการเงิน</p>
             <div className="space-y-1.5">
-              <SummaryRow label="ประกัน + ล่วงหน้า" value={`฿${detail.financial.securityDeposit.toLocaleString()}`} bold />
+              <SummaryRow label="ประกัน + ล่วงหน้า" value={`฿${(detail.financial.securityDeposit + detail.financial.advanceRent).toLocaleString()}`} bold />
+              <SummaryRow label="ค่าเช่าห้อง" value={`฿${detail.room.roomPrice.toLocaleString()}`} />
+              {detail.financial.furniturePrice != null && (
+                <SummaryRow label="ค่าเช่าเฟอร์นิเจอร์" value={`฿${detail.financial.furniturePrice.toLocaleString()}`} />
+              )}
               <SummaryRow label="ค่าน้ำ (ต่อหน่วย)" value={`฿${detail.financial.waterRate.toLocaleString()}`} />
               <SummaryRow label="ค่าไฟ (ต่อหน่วย)" value={`฿${detail.financial.electricRate.toLocaleString()}`} />
-              {detail.financial.furniturePrice != null && (
-                <SummaryRow label="ค่าเฟอร์นิเจอร์" value={`฿${detail.financial.furniturePrice.toLocaleString()}`} />
-              )}
             </div>
           </div>
 
@@ -922,6 +950,82 @@ function EditContractModal({ open, onClose, onSuccess, propertyId, contractId }:
           </div>
         </div>
       )}
+    </Modal>
+  )
+}
+
+// ── Move-Out Modal ─────────────────────────────────────────────────────────
+function MoveOutModal({ open, onClose, onSuccess, propertyId, contractId }: {
+  open: boolean
+  onClose: () => void
+  onSuccess: () => void
+  propertyId: string
+  contractId: string
+}) {
+  const { toast } = useToast()
+  const [moveOutDate, setMoveOutDate] = useState("")
+  const [moveOutDateError, setMoveOutDateError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!open) { setMoveOutDate(""); setMoveOutDateError("") }
+  }, [open])
+
+  const handleSave = async () => {
+    if (!moveOutDate) {
+      setMoveOutDateError("กรุณาระบุวันที่ออกคืนห้อง")
+      return
+    }
+    setMoveOutDateError("")
+    setIsSubmitting(true)
+    try {
+      await updateContract(propertyId, contractId, {
+        status: "MOVE_OUT_NOTICE",
+        moveOutNoticeDate: moveOutDate,
+      })
+      toast("บันทึกการแจ้งออกสำเร็จ", "success")
+      onSuccess()
+    } catch (e: any) {
+      toast(e?.response?.data?.error ?? "เกิดข้อผิดพลาด", "error")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title="แจ้งออกห้อง"
+      size="sm"
+    >
+      <div className="space-y-4">
+        <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-3">
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1.5">สถานะสัญญา</p>
+            <div className="w-full px-3 py-2.5 text-sm border border-orange-200 bg-orange-50 text-orange-700 font-medium rounded-lg">
+              แจ้งย้ายออก
+            </div>
+          </div>
+          <FormInput
+            label="วันที่ออกคืนห้อง *"
+            type="date"
+            value={moveOutDate}
+            onChange={(e) => { setMoveOutDate(e.target.value); setMoveOutDateError("") }}
+            error={moveOutDateError}
+          />
+        </div>
+        <div className="flex justify-end gap-3 pt-1">
+          <button onClick={onClose} disabled={isSubmitting}
+            className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+            ยกเลิก
+          </button>
+          <button onClick={handleSave} disabled={isSubmitting}
+            className="px-6 py-2.5 bg-orange-500 text-white text-sm rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-60">
+            {isSubmitting ? "กำลังบันทึก..." : "ยืนยันแจ้งออก"}
+          </button>
+        </div>
+      </div>
     </Modal>
   )
 }

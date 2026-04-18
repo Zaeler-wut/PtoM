@@ -7,6 +7,7 @@ import {
 import { Modal } from "../../components/shared/Modal"
 import { SelectInput } from "../../components/shared/SelectInput"
 import { useToast } from "../../components/shared/Toast"
+import { Pagination } from "../../components/shared/Pagination"
 import {
   getBookings, getBookingDetail, confirmBooking, cancelBooking,
 } from "../../api/booking/bookingApi"
@@ -50,6 +51,8 @@ export default function BookingListPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [detailBookingId, setDetailBookingId] = useState<string | null>(null)
   const [slipUrl, setSlipUrl] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   const load = useCallback(() => {
     if (!propertyId) return
@@ -69,6 +72,9 @@ export default function BookingListPage() {
     const matchStatus = statusFilter === "ALL" || b.status === statusFilter
     return matchSearch && matchStatus
   })
+
+  useEffect(() => { setPage(1) }, [search, statusFilter])
+  const pagedFiltered = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage)
 
   const handleConfirm = async (bookingId: string) => {
     if (!propertyId) return
@@ -154,7 +160,7 @@ export default function BookingListPage() {
                   <tr><td colSpan={9} className="px-4 py-8 text-sm text-gray-400 text-center">กำลังโหลด...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={9} className="px-4 py-8 text-sm text-gray-400 text-center">ไม่พบรายการจอง</td></tr>
-                ) : filtered.map((b) => (
+                ) : pagedFiltered.map((b) => (
                   <tr key={b.bookingId} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3.5 text-sm font-medium text-gray-900">{b.firstName} {b.lastName}</td>
                     <td className="px-4 py-3.5 text-sm text-gray-600">{b.phone ?? "-"}</td>
@@ -227,6 +233,7 @@ export default function BookingListPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={filtered.length} page={page} rowsPerPage={rowsPerPage} onPageChange={setPage} onRowsPerPageChange={setRowsPerPage} />
         </div>
       </div>
 

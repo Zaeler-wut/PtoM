@@ -9,6 +9,7 @@ import { Modal } from "../../components/shared/Modal"
 import { FormInput } from "../../components/shared/FormInput"
 import { useToast } from "../../components/shared/Toast"
 import { getTenants, getTenantDetail, updateTenantPersonalInfo } from "../../api/tenant/tenantApi"
+import { Pagination } from "../../components/shared/Pagination"
 import type { Tenant, TenantDetail, ContractStatus } from "../../types/tenant.types"
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -19,6 +20,7 @@ const STATUS_MAP: Record<ContractStatus, { label: string; className: string }> =
 }
 
 const FILTER_OPTIONS = [
+  { value: "CURRENT",         label: "ปัจจุบัน" },
   { value: "ALL",             label: "ทุกสถานะ" },
   { value: "ACTIVE",          label: "กำลังเช่า" },
   { value: "MOVE_OUT_NOTICE", label: "แจ้งออกแล้ว" },
@@ -329,9 +331,11 @@ export default function TenantListPage() {
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("ALL")
+  const [statusFilter, setStatusFilter] = useState("CURRENT")
   const [viewContractId, setViewContractId] = useState<string | null>(null)
   const [editContractId, setEditContractId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
 
   const loadTenants = () => {
     if (!propertyId) return
@@ -347,9 +351,16 @@ export default function TenantListPage() {
       fullName.includes(search.toLowerCase()) ||
       (t.phone ?? "").includes(search) ||
       (t.lineId ?? "").toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === "ALL" || t.contractStatus === statusFilter
+    const matchStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "CURRENT"
+        ? t.contractStatus === "ACTIVE" || t.contractStatus === "MOVE_OUT_NOTICE"
+        : t.contractStatus === statusFilter)
     return matchSearch && matchStatus
   })
+
+  useEffect(() => { setPage(1) }, [search, statusFilter])
+  const pagedFiltered = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage)
 
   return (
     <div className="bg-purple-50 min-h-screen p-8">
@@ -386,11 +397,11 @@ export default function TenantListPage() {
               รายการผู้เช่า ({isLoading ? "..." : filtered.length})
             </p>
           </div>
-          <div className="overflow-x-auto mx-6 mb-5 mt-4 rounded-xl border border-gray-200">
+          <div className="overflow-x-auto mx-6 mt-4 rounded-xl border border-gray-200">
             <table className="w-full min-w-[760px]">
               <thead className="border-b border-gray-200 bg-gray-50/50">
                 <tr>
-                  {["ผู้เช่า", "เบอร์โทร", "Line ID", "ห้อง", "ประเภทห้อง", "สถานะ", "จัดการ"].map((h) => (
+                  {["ห้อง", "ผู้เช่า", "เบอร์โทร", "Line ID", "ประเภทห้อง", "สถานะ", "จัดการ"].map((h) => (
                     <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
                   ))}
                 </tr>
@@ -400,16 +411,16 @@ export default function TenantListPage() {
                   <tr><td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">กำลังโหลด...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">ไม่พบผู้เช่า</td></tr>
-                ) : filtered.map((t) => {
+                ) : pagedFiltered.map((t) => {
                   const status = STATUS_MAP[t.contractStatus] ?? STATUS_MAP.ENDED
                   return (
                     <tr key={t.contractId} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-5 py-3.5 text-sm font-medium text-gray-700">{t.roomNumber}</td>
                       <td className="px-5 py-3.5 text-sm font-medium text-gray-800">
                         {t.firstName} {t.lastName}
                       </td>
                       <td className="px-5 py-3.5 text-sm text-gray-600">{t.phone ?? "-"}</td>
                       <td className="px-5 py-3.5 text-sm text-gray-600">{t.lineId ?? "-"}</td>
-                      <td className="px-5 py-3.5 text-sm font-medium text-gray-700">{t.roomNumber}</td>
                       <td className="px-5 py-3.5 text-sm text-gray-600">{t.roomType}</td>
                       <td className="px-5 py-3.5">
                         <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full border ${status.className}`}>
@@ -436,6 +447,7 @@ export default function TenantListPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={filtered.length} page={page} rowsPerPage={rowsPerPage} onPageChange={setPage} onRowsPerPageChange={setRowsPerPage} />
         </div>
       </div>
 

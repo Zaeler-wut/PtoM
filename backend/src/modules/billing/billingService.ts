@@ -693,3 +693,7 @@ export const rejectPayment = async (
 
   return { message: "Payment rejected" }
 }
+
+export const getAvailableMonths = async (propertyId: string) => {
+  return repo.getAvailableBillingMonths(propertyId)
+}

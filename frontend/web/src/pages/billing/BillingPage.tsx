@@ -13,11 +13,12 @@ import {
 import { SelectInput } from "../../components/shared/SelectInput"
 import { Modal } from "../../components/shared/Modal"
 import { useToast } from "../../components/shared/Toast"
+import { Pagination } from "../../components/shared/Pagination"
 import {
   getBillingSummary, getRoomFees, getInvoice,
   updateMeter, sendBill, sendAllBills,
   getPayments, confirmPayment, rejectPayment,
-  submitPaymentByAdmin, uploadSlipImage,
+  submitPaymentByAdmin, uploadSlipImage, getAvailableMonths,
 } from "../../api/billing/billingApi"
 import type {
   BillStatus, PaymentStatus,
@@ -205,7 +206,8 @@ export default function BillingPage() {
   const now = new Date()
   const [tab, setTab] = useState<"BILLING" | "PAYMENT">("BILLING")
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
-  const [selectedYear] = useState(now.getFullYear())
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+  const [availableMonths, setAvailableMonths] = useState<{ month: number; year: number }[]>([])
   const [billFilter, setBillFilter] = useState("ALL")
   const [paymentFilter, setPaymentFilter] = useState("ALL")
   const [billSearch, setBillSearch] = useState("")
@@ -249,6 +251,15 @@ export default function BillingPage() {
   useEffect(() => { loadBills() }, [loadBills])
   useEffect(() => { if (tab === "PAYMENT") loadPayments() }, [tab, loadPayments])
 
+  useEffect(() => {
+    if (!propertyId) return
+    getAvailableMonths(propertyId).then((rows) => {
+      const current = { month: now.getMonth() + 1, year: now.getFullYear() }
+      const hasCurrentMonth = rows.some((r) => r.month === current.month && r.year === current.year)
+      setAvailableMonths(hasCurrentMonth ? rows : [current, ...rows])
+    }).catch(() => {})
+  }, [propertyId])
+
   // ── Actions ──
   const handleSendBill = (bill: BillingTableRow) => {
     if (!propertyId) return
@@ -288,8 +299,129 @@ export default function BillingPage() {
       .catch(() => toast("เกิดข้อผิดพลาด", "error"))
   }
 
+  const authUser = useAppSelector((s) => s.auth.user)
+  const adminName = authUser?.name ?? "ผู้ดูแลระบบ"
+  const [isBulkDownloading, setIsBulkDownloading] = useState<"pdf" | "image" | null>(null)
+
+  const renderInvoiceToCanvas = async (
+    html2canvas: any,
+    invoice: InvoiceResponse,
+  ) => {
+    const container = buildInvoiceContainer(invoice, adminName)
+    document.body.appendChild(container)
+    const images = container.querySelectorAll("img")
+    await Promise.all(Array.from(images).map((img) =>
+      new Promise<void>((res) => {
+        if (img.complete) { res(); return }
+        img.onload = () => res()
+        img.onerror = () => res()
+      })
+    ))
+    const canvas = await html2canvas(container, {
+      scale: 2, useCORS: true, allowTaint: true, backgroundColor: "#ffffff",
+      scrollX: 0, scrollY: 0, width: container.scrollWidth, height: container.scrollHeight,
+    })
+    document.body.removeChild(container)
+    return canvas
+  }
+
+  const handleBulkDownloadPDF = async () => {
+    const readyBills = bills.filter((b) => b.billStatus === "READY")
+    if (!propertyId || readyBills.length === 0) {
+      toast("ไม่มีบิลที่มีสถานะพร้อมส่ง", "error"); return
+    }
+    setIsBulkDownloading("pdf")
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ])
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+      let firstPage = true
+      for (const bill of readyBills) {
+        try {
+          const invoice = await getInvoice(propertyId, bill.contractId, selectedMonth, selectedYear)
+          const canvas = await renderInvoiceToCanvas(html2canvas, invoice)
+          const ratio = canvas.height / canvas.width
+          const imgH = pageW * ratio
+          if (!firstPage) pdf.addPage()
+          firstPage = false
+          if (imgH <= pageH) {
+            pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageW, imgH)
+          } else {
+            let yOffset = 0
+            let firstSlice = true
+            while (yOffset < canvas.height) {
+              const sliceH = Math.min(canvas.height - yOffset, canvas.width * (pageH / pageW))
+              const sliceCanvas = document.createElement("canvas")
+              sliceCanvas.width = canvas.width
+              sliceCanvas.height = sliceH
+              sliceCanvas.getContext("2d")!.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+              if (!firstSlice) pdf.addPage()
+              firstSlice = false
+              pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", 0, 0, pageW, pageW * (sliceH / canvas.width))
+              yOffset += sliceH
+            }
+          }
+        } catch { /* skip failed invoices */ }
+      }
+      const roomList = readyBills.map((b) => `ห้อง${b.roomNumber}`).join(",")
+      pdf.save(`ใบแจ้งหนี้-${roomList}-${THAI_MONTHS[selectedMonth - 1]}-${selectedYear + 543}.pdf`)
+      toast("โหลด PDF ทั้งหมดสำเร็จ", "success")
+    } catch (e) {
+      console.error(e)
+      toast("ไม่สามารถโหลด PDF ได้", "error")
+    } finally {
+      setIsBulkDownloading(null)
+    }
+  }
+
+  const handleBulkDownloadImages = async () => {
+    const readyBills = bills.filter((b) => b.billStatus === "READY")
+    if (!propertyId || readyBills.length === 0) {
+      toast("ไม่มีบิลที่มีสถานะพร้อมส่ง", "error"); return
+    }
+    setIsBulkDownloading("image")
+    try {
+      const { default: html2canvas } = await import("html2canvas")
+      for (const bill of readyBills) {
+        try {
+          const invoice = await getInvoice(propertyId, bill.contractId, selectedMonth, selectedYear)
+          const canvas = await renderInvoiceToCanvas(html2canvas, invoice)
+          const link = document.createElement("a")
+          link.download = `ใบแจ้งหนี้-ห้อง${bill.roomNumber}.png`
+          link.href = canvas.toDataURL("image/png")
+          link.click()
+          await new Promise((res) => setTimeout(res, 300))
+        } catch { /* skip failed invoices */ }
+      }
+      toast("โหลดรูปภาพทั้งหมดสำเร็จ", "success")
+    } catch (e) {
+      console.error(e)
+      toast("ไม่สามารถโหลดรูปภาพได้", "error")
+    } finally {
+      setIsBulkDownloading(null)
+    }
+  }
+
   // ── Computed ──
-  const monthOptions = THAI_MONTHS.map((m, i) => ({ value: String(i + 1), label: `${m} ${selectedYear + 543}` }))
+  const monthOptions = availableMonths.map(({ month, year }) => ({
+    value: `${month}-${year}`,
+    label: `${THAI_MONTHS[month - 1]} ${year + 543}`,
+  }))
+  const selectedMonthValue = `${selectedMonth}-${selectedYear}`
+  const handleMonthChange = (val: string) => {
+    const [m, y] = val.split("-").map(Number)
+    setSelectedMonth(m)
+    setSelectedYear(y)
+  }
+
+  const [billPage, setBillPage] = useState(1)
+  const [billRowsPerPage, setBillRowsPerPage] = useState(10)
+  const [paymentPage, setPaymentPage] = useState(1)
+  const [paymentRowsPerPage, setPaymentRowsPerPage] = useState(10)
 
   const filteredBills = bills.filter((b) => {
     const matchSearch = b.tenantName.includes(billSearch) || b.roomNumber.includes(billSearch)
@@ -302,6 +434,12 @@ export default function BillingPage() {
     const matchStatus = paymentFilter === "ALL" || p.status === paymentFilter
     return matchSearch && matchStatus
   })
+
+  useEffect(() => { setBillPage(1) }, [billSearch, billFilter, selectedMonth, selectedYear])
+  useEffect(() => { setPaymentPage(1) }, [paymentSearch, paymentFilter, selectedMonth, selectedYear])
+
+  const pagedBills = filteredBills.slice((billPage - 1) * billRowsPerPage, billPage * billRowsPerPage)
+  const pagedPayments = filteredPayments.slice((paymentPage - 1) * paymentRowsPerPage, paymentPage * paymentRowsPerPage)
 
   return (
     <div className="bg-purple-50 min-h-screen p-8">
@@ -320,8 +458,8 @@ export default function BillingPage() {
           <div className="w-52">
             <SelectInput
               options={monthOptions}
-              value={String(selectedMonth)}
-              onValueChange={(v) => setSelectedMonth(Number(v))}
+              value={selectedMonthValue}
+              onValueChange={handleMonthChange}
             />
           </div>
         </div>
@@ -388,10 +526,20 @@ export default function BillingPage() {
                   <RiSendPlaneLine size={15} /> ยืนยันและส่งบิลทั้งหมด
                 </button>
                 <button
-                  onClick={() => toast("กำลังสร้างไฟล์ใบแจ้งหนี้ทั้งหมด...", "success")}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white text-gray-700 text-sm rounded-xl hover:bg-gray-50 transition-colors whitespace-nowrap"
+                  onClick={handleBulkDownloadPDF}
+                  disabled={!!isBulkDownloading}
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white text-gray-700 text-sm rounded-xl hover:bg-gray-50 transition-colors whitespace-nowrap disabled:opacity-60"
                 >
-                  <RiFileTextLine size={15} /> โหลดใบแจ้งหนี้ทั้งหมด
+                  <RiFileTextLine size={15} />
+                  {isBulkDownloading === "pdf" ? "กำลังสร้าง PDF..." : "โหลดบิลทั้งหมด PDF"}
+                </button>
+                <button
+                  onClick={handleBulkDownloadImages}
+                  disabled={!!isBulkDownloading}
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white text-gray-700 text-sm rounded-xl hover:bg-gray-50 transition-colors whitespace-nowrap disabled:opacity-60"
+                >
+                  <RiImageLine size={15} />
+                  {isBulkDownloading === "image" ? "กำลังสร้างรูปภาพ..." : "โหลดบิลทั้งหมดรูปภาพ"}
                 </button>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -458,7 +606,7 @@ export default function BillingPage() {
                       <tr>
                         <td colSpan={10} className="px-4 py-8 text-sm text-gray-400 text-center">ไม่พบรายการ</td>
                       </tr>
-                    ) : filteredBills.map((bill) => (
+                    ) : pagedBills.map((bill) => (
                       <tr key={bill.contractId} className="hover:bg-gray-50 transition-colors">
 
                         {/* ห้อง */}
@@ -593,6 +741,13 @@ export default function BillingPage() {
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                total={filteredBills.length}
+                page={billPage}
+                rowsPerPage={billRowsPerPage}
+                onPageChange={setBillPage}
+                onRowsPerPageChange={(r) => { setBillRowsPerPage(r); setBillPage(1) }}
+              />
             </div>
           </>
         )}
@@ -675,7 +830,7 @@ export default function BillingPage() {
                       <tr>
                         <td colSpan={7} className="px-4 py-8 text-sm text-gray-400 text-center">ไม่พบรายการ</td>
                       </tr>
-                    ) : filteredPayments.map((pmt) => (
+                    ) : pagedPayments.map((pmt) => (
                       <tr key={pmt.paymentId} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3.5 text-sm font-semibold text-gray-800 whitespace-nowrap">{pmt.roomNumber}</td>
                         <td className="px-4 py-3.5 text-sm text-gray-700 whitespace-nowrap">{pmt.tenantName}</td>
@@ -738,6 +893,13 @@ export default function BillingPage() {
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                total={filteredPayments.length}
+                page={paymentPage}
+                rowsPerPage={paymentRowsPerPage}
+                onPageChange={setPaymentPage}
+                onRowsPerPageChange={(r) => { setPaymentRowsPerPage(r); setPaymentPage(1) }}
+              />
             </div>
           </>
         )}
@@ -1104,6 +1266,237 @@ function getItemRow(item: { title: string; amount: number }, meter: InvoiceRespo
   return { label: t, qty: 1, rate: item.amount, subtitle: null }
 }
 
+function buildInvoiceContainer(invoice: InvoiceResponse, adminName: string): HTMLDivElement {
+  const today = new Date().toLocaleDateString("th-TH-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })
+  const rows = invoice.items.map((item) => getItemRow(item, invoice.meter))
+
+  const container = document.createElement("div")
+  Object.assign(container.style, {
+    position: "fixed", left: "-9999px", top: "0",
+    width: "794px", backgroundColor: "#ffffff",
+    fontFamily: "'Sarabun', 'Noto Sans Thai', sans-serif",
+    fontSize: "14px", color: "#111827", padding: "40px",
+    boxSizing: "border-box",
+  })
+
+  // Header
+  const header = document.createElement("div")
+  Object.assign(header.style, { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" })
+
+  const headerLeft = document.createElement("div")
+  Object.assign(headerLeft.style, { display: "flex", alignItems: "flex-start", gap: "12px" })
+  if (invoice.property.logoUrl) {
+    const logo = document.createElement("img")
+    logo.src = invoice.property.logoUrl
+    Object.assign(logo.style, { width: "56px", height: "56px", objectFit: "cover", borderRadius: "8px", flexShrink: "0" })
+    logo.crossOrigin = "anonymous"
+    headerLeft.appendChild(logo)
+  }
+  const propInfo = document.createElement("div")
+  const propName = document.createElement("p")
+  propName.textContent = invoice.property.name
+  Object.assign(propName.style, { margin: "0", fontWeight: "700", fontSize: "16px", color: "#111827" })
+  const propAddr = document.createElement("p")
+  propAddr.textContent = invoice.property.address || ""
+  Object.assign(propAddr.style, { margin: "4px 0 0", fontSize: "12px", color: "#6b7280", lineHeight: "1.5", maxWidth: "280px" })
+  propInfo.appendChild(propName)
+  propInfo.appendChild(propAddr)
+  headerLeft.appendChild(propInfo)
+
+  const headerRight = document.createElement("div")
+  Object.assign(headerRight.style, { textAlign: "right" })
+  const badge = document.createElement("div")
+  badge.textContent = "ใบแจ้งค่าบริการ"
+  Object.assign(badge.style, {
+    display: "block",
+    backgroundColor: "#7c3aed", color: "#ffffff",
+    padding: "0 16px", borderRadius: "8px", fontSize: "14px", fontWeight: "700",
+    whiteSpace: "nowrap", lineHeight: "36px", height: "36px",
+    textAlign: "center",
+  })
+  const dateEl = document.createElement("p")
+  dateEl.textContent = today
+  Object.assign(dateEl.style, { margin: "6px 0 0", fontSize: "12px", color: "#9ca3af" })
+  headerRight.appendChild(badge)
+  headerRight.appendChild(dateEl)
+
+  header.appendChild(headerLeft)
+  header.appendChild(headerRight)
+  container.appendChild(header)
+
+  // Info cards
+  const infoGrid = document.createElement("div")
+  Object.assign(infoGrid.style, { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "8px", marginBottom: "20px" })
+  const infoItems = [
+    ["ห้องพัก", `ห้อง ${invoice.roomNumber}`],
+    ["ประเภทห้อง", invoice.roomType],
+    ["ผู้เช่า", invoice.tenantName],
+    ["งวดประจำเดือน", invoice.billingPeriod],
+  ]
+  infoItems.forEach(([label, val]) => {
+    const card = document.createElement("div")
+    Object.assign(card.style, { border: "1px solid #e5e7eb", borderRadius: "8px", padding: "12px" })
+    const lEl = document.createElement("p")
+    lEl.textContent = label
+    Object.assign(lEl.style, { margin: "0 0 4px", fontSize: "11px", color: "#9ca3af" })
+    const vEl = document.createElement("p")
+    vEl.textContent = val
+    Object.assign(vEl.style, { margin: "0", fontSize: "13px", fontWeight: "700", color: "#111827" })
+    card.appendChild(lEl)
+    card.appendChild(vEl)
+    infoGrid.appendChild(card)
+  })
+  container.appendChild(infoGrid)
+
+  // Table
+  const table = document.createElement("table")
+  Object.assign(table.style, { width: "100%", borderCollapse: "collapse" })
+  const thead = document.createElement("thead")
+  const headerRow = document.createElement("tr")
+  Object.assign(headerRow.style, { backgroundColor: "#111827" })
+  const cols = ["ลำดับ", "รายการ", "จำนวน", "ราคา/หน่วย", "รวมเป็นเงิน"]
+  const aligns = ["center", "left", "center", "right", "right"]
+  cols.forEach((col, i) => {
+    const th = document.createElement("th")
+    th.textContent = col
+    Object.assign(th.style, {
+      padding: "10px 12px", fontSize: "12px", fontWeight: "600",
+      color: "#ffffff", textAlign: aligns[i],
+    })
+    headerRow.appendChild(th)
+  })
+  thead.appendChild(headerRow)
+  table.appendChild(thead)
+
+  const tbody = document.createElement("tbody")
+  rows.forEach((r, idx) => {
+    const tr = document.createElement("tr")
+    Object.assign(tr.style, { borderBottom: "1px solid #f3f4f6" })
+    const cells = [
+      { text: String(idx + 1), align: "center", color: "#6b7280" },
+      { text: "", align: "left", color: "#1f2937" },
+      { text: r.qty.toLocaleString(), align: "center", color: "#374151" },
+      { text: r.rate.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), align: "right", color: "#374151" },
+      { text: invoice.items[idx].amount.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), align: "right", color: "#1f2937", bold: true },
+    ]
+    cells.forEach((c, ci) => {
+      const td = document.createElement("td")
+      Object.assign(td.style, {
+        padding: "10px 12px", textAlign: c.align, color: c.color,
+        fontWeight: c.bold ? "600" : "400",
+      })
+      if (ci === 1) {
+        const labelEl = document.createElement("p")
+        labelEl.textContent = r.label
+        Object.assign(labelEl.style, { margin: "0", color: "#1f2937" })
+        td.appendChild(labelEl)
+        if (r.subtitle) {
+          const sub = document.createElement("span")
+          sub.textContent = r.subtitle
+          Object.assign(sub.style, {
+            display: "inline-block", marginTop: "3px", fontSize: "11px",
+            color: "#2563eb", backgroundColor: "#eff6ff",
+            padding: "2px 8px", borderRadius: "4px",
+          })
+          td.appendChild(sub)
+        }
+      } else {
+        td.textContent = c.text
+      }
+      tr.appendChild(td)
+    })
+    tbody.appendChild(tr)
+  })
+  table.appendChild(tbody)
+  container.appendChild(table)
+
+  // Total
+  const totalBar = document.createElement("div")
+  Object.assign(totalBar.style, {
+    backgroundColor: "#fefce8", border: "1px solid #e5e7eb", borderTop: "none",
+    borderRadius: "0 0 8px 8px", padding: "12px 16px",
+    display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "16px",
+  })
+  const totalLabel = document.createElement("span")
+  totalLabel.textContent = "รวมสุทธิ"
+  Object.assign(totalLabel.style, { fontSize: "14px", fontWeight: "600", color: "#374151" })
+  const totalVal = document.createElement("span")
+  totalVal.textContent = invoice.total.toLocaleString("th-TH", { minimumFractionDigits: 2 })
+  Object.assign(totalVal.style, { fontSize: "24px", fontWeight: "700", color: "#d97706" })
+  totalBar.appendChild(totalLabel)
+  totalBar.appendChild(totalVal)
+  container.appendChild(totalBar)
+
+  // Payment info
+  const paySection = document.createElement("div")
+  Object.assign(paySection.style, {
+    marginTop: "20px", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px",
+    display: "grid", gridTemplateColumns: "1fr auto", gap: "16px",
+  })
+  const payLeft = document.createElement("div")
+  const payTitle = document.createElement("p")
+  payTitle.textContent = "● ช่องทางการชำระเงิน"
+  Object.assign(payTitle.style, { margin: "0 0 12px", fontSize: "12px", fontWeight: "600", color: "#7c3aed" })
+  payLeft.appendChild(payTitle)
+  const payFields = [["ธนาคาร", invoice.property.bankName], ["เลขที่บัญชี", invoice.property.bankAccount], ["ชื่อบัญชี", invoice.property.bankHolder]]
+  payFields.filter(([, v]) => v).forEach(([k, v]) => {
+    const row = document.createElement("div")
+    Object.assign(row.style, { display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "4px 0", borderBottom: "1px solid #f3f4f6" })
+    const kEl = document.createElement("span")
+    kEl.textContent = k
+    Object.assign(kEl.style, { color: "#6b7280" })
+    const vEl = document.createElement("span")
+    vEl.textContent = v || ""
+    Object.assign(vEl.style, { fontWeight: "500", color: "#111827" })
+    row.appendChild(kEl)
+    row.appendChild(vEl)
+    payLeft.appendChild(row)
+  })
+  paySection.appendChild(payLeft)
+  if (invoice.property.paymentQrUrl) {
+    const qrWrap = document.createElement("div")
+    Object.assign(qrWrap.style, { display: "flex", flexDirection: "column", alignItems: "center" })
+    const qr = document.createElement("img")
+    qr.src = invoice.property.paymentQrUrl
+    qr.crossOrigin = "anonymous"
+    Object.assign(qr.style, { width: "96px", height: "96px", objectFit: "contain", borderRadius: "8px", border: "1px solid #f3f4f6" })
+    const qrLabel = document.createElement("p")
+    qrLabel.textContent = "สแกนเพื่อชำระเงิน"
+    Object.assign(qrLabel.style, { margin: "4px 0 0", fontSize: "11px", color: "#9ca3af" })
+    qrWrap.appendChild(qr)
+    qrWrap.appendChild(qrLabel)
+    paySection.appendChild(qrWrap)
+  }
+  container.appendChild(paySection)
+
+  // Notes
+  const noteSection = document.createElement("div")
+  Object.assign(noteSection.style, { marginTop: "16px", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px" })
+  const noteTitle = document.createElement("p")
+  noteTitle.textContent = "● หมายเหตุ"
+  Object.assign(noteTitle.style, { margin: "0 0 8px", fontSize: "12px", fontWeight: "600", color: "#7c3aed" })
+  noteSection.appendChild(noteTitle)
+  const noteList = document.createElement("div")
+  Object.assign(noteList.style, { margin: "0", fontSize: "12px", color: "#4b5563", lineHeight: "1.8" })
+  const notes = invoice.property.billNote
+    ? invoice.property.billNote.split("\n").map(l => l.trim()).filter(Boolean)
+    : []
+  notes.forEach((n) => {
+    const p = document.createElement("p")
+    Object.assign(p.style, { margin: "0 0 2px" })
+    p.textContent = n
+    noteList.appendChild(p)
+  })
+  noteSection.appendChild(noteList)
+  const issuerEl = document.createElement("p")
+  issuerEl.textContent = `ผู้จัดทำ: ${adminName}`
+  Object.assign(issuerEl.style, { margin: "8px 0 0", fontSize: "11px", color: "#9ca3af", textAlign: "right" })
+  noteSection.appendChild(issuerEl)
+  container.appendChild(noteSection)
+
+  return container
+}
+
 function BillDetailModal({ bill, propertyId, month, year, onClose }: {
   bill: BillingTableRow
   propertyId: string
@@ -1156,237 +1549,7 @@ function BillDetailModal({ bill, propertyId, month, year, onClose }: {
         import("jspdf"),
       ])
 
-      const today = new Date().toLocaleDateString("th-TH-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })
-      const rows = invoice.items.map((item) => getItemRow(item, invoice.meter))
-
-      // Build off-screen div with inline styles (no Tailwind dependency)
-      const container = document.createElement("div")
-      Object.assign(container.style, {
-        position: "fixed", left: "-9999px", top: "0",
-        width: "794px", backgroundColor: "#ffffff",
-        fontFamily: "'Sarabun', 'Noto Sans Thai', sans-serif",
-        fontSize: "14px", color: "#111827", padding: "40px",
-        boxSizing: "border-box",
-      })
-
-      // Header
-      const header = document.createElement("div")
-      Object.assign(header.style, { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" })
-
-      const headerLeft = document.createElement("div")
-      Object.assign(headerLeft.style, { display: "flex", alignItems: "flex-start", gap: "12px" })
-      if (invoice.property.logoUrl) {
-        const logo = document.createElement("img")
-        logo.src = invoice.property.logoUrl
-        Object.assign(logo.style, { width: "56px", height: "56px", objectFit: "cover", borderRadius: "8px", flexShrink: "0" })
-        logo.crossOrigin = "anonymous"
-        headerLeft.appendChild(logo)
-      }
-      const propInfo = document.createElement("div")
-      const propName = document.createElement("p")
-      propName.textContent = invoice.property.name
-      Object.assign(propName.style, { margin: "0", fontWeight: "700", fontSize: "16px", color: "#111827" })
-      const propAddr = document.createElement("p")
-      propAddr.textContent = invoice.property.address || ""
-      Object.assign(propAddr.style, { margin: "4px 0 0", fontSize: "12px", color: "#6b7280", lineHeight: "1.5", maxWidth: "280px" })
-      propInfo.appendChild(propName)
-      propInfo.appendChild(propAddr)
-      headerLeft.appendChild(propInfo)
-
-      const headerRight = document.createElement("div")
-      Object.assign(headerRight.style, { textAlign: "right" })
-      const badge = document.createElement("div")
-      badge.textContent = "ใบแจ้งค่าบริการ"
-      Object.assign(badge.style, {
-        display: "block",
-        backgroundColor: "#7c3aed", color: "#ffffff",
-        padding: "0 16px", borderRadius: "8px", fontSize: "14px", fontWeight: "700",
-        whiteSpace: "nowrap", lineHeight: "36px", height: "36px",
-        textAlign: "center",
-      })
-      const dateEl = document.createElement("p")
-      dateEl.textContent = today
-      Object.assign(dateEl.style, { margin: "6px 0 0", fontSize: "12px", color: "#9ca3af" })
-      headerRight.appendChild(badge)
-      headerRight.appendChild(dateEl)
-
-      header.appendChild(headerLeft)
-      header.appendChild(headerRight)
-      container.appendChild(header)
-
-      // Info cards
-      const infoGrid = document.createElement("div")
-      Object.assign(infoGrid.style, { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "8px", marginBottom: "20px" })
-      const infoItems = [
-        ["ห้องพัก", `ห้อง ${bill.roomNumber}`],
-        ["ประเภทห้อง", invoice.roomType],
-        ["ผู้เช่า", bill.tenantName],
-        ["งวดประจำเดือน", invoice.billingPeriod],
-      ]
-      infoItems.forEach(([label, val]) => {
-        const card = document.createElement("div")
-        Object.assign(card.style, { border: "1px solid #e5e7eb", borderRadius: "8px", padding: "12px" })
-        const lEl = document.createElement("p")
-        lEl.textContent = label
-        Object.assign(lEl.style, { margin: "0 0 4px", fontSize: "11px", color: "#9ca3af" })
-        const vEl = document.createElement("p")
-        vEl.textContent = val
-        Object.assign(vEl.style, { margin: "0", fontSize: "13px", fontWeight: "700", color: "#111827" })
-        card.appendChild(lEl)
-        card.appendChild(vEl)
-        infoGrid.appendChild(card)
-      })
-      container.appendChild(infoGrid)
-
-      // Table
-      const table = document.createElement("table")
-      Object.assign(table.style, { width: "100%", borderCollapse: "collapse" })
-      const thead = document.createElement("thead")
-      const headerRow = document.createElement("tr")
-      Object.assign(headerRow.style, { backgroundColor: "#111827" })
-      const cols = ["ลำดับ", "รายการ", "จำนวน", "ราคา/หน่วย", "รวมเป็นเงิน"]
-      const aligns = ["center", "left", "center", "right", "right"]
-      cols.forEach((col, i) => {
-        const th = document.createElement("th")
-        th.textContent = col
-        Object.assign(th.style, {
-          padding: "10px 12px", fontSize: "12px", fontWeight: "600",
-          color: "#ffffff", textAlign: aligns[i],
-        })
-        headerRow.appendChild(th)
-      })
-      thead.appendChild(headerRow)
-      table.appendChild(thead)
-
-      const tbody = document.createElement("tbody")
-      rows.forEach((r, idx) => {
-        const tr = document.createElement("tr")
-        Object.assign(tr.style, { borderBottom: "1px solid #f3f4f6" })
-
-        const cells = [
-          { text: String(idx + 1), align: "center", color: "#6b7280" },
-          { text: "", align: "left", color: "#1f2937" },
-          { text: r.qty.toLocaleString(), align: "center", color: "#374151" },
-          { text: r.rate.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), align: "right", color: "#374151" },
-          { text: invoice.items[idx].amount.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), align: "right", color: "#1f2937", bold: true },
-        ]
-
-        cells.forEach((c, ci) => {
-          const td = document.createElement("td")
-          Object.assign(td.style, {
-            padding: "10px 12px", textAlign: c.align, color: c.color,
-            fontWeight: c.bold ? "600" : "400",
-          })
-          if (ci === 1) {
-            // Label + subtitle
-            const labelEl = document.createElement("p")
-            labelEl.textContent = r.label
-            Object.assign(labelEl.style, { margin: "0", color: "#1f2937" })
-            td.appendChild(labelEl)
-            if (r.subtitle) {
-              const sub = document.createElement("span")
-              sub.textContent = r.subtitle
-              Object.assign(sub.style, {
-                display: "inline-block", marginTop: "3px", fontSize: "11px",
-                color: "#2563eb", backgroundColor: "#eff6ff",
-                padding: "2px 8px", borderRadius: "4px",
-              })
-              td.appendChild(sub)
-            }
-          } else {
-            td.textContent = c.text
-          }
-          tr.appendChild(td)
-        })
-        tbody.appendChild(tr)
-      })
-      table.appendChild(tbody)
-      container.appendChild(table)
-
-      // Total
-      const totalBar = document.createElement("div")
-      Object.assign(totalBar.style, {
-        backgroundColor: "#fefce8", border: "1px solid #e5e7eb", borderTop: "none",
-        borderRadius: "0 0 8px 8px", padding: "12px 16px",
-        display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "16px",
-      })
-      const totalLabel = document.createElement("span")
-      totalLabel.textContent = "รวมสุทธิ"
-      Object.assign(totalLabel.style, { fontSize: "14px", fontWeight: "600", color: "#374151" })
-      const totalVal = document.createElement("span")
-      totalVal.textContent = invoice.total.toLocaleString("th-TH", { minimumFractionDigits: 2 })
-      Object.assign(totalVal.style, { fontSize: "24px", fontWeight: "700", color: "#d97706" })
-      totalBar.appendChild(totalLabel)
-      totalBar.appendChild(totalVal)
-      container.appendChild(totalBar)
-
-      // Payment info
-      const paySection = document.createElement("div")
-      Object.assign(paySection.style, {
-        marginTop: "20px", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px",
-        display: "grid", gridTemplateColumns: "1fr auto", gap: "16px",
-      })
-      const payLeft = document.createElement("div")
-      const payTitle = document.createElement("p")
-      payTitle.textContent = "● ช่องทางการชำระเงิน"
-      Object.assign(payTitle.style, { margin: "0 0 12px", fontSize: "12px", fontWeight: "600", color: "#7c3aed" })
-      payLeft.appendChild(payTitle)
-      const payFields = [["ธนาคาร", invoice.property.bankName], ["เลขที่บัญชี", invoice.property.bankAccount], ["ชื่อบัญชี", invoice.property.bankHolder]]
-      payFields.filter(([, v]) => v).forEach(([k, v]) => {
-        const row = document.createElement("div")
-        Object.assign(row.style, { display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "4px 0", borderBottom: "1px solid #f3f4f6" })
-        const kEl = document.createElement("span")
-        kEl.textContent = k
-        Object.assign(kEl.style, { color: "#6b7280" })
-        const vEl = document.createElement("span")
-        vEl.textContent = v || ""
-        Object.assign(vEl.style, { fontWeight: "500", color: "#111827" })
-        row.appendChild(kEl)
-        row.appendChild(vEl)
-        payLeft.appendChild(row)
-      })
-      paySection.appendChild(payLeft)
-      if (invoice.property.paymentQrUrl) {
-        const qrWrap = document.createElement("div")
-        Object.assign(qrWrap.style, { display: "flex", flexDirection: "column", alignItems: "center" })
-        const qr = document.createElement("img")
-        qr.src = invoice.property.paymentQrUrl
-        qr.crossOrigin = "anonymous"
-        Object.assign(qr.style, { width: "96px", height: "96px", objectFit: "contain", borderRadius: "8px", border: "1px solid #f3f4f6" })
-        const qrLabel = document.createElement("p")
-        qrLabel.textContent = "สแกนเพื่อชำระเงิน"
-        Object.assign(qrLabel.style, { margin: "4px 0 0", fontSize: "11px", color: "#9ca3af" })
-        qrWrap.appendChild(qr)
-        qrWrap.appendChild(qrLabel)
-        paySection.appendChild(qrWrap)
-      }
-      container.appendChild(paySection)
-
-      // Notes
-      const noteSection = document.createElement("div")
-      Object.assign(noteSection.style, { marginTop: "16px", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px" })
-      const noteTitle = document.createElement("p")
-      noteTitle.textContent = "● หมายเหตุ"
-      Object.assign(noteTitle.style, { margin: "0 0 8px", fontSize: "12px", fontWeight: "600", color: "#7c3aed" })
-      noteSection.appendChild(noteTitle)
-      const noteList = document.createElement("div")
-      Object.assign(noteList.style, { margin: "0", fontSize: "12px", color: "#4b5563", lineHeight: "1.8" })
-      const notes = invoice.property.billNote
-        ? invoice.property.billNote.split("\n").map(l => l.trim()).filter(Boolean)
-        : []
-      notes.forEach((n) => {
-        const p = document.createElement("p")
-        Object.assign(p.style, { margin: "0 0 2px" })
-        p.textContent = n
-        noteList.appendChild(p)
-      })
-      noteSection.appendChild(noteList)
-      const issuerEl = document.createElement("p")
-      issuerEl.textContent = `ผู้จัดทำ: ${adminName}`
-      Object.assign(issuerEl.style, { margin: "8px 0 0", fontSize: "11px", color: "#9ca3af", textAlign: "right" })
-      noteSection.appendChild(issuerEl)
-      container.appendChild(noteSection)
-
+      const container = buildInvoiceContainer(invoice, adminName)
       document.body.appendChild(container)
 
       // Wait for images to load

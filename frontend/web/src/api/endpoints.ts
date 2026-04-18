@@ -72,6 +72,7 @@ export const ENDPOINTS = {
     paymentDetail: (propertyId: string, paymentId: string) => `/admin/properties/${propertyId}/billing/payments/${paymentId}`,
     confirmPayment: (propertyId: string, paymentId: string) => `/admin/properties/${propertyId}/billing/payments/${paymentId}/confirm`,
     rejectPayment: (propertyId: string, paymentId: string) => `/admin/properties/${propertyId}/billing/payments/${paymentId}/reject`,
+    availableMonths: (propertyId: string) => `/admin/properties/${propertyId}/billing/available-months`,
   },
 
   moveout: {
