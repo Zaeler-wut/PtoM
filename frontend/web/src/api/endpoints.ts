@@ -1,3 +1,7 @@
+// endpoints.ts — รวม URL endpoints ทั้งหมดของ API ฝั่ง web admin
+// ใช้เป็น single source of truth สำหรับทุก API call เพื่อง่ายต่อการแก้ไข
+// ถูกเรียกใช้จาก api/*.ts ทุกไฟล์
+
 export const ENDPOINTS = {
   // AUTH
   auth: {
@@ -7,7 +11,7 @@ export const ENDPOINTS = {
     refresh: "/auth/refresh-token",
   },
 
-  // ADMIN
+  // ADMIN — resolve short Google Maps URL เป็น full URL
   resolveMapUrl: (url: string) => `/admin/resolve-map-url?url=${encodeURIComponent(url)}`,
 
   properties: {

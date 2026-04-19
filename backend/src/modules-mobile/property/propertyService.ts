@@ -1,7 +1,11 @@
+// propertyService.ts (mobile) — business logic สำหรับค้นหาและแสดงรายละเอียดที่พัก
+// รับข้อมูลจาก propertyRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ propertyRepository สำหรับ query database
+
 import * as repo from "./propertyRepository"
 import type { PropertySearchQuery, PropertyCardItem, PropertyDetailMobile } from "./propertyModel"
 
-// คำนวณระยะห่างระหว่างสองจุด GPS หน่วย กม.
+// คำนวณระยะห่างระหว่างสองจุด GPS ด้วย Haversine formula หน่วย กม.
 function calculateDistance(
   lat1: number, lng1: number,
   lat2: number, lng2: number
@@ -16,22 +20,24 @@ function calculateDistance(
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return Math.round(R * c * 10) / 10 // ปัดทศนิยม 1 ตำแหน่ง
+  return Math.round(R * c * 10) / 10
 }
 
-// กรองตามจำนวนคน
+// ตรวจสอบว่าห้องนี้รองรับจำนวนคนที่ต้องการหรือไม่
 function roomMatchesOccupants(room: any, maxOccupants?: number): boolean {
   if (!maxOccupants) return true
   return room.roomType.maxOccupants >= maxOccupants
 }
 
-// คำนวณวันที่ห้องนี้จะพร้อม (null = พร้อมแล้ว)
+// คำนวณวันที่ห้องนี้จะพร้อมเข้าอยู่ได้ (null = พร้อมแล้วทันที)
+// AVAILABLE → null, PREPARING → moveOutDate + preparingDays
+// OCCUPIED+MOVE_OUT_NOTICE → moveOutNoticeDate + preparingDays
 function getRoomReadyDate(room: any, preparingDays: number): Date | null {
   if (room.status === "AVAILABLE") return null
 
   if (room.status === "PREPARING") {
     const latestMoveOut = room.moveOutBills[0]
-    if (!latestMoveOut) return null // admin ตั้งเอง = พร้อมแล้ว
+    if (!latestMoveOut) return null // admin ตั้งสถานะเองว่าเตรียมว่าง → พร้อมแล้ว
     const d = new Date(latestMoveOut.moveOutDate)
     d.setDate(d.getDate() + preparingDays)
     return d
@@ -48,7 +54,9 @@ function getRoomReadyDate(room: any, preparingDays: number): Date | null {
   return null
 }
 
-// นับห้องว่าง + เตรียมว่าง แยกกัน และหาวันที่จะว่างเร็วสุด
+// นับห้องว่างและห้องกำลังเตรียม ณ searchDate ที่กำหนด
+// availableRooms = พร้อมแล้ว ≤ searchDate | preparingCount = readyDate > searchDate
+// ส่งกลับ: availableRooms, preparingCount, preparingAvailableDate (วันแรกที่จะพร้อม)
 function countRooms(
   rooms: any[],
   searchDate: Date,
@@ -65,15 +73,14 @@ function countRooms(
     const readyDate = getRoomReadyDate(room, preparingDays)
 
     if (readyDate === null) {
-      // AVAILABLE หรือ PREPARING ที่ไม่มี moveOutBill = พร้อมแล้ว
       if (room.status === "AVAILABLE" || room.status === "PREPARING") {
         availableRooms++
       }
     } else if (readyDate <= searchDate) {
-      // readyDate ผ่านแล้ว = พร้อมสำหรับ searchDate
+      // readyDate ผ่านแล้วหรือตรงกับ searchDate → พร้อมแล้ว
       availableRooms++
     } else {
-      // ยังไม่ถึงวันพร้อม = เตรียมว่าง
+      // ยังไม่ถึงวันพร้อม → เตรียมว่าง บันทึกวันเร็วสุด
       preparingCount++
       if (!earliestDate || readyDate < earliestDate) {
         earliestDate = readyDate
@@ -88,7 +95,11 @@ function countRooms(
   }
 }
 
-
+// ค้นหาที่พักตาม GPS, วันที่, จำนวนคน และรัศมี
+// กรองที่พักที่อยู่ในรัศมีและมีห้องว่าง เรียงตามระยะห่าง (ใกล้ก่อน)
+// ที่พักที่ไม่มีพิกัด GPS → แสดงต่อท้าย
+// เรียก: propertyRepository.getAllProperties()
+// ส่งกลับ: array ของ PropertyCardItem เรียงตามระยะห่าง
 export const searchProperties = async (query: PropertySearchQuery): Promise<PropertyCardItem[]> => {
   const { lat, lng, month, year, day, maxOccupants, radius = 20 } = query
 
@@ -129,7 +140,7 @@ export const searchProperties = async (query: PropertySearchQuery): Promise<Prop
         lat: property.lat, lng: property.lng, googleMap: property.googleMap,
       })
     } else {
-      // สถานที่ที่ไม่มีพิกัด — แสดงต่อท้าย
+      // สถานที่ที่ไม่มีพิกัด — แสดงต่อท้าย distanceKm=0
       const counts = countRooms(property.rooms, searchDate, property.preparingDays, maxOccupants)
       if (counts.availableRooms === 0 && counts.preparingCount === 0) continue
 
@@ -156,7 +167,9 @@ export const searchProperties = async (query: PropertySearchQuery): Promise<Prop
   ]
 }
 
-
+// ดึงที่พักแนะนำทั้งหมด — ไม่กรองพิกัด แสดงจำนวนห้องว่าง ณ วันนี้
+// เรียก: propertyRepository.getAllProperties()
+// ส่งกลับ: array ของ PropertyCardItem ทุกที่พัก
 export const getFeaturedProperties = async (): Promise<PropertyCardItem[]> => {
   const now = new Date()
 
@@ -193,8 +206,9 @@ export const getFeaturedProperties = async (): Promise<PropertyCardItem[]> => {
   return results
 }
 
-// ดูรายละเอียดหอพัก
-
+// ดูรายละเอียด room type เดียว — พร้อมจำนวนห้องว่าง ณ ปัจจุบัน
+// เรียก: propertyRepository.getPropertyById()
+// ส่งกลับ: ข้อมูล room type พร้อมราคา, อัตรามิเตอร์, ข้อมูลชำระเงิน
 export const getRoomTypeDetail = async (propertyId: string, roomTypeId: string) => {
   const property = await repo.getPropertyById(propertyId)
   if (!property) throw new Error("Property not found")
@@ -237,6 +251,10 @@ export const getRoomTypeDetail = async (propertyId: string, roomTypeId: string) 
   }
 }
 
+// ดูรายละเอียดที่พัก — รวม roomTypes ทั้งหมดที่ allowOnlineBooking พร้อมจำนวนห้องว่าง
+// กรองตาม searchDate และ maxOccupants ถ้ามี
+// เรียก: propertyRepository.getPropertyById()
+// ส่งกลับ: PropertyDetailMobile
 export const getPropertyDetail = async (
   propertyId: string,
   query: { month?: number; year?: number; day?: number; maxOccupants?: number }
@@ -278,6 +296,7 @@ export const getPropertyDetail = async (
       waterRate: rt.waterRate,
       electricRate: rt.electricRate,
       allowOnlineBooking: rt.allowOnlineBooking,
+      // รวม preparingCount เข้า availableRooms เพื่อให้แสดงจำนวนที่จองได้ทั้งหมด
       availableRooms: counts.availableRooms + counts.preparingCount,
       preparingCount: counts.preparingCount,
       preparingAvailableDate: counts.preparingAvailableDate,

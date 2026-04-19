@@ -1,5 +1,13 @@
+// dashboardService.ts — business logic สำหรับ dashboard module
+// รับข้อมูลจาก dashboardRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ dashboardRepository สำหรับ query database
+
 import * as repo from "./dashboardRepository"
 
+// ดึงข้อมูล summary ของที่พัก — นับห้องแต่ละสถานะ, booking รอยืนยัน, บิลรอตรวจ
+// คำนวณ bookableRooms = AVAILABLE + PREPARING (ห้องที่สามารถจองได้)
+// เรียก: dashboardRepository.getDashboardData()
+// ส่งกลับ: totalRooms, สถานะห้องแต่ละแบบ, pendingBookings, verifyingBills, unpaidBills, monthlyRevenue
 export const getDashboard = async (propertyId: string) => {
   const { property, bills } = await repo.getDashboardData(propertyId)
   if (!property) throw new Error("Property not found")
@@ -11,10 +19,12 @@ export const getDashboard = async (propertyId: string) => {
   const occupied   = rooms.filter((r) => r.status === "OCCUPIED").length
   const maintenance = rooms.filter((r) => r.status === "MAINTENANCE").length
 
+  // unpaidBills = บิลที่ส่งแล้วแต่ยังไม่ได้รับการยืนยัน (PENDING + VERIFYING)
   const unpaidBills = bills.filter(
     (b) => b.status === "PENDING" || b.status === "VERIFYING"
   ).length
 
+  // รายได้เดือนปัจจุบัน — นับเฉพาะบิลที่ PAID แล้ว
   const monthlyRevenue = bills
     .filter((b) => b.status === "PAID")
     .reduce((sum, b) => sum + b.total, 0)
@@ -34,11 +44,16 @@ export const getDashboard = async (propertyId: string) => {
   }
 }
 
+// ชื่อย่อเดือนภาษาไทย — ใช้สร้าง label ในกราฟรายได้
 const MONTH_SHORT = [
   "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
   "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค.",
 ]
 
+// ดึงรายได้ย้อนหลัง N เดือน — รวมเดือนที่ไม่มีรายได้ (revenue=0) เพื่อให้กราฟสมบูรณ์
+// group by month/year แล้ว map กลับเป็น array ครบทุกเดือน
+// เรียก: dashboardRepository.getPaidBillsByMonths()
+// ส่งกลับ: months array พร้อม label ภาษาไทย (เช่น "ม.ค. 2568") และ totalRevenue รวม
 export const getRevenue = async (
   propertyId: string,
   monthsBack: number = 6
@@ -47,6 +62,7 @@ export const getRevenue = async (
 
   const bills = await repo.getPaidBillsByMonths(propertyId, monthsBack)
 
+  // group รายได้ตาม month-year
   const revenueMap = new Map<string, { revenue: number; billCount: number }>()
 
   bills.forEach((bill) => {
@@ -59,6 +75,7 @@ export const getRevenue = async (
     })
   })
 
+  // สร้าง array ครบทุกเดือน (ย้อนหลังจากปัจจุบัน)
   const now = new Date()
   const months: { month: number; year: number }[] = []
 

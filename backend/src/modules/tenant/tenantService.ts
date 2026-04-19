@@ -1,5 +1,12 @@
+// tenantService.ts — business logic สำหรับ tenant module
+// รับข้อมูลจาก tenantRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ tenantRepository สำหรับ query database
+
 import * as repo from "./tenantRepository"
 
+// ดึงรายชื่อผู้เช่าที่มีสัญญา ACTIVE หรือ MOVE_OUT_NOTICE
+// เรียก: tenantRepository.getTenantsByProperty()
+// ส่งกลับ: array ของผู้เช่าพร้อมข้อมูลห้องและสถานะสัญญา
 export const getTenants = async (propertyId: string) => {
   const contracts = await repo.getTenantsByProperty(propertyId)
   return contracts.map((c) => ({
@@ -14,6 +21,9 @@ export const getTenants = async (propertyId: string) => {
   }))
 }
 
+// แก้ไขข้อมูลส่วนตัวของผู้เช่า — อัปเดต user และยานพาหนะ
+// เรียก: tenantRepository.getTenantDetail(), updateUserInfo(), replaceVehicles()
+// ส่งกลับ: { success: true }
 export const updateTenantPersonalInfo = async (
   contractId: string,
   propertyId: string,
@@ -29,12 +39,16 @@ export const updateTenantPersonalInfo = async (
   const contract = await repo.getTenantDetail(contractId, propertyId)
   if (!contract) throw new Error("Tenant not found")
   await repo.updateUserInfo(contract.user.id, data)
+  // แทนที่ยานพาหนะทั้งหมดถ้ามีการส่ง vehicles มา
   if (Array.isArray(data.vehicles)) {
     await repo.replaceVehicles(contract.user.id, data.vehicles)
   }
   return { success: true }
 }
 
+// ดูรายละเอียดผู้เช่าจาก contractId — รวมข้อมูล user, สัญญา และยานพาหนะ
+// เรียก: tenantRepository.getTenantDetail()
+// ส่งกลับ: ข้อมูล user, สัญญา, และยานพาหนะ
 export const getTenantDetail = async (contractId: string, propertyId: string) => {
   const contract = await repo.getTenantDetail(contractId, propertyId)
   if (!contract) throw new Error("Tenant not found")

@@ -1,15 +1,25 @@
+// meterRouter.ts (mobile) — route สำหรับบันทึกมิเตอร์และ AI อ่านมิเตอร์
+// ทุก route ต้องผ่าน authenticate — ใช้โดย admin ผ่าน mobile app
+// รับ request จาก mobile app ส่งต่อไปยัง meterService และ Anthropic AI
+
 import express from "express"
+// meterService — business logic ดึงข้อมูลและบันทึกมิเตอร์
 import * as service from "./meterService"
+// authenticate — ตรวจสอบ JWT token
 import { authenticate, type AuthenticatedRequest } from "../../middlewares/authenticate"
+// Anthropic SDK — ใช้ส่งรูปมิเตอร์ให้ AI อ่านค่า
 import Anthropic from "@anthropic-ai/sdk"
 
+// สร้าง Anthropic client ใหม่ต่อ request — timeout 90s เผื่อ AI ใช้เวลานาน
 function getAnthropicClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 90000 })
 }
 
 const router = express.Router()
 
-// ดึง properties ที่ admin คนนี้ดูแล
+// GET /api/mobile/admin/properties — ดึงที่พักที่ admin คนนี้ดูแล
+// เรียก: meterService.getAdminProperties()
+// ส่งกลับ: array ของ AdminPropertyCard (id, name, coverImage, totalRooms, roomTypeNames)
 router.get("/admin/properties", authenticate, async (req, res) => {
   try {
     const userId = (req as AuthenticatedRequest).user.id
@@ -20,7 +30,9 @@ router.get("/admin/properties", authenticate, async (req, res) => {
   }
 })
 
-// ดึงห้องทั้งหมดใน property พร้อมข้อมูลมิเตอร์เดือนนั้น
+// GET /api/mobile/admin/properties/:propertyId/rooms?month=&year= — ห้องทั้งหมดพร้อมมิเตอร์เดือนนั้น
+// เรียก: meterService.getRoomsForMeter()
+// ส่งกลับ: array ของห้องพร้อม electricMeter, waterMeter (null ถ้ายังไม่ได้กรอก)
 router.get("/admin/properties/:propertyId/rooms", authenticate, async (req, res) => {
   try {
     const propertyId = req.params.propertyId as string
@@ -33,7 +45,10 @@ router.get("/admin/properties/:propertyId/rooms", authenticate, async (req, res)
   }
 })
 
-// บันทึกมิเตอร์แต่ละห้อง
+// POST /api/mobile/admin/meter — บันทึก/แก้ไขค่ามิเตอร์ห้องเดียว
+// รับ: roomId, month, year, waterMeter, electricMeter จาก body
+// เรียก: meterService.saveMeterReading()
+// ส่งกลับ: MeterReading record ที่บันทึก
 router.post("/admin/meter", authenticate, async (req, res) => {
   try {
     const { roomId, month, year, waterMeter, electricMeter } = req.body
@@ -53,7 +68,10 @@ router.post("/admin/meter", authenticate, async (req, res) => {
   }
 })
 
-// AI อ่านมิเตอร์จากรูปภาพ
+// POST /api/mobile/admin/meter/ai-read — AI อ่านค่ามิเตอร์จากรูปภาพ
+// รับ: images array ของ { base64, mimeType, type: 'electric'|'water' }
+// ส่งรูปให้ claude-sonnet-4-6 แปลงค่า — แยก prompt ตามประเภทมิเตอร์
+// ส่งกลับ: array ของ { roomNumber, meterValue, type }
 router.post("/admin/meter/ai-read", authenticate, async (req, res) => {
   try {
     const { images } = req.body as {
@@ -66,6 +84,8 @@ router.post("/admin/meter/ai-read", authenticate, async (req, res) => {
     const results: Array<{ roomNumber: string | null; meterValue: number | null; type: string }> = []
 
     for (const img of images) {
+      // prompt ไฟฟ้า: อ่าน room sticker + kWh จาก LCD หรือ analog roller wheels
+      // prompt น้ำ: อ่าน room sticker + cubic meter จากกล่องดำ 4 ช่อง (ไม่รวมกล่องแดงลิตร)
       const prompt = img.type === 'electric'
         ? 'Read this electricity meter image. Extract room number and kWh reading.\n\n' +
           'ORIENTATION: Find "kWh", "MITSUBISHI", or "IPG" text. If upside-down, flip mentally first.\n\n' +
@@ -117,6 +137,7 @@ router.post("/admin/meter/ai-read", authenticate, async (req, res) => {
         })
 
         const text = response.content.find(b => b.type === 'text')?.text ?? '{}'
+        // ดึงเฉพาะ JSON object สุดท้ายจาก response (กรณี AI ส่งข้อความนำหน้า)
         const jsonMatches = text.match(/\{[^{}]*\}/g)
         const clean = jsonMatches ? jsonMatches[jsonMatches.length - 1] : '{}'
         const parsed = JSON.parse(clean)
@@ -125,6 +146,7 @@ router.post("/admin/meter/ai-read", authenticate, async (req, res) => {
         let meterValue: number | null = null
         if (parsed.cubic != null) {
           meterValue = Math.floor(Number(parsed.cubic))
+          // ถ้าค่าเกิน 10000 แสดงว่า AI อ่านหลักทศนิยมด้วย → ตัดให้เหลือ 4 หลัก
           if (meterValue >= 10000) {
             meterValue = Math.floor(meterValue / Math.pow(10, Math.floor(Math.log10(meterValue)) - 3))
           }
@@ -134,6 +156,7 @@ router.post("/admin/meter/ai-read", authenticate, async (req, res) => {
 
         results.push({ roomNumber, meterValue, type: img.type })
       } catch {
+        // ถ้า AI ล้มเหลวหรือ parse ไม่ได้ → ส่ง null กลับแทน
         results.push({ roomNumber: null, meterValue: null, type: img.type })
       }
     }

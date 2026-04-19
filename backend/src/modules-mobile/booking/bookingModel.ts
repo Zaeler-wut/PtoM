@@ -1,3 +1,7 @@
+// bookingModel.ts (mobile) — TypeScript types สำหรับ booking module ฝั่ง mobile
+// ใช้เป็น input/return type ของ bookingService และ bookingRouter
+
+// ข้อมูลที่ใช้แสดงก่อนยืนยันการจอง — แสดงราคา ข้อมูลชำระ และวันที่เข้าอยู่ที่เลือกได้
 export interface BookingInfoResponse {
   // กรอบบนสุดที่แสดงตลอด
   propertyName: string
@@ -13,15 +17,17 @@ export interface BookingInfoResponse {
     bankHolder: string
   }
   // วันที่เข้าอยู่ล่วงหน้าได้สูงสุด
-  maxMoveInDate: string // 45 วัน
-  minMoveInDate: string // วันพรุ่งนี้
+  maxMoveInDate: string // 45 วันนับจากวันนี้
+  minMoveInDate: string // วันพรุ่งนี้ หรือวันที่ห้องพร้อมเร็วสุด (ถ้าไม่มีห้อง AVAILABLE)
 }
-//Create booking
+
+// input สำหรับ POST /bookings — สร้างการจองใหม่
 export interface CreateBookingInput {
   moveInDate: string  // ISO string
   slipUrl: string     // url ของสลิปที่ upload ไป storage แล้ว
 }
 
+// ข้อมูลที่ส่งกลับหลังสร้างการจองสำเร็จ
 export interface CreateBookingResponse {
   bookingId: string
   propertyName: string
@@ -35,21 +41,22 @@ export interface CreateBookingResponse {
   paidAmount: number  // = bookingFee
 }
 
-
+// ข้อมูลที่ส่งกลับหลังยกเลิกการจองสำเร็จ
 export interface CancelBookingResponse {
   message: string
   bookingId: string
   status: "CANCELLED"
 }
 
+// สถานะการจองที่เป็นไปได้ทั้งหมด
 export type BookingStatus = "PENDING" | "CONFIRMED" | "CHECKED_IN" | "CANCELLED"
 
-
+// ข้อมูลการจองหนึ่งรายการในหน้า "การจองของฉัน"
 export interface MyBookingItem {
   bookingId: string
   propertyName: string
   roomTypeName: string
-  roomNumber: string | null
+  roomNumber: string | null     // null ถ้า admin ยังไม่ assign ห้อง
   firstName: string
   lastName: string
   moveInDate: string
@@ -57,5 +64,5 @@ export interface MyBookingItem {
   roomPrice: number
   createdAt: string
   status: BookingStatus
-  canCancel: boolean  // true ถ้า status = PENDING
+  canCancel: boolean  // true ถ้า status = PENDING หรือ CONFIRMED
 }

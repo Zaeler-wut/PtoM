@@ -1,16 +1,20 @@
-// PROPERTY
+// propertyModel.ts (web) — TypeScript types สำหรับ property module ฝั่ง web admin
+// ใช้เป็น input/return type ของ propertyService และ propertyRouter
+
+// ข้อมูลที่พักสำหรับแสดงในรายการ (dashboard ของ admin)
 export interface PropertyListItem {
   id: string
   name: string
   address: string
   coverImage: string | null
   totalRooms: number
-  available: number
-  occupied: number
-  reserved: number
-  bookingCount: number
+  available: number     // ห้องว่าง
+  occupied: number      // มีผู้เช่า
+  reserved: number      // จองแล้ว (RESERVED)
+  bookingCount: number  // จำนวน booking ที่ยังไม่ cancelled
 }
 
+// ข้อมูลที่พักฉบับเต็มสำหรับหน้าแก้ไข property
 export interface PropertyDetail {
   id: string
   name: string
@@ -20,7 +24,7 @@ export interface PropertyDetail {
   priceMin: number
   priceMax: number
   contractTerm: string | null
-  preparingDays: number
+  preparingDays: number       // วันเตรียมห้องหลัง moveout ก่อนเปิดรับจองใหม่
   bankName: string
   bankAccount: string
   bankHolder: string
@@ -30,12 +34,14 @@ export interface PropertyDetail {
   images: PropertyImageItem[]
 }
 
+// รูปภาพของ property — isCover บ่งบอกว่าเป็น cover image
 export interface PropertyImageItem {
   id: string
   url: string
   isCover: boolean
 }
 
+// input สำหรับ POST /properties — สร้าง property ใหม่
 export interface CreatePropertyInput {
   name: string
   address: string
@@ -52,12 +58,12 @@ export interface CreatePropertyInput {
   logoUrl?: string
 }
 
+// input สำหรับ PUT /properties/:propertyId — แก้ไข property
 export interface UpdatePropertyInput extends Partial<CreatePropertyInput> {
-  facilities?: string[]
+  facilities?: string[]   // replace all facilities ถ้าส่งมา
 }
 
-// ROOM TYPE
-
+// ข้อมูล room type ฉบับเต็มสำหรับหน้าแก้ไข
 export interface RoomTypeDetail {
   id: string
   name: string
@@ -77,6 +83,7 @@ export interface RoomTypeDetail {
   facilities: string[]
 }
 
+// input สำหรับ POST /properties/:propertyId/room-types — สร้าง room type ใหม่
 export interface CreateRoomTypeInput {
   name: string
   description?: string
@@ -91,8 +98,9 @@ export interface CreateRoomTypeInput {
   electricRate: number
   allowOnlineBooking?: boolean
   facilities?: string[]
-  images?: string[]
+  images?: string[]       // URLs ของรูป (max 5)
   fees?: { title: string; amount: number }[]
 }
 
+// input สำหรับ PUT /properties/:propertyId/room-types/:roomTypeId — แก้ไข room type
 export interface UpdateRoomTypeInput extends Partial<CreateRoomTypeInput> {}

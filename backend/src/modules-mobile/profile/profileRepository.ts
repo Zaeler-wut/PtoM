@@ -1,6 +1,12 @@
+// profileRepository.ts (mobile) — query database สำหรับ profile module
+// ทุก function ติดต่อ Prisma โดยตรง ไม่มี business logic
+// ถูกเรียกใช้จาก profileService.ts เท่านั้น
+
 import { prisma } from "../../lib/prisma"
 
-// ดึงข้อมูล user พร้อม contract active และบิล
+// ดึงข้อมูล user พร้อม contracts ที่ยังมีผลและบิลทั้งหมด
+// contracts: เฉพาะ ACTIVE, MOVE_OUT_NOTICE, ENDED — include ห้องและ roomType
+// bills: เฉพาะ PENDING, VERIFYING, PAID — select แค่ status เพื่อสรุปจำนวน
 export const getUserProfile = async (userId: string) => {
   return prisma.user.findUnique({
     where: { id: userId },
@@ -24,7 +30,7 @@ export const getUserProfile = async (userId: string) => {
         },
         orderBy: { startDate: "desc" },
       },
-      // สรุปบิล
+      // สรุปบิล — select แค่ status ไม่ดึงข้อมูลทั้งหมดเพื่อประหยัด bandwidth
       bills: {
         where: {
           status: { in: ["PENDING", "VERIFYING", "PAID"] },
@@ -35,7 +41,8 @@ export const getUserProfile = async (userId: string) => {
   })
 }
 
-// อัพเดทข้อมูลส่วนตัว
+// อัพเดทข้อมูลส่วนตัว — trim whitespace ก่อนบันทึก
+// ส่งกลับเฉพาะ fields ที่จำเป็น (ไม่ส่ง password hash กลับ)
 export const updateUserProfile = async (
   userId: string,
   data: { firstName: string; lastName: string; phone?: string }

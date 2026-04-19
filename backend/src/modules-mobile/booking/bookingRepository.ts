@@ -1,5 +1,10 @@
+// bookingRepository.ts (mobile) — query database สำหรับ booking module
+// ทุก function ติดต่อ Prisma โดยตรง ไม่มี business logic
+// ถูกเรียกใช้จาก bookingService.ts เท่านั้น
+
 import { prisma } from "../../lib/prisma"
 
+// ดึง contract ทั้งหมดของ user — ใช้ตรวจสอบว่า booking ใดมีสัญญาแล้ว (= CHECKED_IN)
 export const getContractsByUser = async (userId: string) => {
   return prisma.contract.findMany({
     where: { userId },
@@ -7,7 +12,8 @@ export const getContractsByUser = async (userId: string) => {
   })
 }
 
-// ดึงข้อมูลสำหรับหน้าจอง
+// ดึง roomType พร้อมข้อมูลชำระเงินของ property — ใช้แสดงหน้าก่อนจอง
+// กรอง allowOnlineBooking=true เพื่อไม่ให้จอง roomType ที่ปิดระบบออนไลน์
 export const getBookingInfo = async (propertyId: string, roomTypeId: string) => {
   return prisma.roomType.findFirst({
     where: { id: roomTypeId, propertyId, allowOnlineBooking: true },
@@ -25,7 +31,7 @@ export const getBookingInfo = async (propertyId: string, roomTypeId: string) => 
   })
 }
 
-// สร้าง booking พร้อม smart room selection
+// สร้าง booking ใหม่ด้วยสถานะ PENDING — ยังไม่ assign ห้อง (admin จะ assign ตอน confirm)
 export const createBooking = async (data: {
   propertyId: string
   roomTypeId: string
@@ -34,7 +40,6 @@ export const createBooking = async (data: {
   bookingFee: number
   slipUrl: string
 }) => {
-  // สร้าง booking โดยยังไม่ assign ห้อง — admin จะ assign ตอน confirm
   const booking = await prisma.booking.create({
     data: {
       propertyId: data.propertyId,
@@ -50,7 +55,7 @@ export const createBooking = async (data: {
   return booking
 }
 
-// ดึง booking พร้อม property และ roomType
+// ดึง booking เดียวพร้อม property, roomType และ user — ใช้ใน response หลัง createBooking
 export const getBookingById = async (bookingId: string) => {
   return prisma.booking.findUnique({
     where: { id: bookingId },
@@ -62,7 +67,7 @@ export const getBookingById = async (bookingId: string) => {
   })
 }
 
-// ยกเลิก booking
+// เปลี่ยนสถานะ booking เป็น CANCELLED
 export const cancelBooking = async (bookingId: string) => {
   return prisma.booking.update({
     where: { id: bookingId },
@@ -70,7 +75,7 @@ export const cancelBooking = async (bookingId: string) => {
   })
 }
 
-// คืน room status → AVAILABLE ถ้ามีการ assign แล้ว
+// คืนสถานะห้องเป็น AVAILABLE หลังยกเลิก booking ที่ assign ห้องไปแล้ว
 export const releaseRoom = async (roomId: string) => {
   return prisma.room.update({
     where: { id: roomId },
@@ -78,7 +83,8 @@ export const releaseRoom = async (roomId: string) => {
   })
 }
 
-// ดึง rooms พร้อม preparingDays เพื่อคำนวณ minMoveInDate
+// ดึงห้องทั้งหมดใน roomType พร้อม moveOutBills และ MOVE_OUT_NOTICE contracts
+// ใช้คำนวณ minMoveInDate — ว่าห้องจะพร้อมวันไหนเร็วสุด
 export const getRoomsForAvailabilityCheck = async (propertyId: string, roomTypeId: string) => {
   const [rooms, property] = await Promise.all([
     prisma.room.findMany({
@@ -101,7 +107,7 @@ export const getRoomsForAvailabilityCheck = async (propertyId: string, roomTypeI
   return { rooms, preparingDays: property?.preparingDays ?? 3 }
 }
 
-// ดึงการจองทั้งหมดของ user
+// ดึงการจองทั้งหมดของ user เรียงล่าสุดก่อน — ใช้แสดงหน้า "การจองของฉัน"
 export const getMyBookings = async (userId: string) => {
   return prisma.booking.findMany({
     where: { userId },

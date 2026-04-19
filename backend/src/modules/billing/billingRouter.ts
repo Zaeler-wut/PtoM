@@ -1,11 +1,20 @@
+// billingRouter.ts — กำหนด route สำหรับจัดการบิลและการชำระเงิน
+// ทุก route ต้องผ่าน authenticate → authorize("ADMIN") → authorizePropertyAdmin()
+// รับ request จาก web frontend ส่งต่อไปยัง billingService แล้วส่ง response กลับ
+
 import express from "express"
+// authenticate — ตรวจสอบ JWT token
 import { authenticate } from "../../middlewares/authenticate"
+// authorize — ตรวจสอบว่า role เป็น ADMIN
 import { authorize } from "../../middlewares/authorize"
+// authorizePropertyAdmin — ตรวจสอบว่า admin นี้ดูแลที่พักนี้จริง
 import { authorizePropertyAdmin } from "../../middlewares/authorizePropertyAdmin"
+// billingService — business logic ทั้งหมดของการออกบิลและชำระเงิน
 import * as service from "./billingService"
 
 const router = express.Router()
 
+// แปลง query string month/year เป็นตัวเลข และ validate ค่า
 function parseMonthYear(query: any): { month: number; year: number } {
   const month = parseInt(query.month)
   const year = parseInt(query.year)
@@ -14,8 +23,9 @@ function parseMonthYear(query: any): { month: number; year: number } {
   return { month, year }
 }
 
-// 1. Summary cards + ตาราง
-// GET /properties/:propertyId/billing/summary?month=3&year=2026
+// GET /api/admin/properties/:propertyId/billing/summary?month=3&year=2026 — ภาพรวมบิลเดือน
+// เรียก: billingService.getBillingSummary()
+// ส่งกลับ: summary cards (incomplete/sent/meterRecorded) และ array ของบิลทุกห้อง
 router.get(
   "/properties/:propertyId/billing/summary",
   authenticate,
@@ -37,9 +47,9 @@ router.get(
   }
 )
 
-// 2. ค่าบริการคงที่ของห้อง
-// GET /properties/:propertyId/billing/:contractId/fees
-
+// GET /api/admin/properties/:propertyId/billing/:contractId/fees — ดึงค่าบริการคงที่ของห้อง
+// เรียก: billingService.getRoomFees()
+// ส่งกลับ: roomNumber, fees array, total
 router.get(
   "/properties/:propertyId/billing/:contractId/fees",
   authenticate,
@@ -58,9 +68,10 @@ router.get(
   }
 )
 
-// 3. ใบแจ้งหนี้ (realtime)
-// GET /properties/:propertyId/billing/:contractId/invoice?month=3&year=2026
-
+// GET /api/admin/properties/:propertyId/billing/:contractId/invoice?month=3&year=2026 — ใบแจ้งหนี้ realtime
+// คำนวณจากมิเตอร์ปัจจุบันโดยไม่ต้องรอส่งบิล
+// เรียก: billingService.getInvoice()
+// ส่งกลับ: ข้อมูล property, ผู้เช่า, รายการค่าใช้จ่าย, ยอดรวม
 router.get(
   "/properties/:propertyId/billing/:contractId/invoice",
   authenticate,
@@ -82,9 +93,10 @@ router.get(
   }
 )
 
-// 4. แก้ไขมิเตอร์ + รายการเพิ่มเติม
-// PUT /properties/:propertyId/billing/:contractId/meter?month=3&year=2026
-// body: { waterMeter, electricMeter, additionalItems? }
+// PUT /api/admin/properties/:propertyId/billing/:contractId/meter?month=3&year=2026 — บันทึก/แก้ไขมิเตอร์
+// รับ: waterMeter, electricMeter, waterPrev?, electricPrev?, additionalItems?
+// เรียก: billingService.updateMeter()
+// ส่งกลับ: { message: "Meter updated" }
 router.put(
   "/properties/:propertyId/billing/:contractId/meter",
   authenticate,
@@ -107,8 +119,10 @@ router.put(
   }
 )
 
-// 5. ส่งบิลห้องเดียว
-// POST /properties/:propertyId/billing/:contractId/send?month=3&year=2026
+// POST /api/admin/properties/:propertyId/billing/:contractId/send?month=3&year=2026 — ส่งบิลห้องเดียว
+// สร้างหรืออัปเดตบิลเป็น PENDING เพื่อรอผู้เช่าชำระ
+// เรียก: billingService.sendBill()
+// ส่งกลับ: billId, total, status status 201
 router.post(
   "/properties/:propertyId/billing/:contractId/send",
   authenticate,
@@ -130,8 +144,9 @@ router.post(
   }
 )
 
-// 6. ส่งบิลทั้งหมด
-// POST /properties/:propertyId/billing/send-all?month=3&year=2026
+// POST /api/admin/properties/:propertyId/billing/send-all?month=3&year=2026 — ส่งบิลทุกห้องพร้อมกัน
+// เรียก: billingService.sendAllBills()
+// ส่งกลับ: total, success, failed count
 router.post(
   "/properties/:propertyId/billing/send-all",
   authenticate,
@@ -152,8 +167,10 @@ router.post(
   }
 )
 
-// อัพโหลดสลิปแทนผู้เช่า (admin)
-// POST /properties/:propertyId/billing/bills/:billId/payment
+// POST /api/admin/properties/:propertyId/billing/bills/:billId/payment — admin อัปโหลดสลิปแทนผู้เช่า
+// รับ: slipUrl จาก body
+// เรียก: billingService.submitPaymentByAdmin()
+// ส่งกลับ: { success: true }
 router.post(
   "/properties/:propertyId/billing/bills/:billId/payment",
   authenticate,
@@ -172,8 +189,9 @@ router.post(
   }
 )
 
-// ตรวจสอบการชำระเงิน
-// GET /properties/:propertyId/billing/payments?month=3&year=2026&status=VERIFYING
+// GET /api/admin/properties/:propertyId/billing/payments?month=3&year=2026&status=VERIFYING — รายการชำระเงิน
+// เรียก: billingService.getPayments()
+// ส่งกลับ: array ของ payment rows (รวม PENDING bills ที่ยังไม่มีสลิป)
 router.get(
   "/properties/:propertyId/billing/payments",
   authenticate,
@@ -195,8 +213,9 @@ router.get(
   }
 )
 
-// ดูข้อมูล payment
-// GET /properties/:propertyId/billing/payments/:paymentId
+// GET /api/admin/properties/:propertyId/billing/payments/:paymentId — ดูรายละเอียดการชำระเงิน
+// เรียก: billingService.getPaymentDetail()
+// ส่งกลับ: ข้อมูล payment พร้อม slipUrl, สถานะ
 router.get(
   "/properties/:propertyId/billing/payments/:paymentId",
   authenticate,
@@ -215,8 +234,10 @@ router.get(
   }
 )
 
-// ยืนยันการชำระเงิน → PAID
-// PATCH /properties/:propertyId/billing/payments/:paymentId/confirm
+// PATCH /api/admin/properties/:propertyId/billing/payments/:paymentId/confirm — ยืนยันการชำระเงิน
+// เปลี่ยนสถานะ payment เป็น CONFIRMED และบิลเป็น PAID
+// เรียก: billingService.confirmPayment()
+// ส่งกลับ: { message: "Payment confirmed" }
 router.patch(
   "/properties/:propertyId/billing/payments/:paymentId/confirm",
   authenticate,
@@ -236,8 +257,10 @@ router.patch(
   }
 )
 
-// ปฏิเสธการชำระเงิน → กลับเป็น PENDING
-// PATCH /properties/:propertyId/billing/payments/:paymentId/reject
+// PATCH /api/admin/properties/:propertyId/billing/payments/:paymentId/reject — ปฏิเสธการชำระเงิน
+// เปลี่ยนสถานะ payment เป็น REJECTED และบิลกลับเป็น PENDING
+// เรียก: billingService.rejectPayment()
+// ส่งกลับ: { message: "Payment rejected" }
 router.patch(
   "/properties/:propertyId/billing/payments/:paymentId/reject",
   authenticate,
@@ -256,7 +279,9 @@ router.patch(
   }
 )
 
-// GET /properties/:propertyId/billing/available-months
+// GET /api/admin/properties/:propertyId/billing/available-months — เดือนที่มีบิล
+// เรียก: billingService.getAvailableMonths()
+// ส่งกลับ: array ของ { month, year } ที่มีบิลในที่พักนี้
 router.get(
   "/properties/:propertyId/billing/available-months",
   authenticate,

@@ -1,3 +1,7 @@
+// billService.ts (mobile) — business logic สำหรับ billing module ฝั่ง mobile
+// รับข้อมูลจาก billRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ billRepository สำหรับ query database
+
 import * as repo from "./billRepository"
 import type {
   BillListResponse,
@@ -6,12 +10,14 @@ import type {
   SubmitPaymentResponse,
 } from "./billModel"
 
-// HELPERS
+// ชื่อเดือนภาษาไทยย่อ — ใช้ใน formatBillingPeriod
 const MONTH_TH = [
   "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
   "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค.",
 ]
 
+// แปลง month+year เป็นข้อความงวดบิลภาษาไทย เช่น "01 - 28 ก.พ. 2569"
+// startDay/endDay optional — ถ้าไม่ส่งใช้วันแรกและวันสุดท้ายของเดือน
 function formatBillingPeriod(
   month: number | null,
   year: number | null,
@@ -26,12 +32,15 @@ function formatBillingPeriod(
   return `${start.toString().padStart(2, "0")} - ${end.toString().padStart(2, "0")} ${m} ${y}`
 }
 
-// ทำความสะอาด title: ตัด " × ฿X" ออก
+// ตัด " × ฿X" ออกจาก item title — admin บันทึก rate ใน title แต่ mobile ไม่ต้องแสดง
 function cleanItemTitle(title: string): string {
   return title.replace(/ × ฿[\d.]+/g, "")
 }
 
-// 1. ดึงรายการบิลทั้งหมด
+// ดึงรายการบิลทั้งหมดของ user พร้อมยอดค้างชำระรวม
+// คำนวณ totalUnpaid จาก PENDING + VERIFYING
+// เรียก: billRepository.getBillsByUser()
+// ส่งกลับ: BillListResponse (totalUnpaid + bills[])
 export const getBills = async (userId: string): Promise<BillListResponse> => {
   const bills = await repo.getBillsByUser(userId)
 
@@ -41,6 +50,7 @@ export const getBills = async (userId: string): Promise<BillListResponse> => {
 
   const billCards = bills.map((bill) => {
     const property = bill.contract.room.property
+    // ทำความสะอาด title ก่อนส่งกลับ mobile
     const items = bill.items.map((i) => ({
       title: cleanItemTitle(i.title),
       amount: i.amount,
@@ -64,7 +74,10 @@ export const getBills = async (userId: string): Promise<BillListResponse> => {
   return { totalUnpaid, bills: billCards }
 }
 
-// 2. ดึงข้อมูลสำหรับหน้าชำระเงิน
+// ดึงข้อมูลสำหรับหน้าชำระเงิน — ราคา รายละเอียด และช่องทางชำระ
+// ตรวจสอบว่าบิลยังไม่ได้ชำระก่อนแสดง
+// เรียก: billRepository.getBillById()
+// ส่งกลับ: BillPaymentInfoResponse
 export const getBillPaymentInfo = async (
   billId: string,
   userId: string
@@ -89,12 +102,16 @@ export const getBillPaymentInfo = async (
   }
 }
 
-// 3. ดึงข้อมูลครบสำหรับ PDF
+// ดึงข้อมูลครบสำหรับ generate PDF invoice ใน mobile
+// รวมข้อมูลมิเตอร์เดือนนี้และเดือนก่อน เพื่อแสดงการใช้น้ำ/ไฟ
+// เรียก: billRepository.getBillDetailById(), getMeterReading(), getPreviousMeterReading()
+// ส่งกลับ: object พร้อม property, meter readings, issuerName
 export const getBillDetail = async (billId: string, userId: string) => {
   const bill = await repo.getBillDetailById(billId, userId)
   if (!bill) throw new Error("Bill not found")
 
   const property = bill.contract.room.property
+  // ดึงมิเตอร์ปัจจุบันและเดือนก่อนพร้อมกัน
   const [meter, prevMeter] = await Promise.all([
     repo.getMeterReading(bill.roomId, bill.month!, bill.year!),
     repo.getPreviousMeterReading(bill.roomId, bill.month!, bill.year!),
@@ -105,6 +122,7 @@ export const getBillDetail = async (billId: string, userId: string) => {
   const electricPrev = prevMeter?.electricMeter ?? 0
   const electricCurrent = meter?.electricMeter ?? 0
 
+  // วันที่ออกบิลในรูปแบบภาษาไทย เช่น "20 เมษายน พ.ศ. 2569"
   const today = new Date()
   const dateStr = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "long", year: "numeric" }).format(today)
 
@@ -128,6 +146,7 @@ export const getBillDetail = async (billId: string, userId: string) => {
     total: bill.total,
     meter: { waterPrev, waterCurrent, electricPrev, electricCurrent },
     dateStr,
+    // ชื่อ admin คนแรกที่ดูแล property — ใช้เป็น issuer ใน PDF
     issuerName: (() => {
       const admin = property.admins?.[0]?.user
       if (!admin) return ""
@@ -136,7 +155,10 @@ export const getBillDetail = async (billId: string, userId: string) => {
   }
 }
 
-// 4. ชำระเงิน + อัพโหลดสลิป
+// ส่งหลักฐานชำระเงิน — สร้าง payment + เปลี่ยนสถานะบิล PENDING → VERIFYING
+// ตรวจสอบว่าบิลยังไม่ PAID และยังไม่อยู่ระหว่าง VERIFYING
+// เรียก: billRepository.getBillById(), createPayment(), updateBillStatus()
+// ส่งกลับ: SubmitPaymentResponse (status = "VERIFYING")
 export const submitPayment = async (
   billId: string,
   userId: string,
@@ -157,7 +179,7 @@ export const submitPayment = async (
     slipUrl: data.slipUrl,
   })
 
-  // อัพเดท bill → VERIFYING
+  // เปลี่ยน bill เป็น VERIFYING หลังสร้าง payment สำเร็จ
   await repo.updateBillStatus(billId, "VERIFYING")
 
   const property = bill.contract.room.property

@@ -1,5 +1,11 @@
+// tenantRepository.ts — query database สำหรับ tenant module
+// ทุก function ติดต่อ Prisma โดยตรง ไม่มี business logic
+// ถูกเรียกใช้จาก tenantService.ts เท่านั้น
+
 import { prisma } from "../../lib/prisma"
 
+// ดึงผู้เช่าที่มีสัญญา ACTIVE หรือ MOVE_OUT_NOTICE ของที่พัก
+// เรียงจากวันที่เริ่มสัญญาล่าสุดก่อน
 export const getTenantsByProperty = async (propertyId: string) => {
   return prisma.contract.findMany({
     where: {
@@ -14,6 +20,7 @@ export const getTenantsByProperty = async (propertyId: string) => {
   })
 }
 
+// ดึงสัญญาเดี่ยวพร้อมข้อมูลผู้เช่าและยานพาหนะ — ใช้แสดงรายละเอียดและตรวจสอบก่อนอัปเดต
 export const getTenantDetail = async (contractId: string, propertyId: string) => {
   return prisma.contract.findFirst({
     where: { id: contractId, room: { propertyId } },
@@ -24,6 +31,7 @@ export const getTenantDetail = async (contractId: string, propertyId: string) =>
   })
 }
 
+// แทนที่ยานพาหนะทั้งหมดของ user — ลบของเก่าแล้วสร้างใหม่ทั้งหมด
 export const replaceVehicles = async (
   userId: string,
   vehicles: { plateNumber: string; type: string }[]
@@ -35,6 +43,7 @@ export const replaceVehicles = async (
   })
 }
 
+// อัปเดตข้อมูลส่วนตัว user — ใช้เมื่อ admin แก้ไขข้อมูลผู้เช่า
 export const updateUserInfo = async (
   userId: string,
   data: {

@@ -1,3 +1,7 @@
+// profileService.ts (mobile) — business logic สำหรับ profile module ฝั่ง mobile
+// รับข้อมูลจาก profileRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ profileRepository สำหรับ query database
+
 import * as repo from "./profileRepository"
 import type {
   ProfileResponse,
@@ -5,14 +9,14 @@ import type {
   UpdateProfileResponse,
 } from "./profileModel"
 
-
+// ดึงและ format ข้อมูลโปรไฟล์ tenant
+// เรียก: profileRepository.getUserProfile()
+// ส่งกลับ: ProfileResponse (ข้อมูลส่วนตัว + ห้องปัจจุบัน + สรุปบิล)
 export const getProfile = async (userId: string): Promise<ProfileResponse> => {
   const user = await repo.getUserProfile(userId)
   if (!user) throw new Error("User not found")
 
-  console.log("[profile] contracts found:", user.contracts.length, user.contracts.map(c => ({ id: c.id, status: c.status, room: c.room.roomNumber })))
-
-  // ห้องปัจจุบันทั้งหมด (อาจมีหลายห้องหลายที่)
+  // map contract ทุกตัวเป็น CurrentRoomInfo — รวม monthlyRent จาก roomPrice + furniturePrice
   const currentRooms = user.contracts.map((contract) => {
     const rt = contract.room.roomType
     return {
@@ -27,7 +31,7 @@ export const getProfile = async (userId: string): Promise<ProfileResponse> => {
     }
   })
 
-  // สรุปบิล
+  // นับบิลแต่ละสถานะ — unpaid = PENDING + VERIFYING รวมกัน
   const total = user.bills.length
   const paid = user.bills.filter((b) => b.status === "PAID").length
   const unpaid = user.bills.filter(
@@ -46,6 +50,9 @@ export const getProfile = async (userId: string): Promise<ProfileResponse> => {
   }
 }
 
+// อัพเดทข้อมูลส่วนตัว — validate ก่อนบันทึก
+// เรียก: profileRepository.updateUserProfile()
+// ส่งกลับ: UpdateProfileResponse (id, firstName, lastName, phone)
 export const updateProfile = async (
   userId: string,
   data: UpdateProfileInput

@@ -1,6 +1,10 @@
+// superadminRepository.ts — query database สำหรับ superadmin module
+// ทุก function ติดต่อ Prisma โดยตรง ไม่มี business logic
+// ถูกเรียกใช้จาก superadminService.ts เท่านั้น
+
 import { prisma } from "../../lib/prisma"
 
-// ── Dashboard ────────────────────────────────────────────────
+// ดึงสถิติภาพรวมทั้งระบบ — นับด้วย Promise.all เพื่อประสิทธิภาพ
 export const getDashboardStats = async () => {
   const [totalAdmins, activeAdmins, totalUsers, totalProperties, totalRooms] =
     await Promise.all([
@@ -11,6 +15,7 @@ export const getDashboardStats = async () => {
       prisma.room.count(),
     ])
 
+  // นับ admin ที่สมัครในเดือนปัจจุบัน (ตั้งแต่วันที่ 1 ของเดือน)
   const newThisMonth = await prisma.user.count({
     where: {
       role: "ADMIN",
@@ -21,7 +26,7 @@ export const getDashboardStats = async () => {
   return { totalAdmins, activeAdmins, totalUsers, totalProperties, totalRooms, newThisMonth }
 }
 
-// ── Admins ───────────────────────────────────────────────────
+// ดึง admin ทั้งหมด พร้อม propertyLimit และที่พักที่ดูแลอยู่
 export const getAllAdmins = async () => {
   return prisma.user.findMany({
     where: { role: "ADMIN" },
@@ -42,6 +47,7 @@ export const getAllAdmins = async () => {
   })
 }
 
+// สร้าง admin ใหม่พร้อม adminLimit — ใช้ nested create
 export const createAdmin = async (data: {
   firstName: string
   lastName: string
@@ -68,6 +74,7 @@ export const createAdmin = async (data: {
   })
 }
 
+// แก้ไข propertyLimit ของ admin — upsert เผื่อกรณียังไม่มี adminLimit record
 export const updateAdminLimit = async (userId: string, propertyLimit: number) => {
   return prisma.adminLimit.upsert({
     where: { userId },
@@ -76,6 +83,7 @@ export const updateAdminLimit = async (userId: string, propertyLimit: number) =>
   })
 }
 
+// เปิด/ปิดการใช้งาน user — ใช้ได้ทั้ง admin และ user ทั่วไป
 export const setUserStatus = async (userId: string, isActive: boolean) => {
   return prisma.user.update({
     where: { id: userId },
@@ -84,6 +92,7 @@ export const setUserStatus = async (userId: string, isActive: boolean) => {
   })
 }
 
+// อัปเดต password ที่ hash แล้ว — เรียกหลัง superadminService hash เสร็จ
 export const resetPassword = async (userId: string, hashedPassword: string) => {
   return prisma.user.update({
     where: { id: userId },
@@ -91,6 +100,7 @@ export const resetPassword = async (userId: string, hashedPassword: string) => {
   })
 }
 
+// ดึง user ด้วย id — ใช้ตรวจสอบว่ามีอยู่ก่อนดำเนินการ (ไม่รวม password)
 export const findUserById = async (id: string) => {
   return prisma.user.findUnique({
     where: { id },
@@ -98,6 +108,7 @@ export const findUserById = async (id: string) => {
   })
 }
 
+// ดึง user พร้อม password hash — ใช้ตรวจสอบ password ของ SUPERADMIN ก่อนลบ
 export const findUserPasswordById = async (id: string) => {
   return prisma.user.findUnique({
     where: { id },
@@ -105,6 +116,9 @@ export const findUserPasswordById = async (id: string) => {
   })
 }
 
+// ลบ user และข้อมูลที่เกี่ยวข้องทั้งหมดใน transaction เดียว
+// ลบตามลำดับ FK: payment → billItem → bill → moveOutBillItem → moveOutBill →
+//               contract → booking → vehicle → refreshToken → adminLimit → propertyAdmin → user
 export const deleteUser = async (id: string) => {
   return prisma.$transaction(async (tx) => {
     const bills = await tx.bill.findMany({ where: { userId: id }, select: { id: true } })
@@ -128,7 +142,7 @@ export const deleteUser = async (id: string) => {
   })
 }
 
-// ── Properties ───────────────────────────────────────────────
+// ดึงที่พักทั้งหมด พร้อมจำนวนห้องและ admin ที่ดูแล
 export const getAllProperties = async () => {
   return prisma.property.findMany({
     orderBy: { createdAt: "desc" },
@@ -149,7 +163,7 @@ export const getAllProperties = async () => {
   })
 }
 
-// ── Users (Support) ──────────────────────────────────────────
+// ค้นหา user (role=USER) จาก email, ชื่อ หรือนามสกุล — case insensitive, จำกัด 30 รายการ
 export const searchUsers = async (q: string) => {
   return prisma.user.findMany({
     where: {

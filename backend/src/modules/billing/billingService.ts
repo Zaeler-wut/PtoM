@@ -1,10 +1,17 @@
+// billingService.ts — business logic สำหรับ billing module
+// รับข้อมูลจาก billingRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ billingRepository สำหรับ query database
+
 import * as repo from "./billingRepository"
 
+// คืนค่าจำนวนวันในเดือน/ปีที่ระบุ
 function getDaysInMonth(month: number, year: number) {
   return new Date(year, month, 0).getDate()
 }
 
-// คำนวณจำนวนวันที่อยู่ในเดือนนั้น (กรณีเข้า/ออกกลางเดือน)
+// คำนวณจำนวนวันที่ผู้เช่าอยู่ในเดือนนั้นจริง
+// กรณีเข้า/ออกกลางเดือน จะเฉลี่ยค่าเช่าตามสัดส่วนวัน
+// ส่งกลับ: days, daysInMonth, isFullMonth, startDay, endDay
 function getBillingDays(
   contract: { startDate: Date; endDate: Date },
   month: number,
@@ -21,7 +28,7 @@ function getBillingDays(
   const monthStart = new Date(year, month - 1, 1)
   const monthEnd = new Date(year, month - 1, daysInMonth)
 
-  // เดือนปัจจุบันที่ยังไม่จบ  ใช้วันนี้เป็น effective end
+  // เดือนปัจจุบันที่ยังไม่จบ ใช้วันนี้เป็น effective end
   const billingEnd = isCurrentMonth && today < monthEnd ? today : monthEnd
 
   const contractStart = normalize(contract.startDate)
@@ -47,7 +54,9 @@ function getBillingDays(
   }
 }
 
-// คำนวณยอดบิลจากข้อมูลที่มี
+// คำนวณยอดบิลทั้งหมดจากข้อมูลที่มี
+// เต็มเดือน: คิดราคารายเดือนปกติ | ไม่เต็มเดือน: เฉลี่ยตามสัดส่วน (days/30)
+// ส่งกลับ: roomRent, furnitureRent, total, items array พร้อมรายละเอียด
 function calculateBill(data: {
   roomPrice: number
   furniturePrice?: number | null
@@ -61,8 +70,6 @@ function calculateBill(data: {
   daysInMonth: number
   isFullMonth: boolean
 }) {
-  // เต็มเดือน  คิดราคารายเดือนปกติ
-  // ไม่เต็มเดือน เฉลี่ยรายวัน (นับรวมวันแรก)
   const ratio = data.days / 30
 
   const roomRent = data.isFullMonth
@@ -108,13 +115,17 @@ function calculateBill(data: {
   return { roomRent, furnitureRent, total, items }
 }
 
-
+// ดึงภาพรวมบิลเดือนที่ระบุ — สำหรับแสดงตารางและ summary cards
+// เดือนปัจจุบัน: เฉพาะสัญญา ACTIVE/MOVE_OUT_NOTICE | เดือนที่ผ่านมา: รวม ENDED ด้วย
+// คำนวณ billStatus จาก DB: ถ้ายังไม่ส่งบิล → DRAFT (ไม่มีมิเตอร์) หรือ READY (มีมิเตอร์แล้ว)
+// เรียก: billingRepository หลายฟังก์ชัน
+// ส่งกลับ: summary object และ bills array เรียงตามเลขห้อง
 export const getBillingSummary = async (
   propertyId: string,
   month: number,
   year: number
 ) => {
-  // เดือนปัจจุบัน  active only | เดือนที่ผ่านมา  รวม ENDED (แสดงบิลย้อนหลัง)
+  // เดือนปัจจุบัน active only | เดือนที่ผ่านมา รวม ENDED (แสดงบิลย้อนหลัง)
   const now = new Date()
   const isCurrentMonth = now.getFullYear() === year && now.getMonth() === month - 1
   const contracts = await repo.getContractsByPropertyForMonth(propertyId, month, year, isCurrentMonth)
@@ -161,7 +172,7 @@ export const getBillingSummary = async (
 
       estimatedRevenue += total
 
-      // ไม่มี bill ใน DB  DRAFT (ยังไม่ครบ) หรือ READY (กรอกมิเตอร์ครบแล้ว พร้อมส่ง)
+      // ไม่มี bill ใน DB: DRAFT (ยังไม่ครบ) หรือ READY (กรอกมิเตอร์ครบแล้ว พร้อมส่ง)
       const billStatus = existingBill?.status ?? (hasMeter ? "READY" : "DRAFT")
 
       return {
@@ -211,10 +222,9 @@ export const getBillingSummary = async (
   }
 }
 
-
-// 2. ค่าบริการคงที่ของห้อง
-
-
+// ดึงค่าบริการคงที่ของห้อง (fees ที่ผูกกับ roomType)
+// เรียก: prisma_getContract(), billingRepository ไม่มี (query inline)
+// ส่งกลับ: roomNumber, fees array, total
 export const getRoomFees = async (contractId: string, propertyId: string) => {
   const contract = await prisma_getContract(contractId, propertyId)
   if (!contract) throw new Error("Contract not found")
@@ -229,6 +239,7 @@ export const getRoomFees = async (contractId: string, propertyId: string) => {
   }
 }
 
+// helper query สัญญาพร้อม fees — ใช้ภายใน service เท่านั้น
 async function prisma_getContract(contractId: string, propertyId: string) {
   const { prisma } = await import("../../lib/prisma")
   return prisma.contract.findFirst({
@@ -242,10 +253,10 @@ async function prisma_getContract(contractId: string, propertyId: string) {
   })
 }
 
-
-// 3. ใบแจ้งหนี้ (realtime ไม่ต้องรอส่งบิล)
-
-
+// สร้างใบแจ้งหนี้ realtime — คำนวณจากมิเตอร์ปัจจุบัน ไม่ต้องรอส่งบิล
+// ดึง additionalItems จากบิลที่มีอยู่ (ถ้ามี) เพื่อแสดงรายการพิเศษ
+// เรียก: billingRepository หลายฟังก์ชัน
+// ส่งกลับ: ข้อมูล property, ผู้เช่า, รายการค่าใช้จ่าย, ยอดรวม, ข้อมูลมิเตอร์
 export const getInvoice = async (
   contractId: string,
   propertyId: string,
@@ -281,7 +292,7 @@ export const getInvoice = async (
 
   const extraFees = rt.fees.map((f) => ({ title: f.title, amount: f.amount }))
 
-  // ดึงรายการเพิ่มเติมจาก bill ที่มีอยู่ (ถ้ามี)
+  // ดึงรายการเพิ่มเติมจาก bill ที่มีอยู่ (ถ้ามี) — กรองเฉพาะ items ที่ไม่ใช่รายการหลัก
   const existingBill = await repo.getBillByContract(contractId, month, year)
   const additionalItems =
     existingBill?.items
@@ -320,7 +331,7 @@ export const getInvoice = async (
   ]
 
   const beYear = year + 543
-  const beYearShort = beYear % 100  // e.g. 2569  69
+  const beYearShort = beYear % 100
 
   let billingPeriod: string
   if (isFullMonth) {
@@ -331,7 +342,6 @@ export const getInvoice = async (
   }
 
   return {
-    // ข้อมูล property
     property: {
       name: property.name,
       address: property.address,
@@ -342,16 +352,13 @@ export const getInvoice = async (
       logoUrl: property.logoUrl,
       billNote: property.billNote ?? null,
     },
-    // ข้อมูลบิล
     roomNumber: contract.room.roomNumber,
     roomType: rt.name,
     tenantName: `${contract.user.firstName} ${contract.user.lastName}`,
     billingPeriod,
     billingCycle: isFullMonth ? `เต็มเดือน (${daysInMonth} วัน)` : `${startDay}-${endDay} (${days} วัน)`,
-    // รายการ
     items,
     total,
-    // มิเตอร์
     meter: {
       waterPrev,
       waterCurrent,
@@ -363,10 +370,10 @@ export const getInvoice = async (
   }
 }
 
-
-// 4. แก้ไขมิเตอร์ + รายการเพิ่มเติม
-
-
+// บันทึก/แก้ไขมิเตอร์ — upsert เดือนปัจจุบัน และเดือนก่อนหน้า (ถ้าส่งมา)
+// ถ้ามีบิลอยู่แล้วให้อัปเดต additionalItems ด้วย (replace ทั้งหมด)
+// เรียก: billingRepository.upsertMeterReading(), getBillByContract()
+// ส่งกลับ: { message: "Meter updated" }
 export const updateMeter = async (
   contractId: string,
   propertyId: string,
@@ -387,13 +394,13 @@ export const updateMeter = async (
   if (data.electricMeter < 0)
     throw new Error("electricMeter must not be negative")
 
-  // บันทึก/อัพเดทมิเตอร์เดือนปัจจุบัน
+  // บันทึก/อัปเดตมิเตอร์เดือนปัจจุบัน
   await repo.upsertMeterReading(contract.roomId, month, year, {
     waterMeter: data.waterMeter,
     electricMeter: data.electricMeter,
   })
 
-  // บันทึก/อัพเดทมิเตอร์เดือนก่อนหน้า (ถ้ามี)
+  // บันทึก/อัปเดตมิเตอร์เดือนก่อนหน้า (ถ้ามีส่งมา)
   if (data.waterPrev != null || data.electricPrev != null) {
     const prevMonth = month === 1 ? 12 : month - 1
     const prevYear = month === 1 ? year - 1 : year
@@ -404,11 +411,11 @@ export const updateMeter = async (
     })
   }
 
-  // ถ้ามี bill อยู่แล้ว  อัพเดท items ใหม่
+  // ถ้ามี bill อยู่แล้ว → อัปเดต additionalItems ใหม่ (ลบเก่า สร้างใหม่)
   const existingBill = await repo.getBillByContract(contractId, month, year)
   if (existingBill && Array.isArray(data.additionalItems)) {
     const { prisma } = await import("../../lib/prisma")
-    // ลบ additional items เดิม (เก็บเฉพาะ items หลัก)
+    // ลบ additional items เดิม (เก็บเฉพาะ items หลักไว้)
     await prisma.billItem.deleteMany({
       where: {
         billId: existingBill.id,
@@ -435,10 +442,11 @@ export const updateMeter = async (
   return { message: "Meter updated" }
 }
 
-
-// 5. ส่งบิลห้องเดียว
-
-
+// ส่งบิลห้องเดียว — สร้างหรืออัปเดตบิลเป็น PENDING
+// ถ้ามีบิลอยู่แล้ว → เพียงเปลี่ยน status เป็น PENDING
+// ถ้ายังไม่มีบิล → สร้างใหม่พร้อม items
+// เรียก: billingRepository หลายฟังก์ชัน
+// ส่งกลับ: billId, total, status
 export const sendBill = async (
   contractId: string,
   propertyId: string,
@@ -472,6 +480,7 @@ export const sendBill = async (
   const extraFees = rt.fees.map((f) => ({ title: f.title, amount: f.amount }))
   const existingBill = await repo.getBillByContract(contractId, month, year)
 
+  // กรอง additionalItems จากบิลเดิม (ไม่รวมรายการหลัก)
   const additionalItems =
     existingBill?.items
       .filter(
@@ -498,7 +507,7 @@ export const sendBill = async (
   })
 
   if (existingBill) {
-    // มีบิลแล้ว  เปลี่ยนเป็น PENDING
+    // มีบิลแล้ว → เปลี่ยนเป็น PENDING
     await repo.updateBillStatus(existingBill.id, "PENDING")
     return { billId: existingBill.id, total, status: "PENDING" }
   }
@@ -519,10 +528,9 @@ export const sendBill = async (
   return { billId: bill.id, total, status: "PENDING" }
 }
 
-
-// 6. ส่งบิลทั้งหมด
-
-
+// ส่งบิลทุกห้องพร้อมกัน — ใช้ Promise.allSettled เพื่อไม่ให้ห้องที่ส่งไม่ได้หยุด loop
+// เรียก: billingRepository.getActiveContractsByProperty(), billingService.sendBill()
+// ส่งกลับ: total, success, failed count
 export const sendAllBills = async (
   propertyId: string,
   month: number,
@@ -544,10 +552,9 @@ export const sendAllBills = async (
   }
 }
 
-
-// 7. อัพโหลดสลิปแทนผู้เช่า (admin)
-
-
+// admin อัปโหลดสลิปแทนผู้เช่า — ตรวจสอบ bill PENDING แล้วสร้าง payment record
+// เรียก: billingRepository.createPaymentForBill(), updateBillStatus()
+// ส่งกลับ: { success: true }
 export const submitPaymentByAdmin = async (
   billId: string,
   propertyId: string,
@@ -570,10 +577,10 @@ export const submitPaymentByAdmin = async (
   return { success: true }
 }
 
-
-// 8. ตรวจสอบการชำระเงิน
-
-
+// ดึงรายการชำระเงิน — รวม PENDING bills ที่ยังไม่มีสลิปแสดงเป็น row ด้วย
+// กรอง statusFilter ถ้ามี (PENDING/VERIFYING/CONFIRMED/REJECTED)
+// เรียก: billingRepository.getPaymentsByProperty(), getPendingBillsWithoutPayment()
+// ส่งกลับ: array ของ payment rows รวมทั้งสองกลุ่ม
 export const getPayments = async (
   propertyId: string,
   month: number,
@@ -585,7 +592,7 @@ export const getPayments = async (
     repo.getPendingBillsWithoutPayment(propertyId, month, year),
   ])
 
-  // บิล PENDING (ส่งแล้ว รอผู้เช่าชำระ)  แสดงเป็นแถวใน payment tab
+  // บิล PENDING (ส่งแล้ว รอผู้เช่าชำระ) แสดงเป็นแถวใน payment tab
   const pendingRows = pendingBills.map((b) => ({
     paymentId: b.id,          // ใช้ billId แทน (ไม่มี payment record)
     roomNumber: b.room.roomNumber,
@@ -612,10 +619,9 @@ export const getPayments = async (
   return filtered
 }
 
-
-// 8. ดูข้อมูล payment (popup)
-
-
+// ดูรายละเอียด payment เดี่ยว — ตรวจสอบว่าอยู่ใน property นี้ก่อนส่งกลับ
+// เรียก: billingRepository.getPaymentById()
+// ส่งกลับ: paymentId, roomNumber, roomType, amount, slipUrl, paidAt, status
 export const getPaymentDetail = async (
   paymentId: string,
   propertyId: string
@@ -628,7 +634,6 @@ export const getPaymentDetail = async (
     throw new Error("Payment not found")
   }
 
-  // ดึงข้อมูล verified by (admin ที่ยืนยัน) — ดูจาก updatedAt และ status
   return {
     paymentId: payment.id,
     roomNumber: payment.bill.room.roomNumber,
@@ -637,14 +642,13 @@ export const getPaymentDetail = async (
     slipUrl: payment.slipUrl,
     paidAt: payment.createdAt,
     status: payment.status,
-    // verifiedAt และ verifiedBy จะเพิ่มได้เมื่อ schema มี field นี้
   }
 }
 
-
-// 9. ยืนยันการชำระเงิน  PAID
-
-
+// ยืนยันการชำระเงิน — เปลี่ยน payment เป็น CONFIRMED และบิลเป็น PAID
+// บันทึก verifiedAt และ verifiedBy (email ของ admin ที่ยืนยัน)
+// เรียก: billingRepository.updatePaymentConfirmed(), updateBillStatus()
+// ส่งกลับ: { message: "Payment confirmed" }
 export const confirmPayment = async (
   paymentId: string,
   propertyId: string,
@@ -659,19 +663,17 @@ export const confirmPayment = async (
     throw new Error("Payment is not in VERIFYING status")
   }
 
-  // อัพเดท payment  CONFIRMED พร้อม verifiedAt และ verifiedBy
+  // อัปเดต payment เป็น CONFIRMED พร้อม verifiedAt และ verifiedBy
   await repo.updatePaymentConfirmed(paymentId, adminEmail)
-
-  // อัพเดท bill  PAID
+  // อัปเดต bill เป็น PAID
   await repo.updateBillStatus(payment.billId, "PAID")
 
   return { message: "Payment confirmed" }
 }
 
-
-// 10. ปฏิเสธการชำระเงิน  กลับเป็น PENDING
-
-
+// ปฏิเสธการชำระเงิน — เปลี่ยน payment เป็น REJECTED และบิลกลับเป็น PENDING
+// เรียก: billingRepository.updatePaymentStatus(), updateBillStatus()
+// ส่งกลับ: { message: "Payment rejected" }
 export const rejectPayment = async (
   paymentId: string,
   propertyId: string
@@ -685,15 +687,16 @@ export const rejectPayment = async (
     throw new Error("Payment is not in VERIFYING status")
   }
 
-  // อัพเดท payment  REJECTED
+  // อัปเดต payment เป็น REJECTED และบิลกลับเป็น PENDING
   await repo.updatePaymentStatus(paymentId, "REJECTED")
-
-  // อัพเดท bill  กลับเป็น PENDING
   await repo.updateBillStatus(payment.billId, "PENDING")
 
   return { message: "Payment rejected" }
 }
 
+// ดึงเดือนที่มีบิลในที่พักนี้ — ใช้สำหรับ dropdown เลือกเดือน
+// เรียก: billingRepository.getAvailableBillingMonths()
+// ส่งกลับ: array ของ { month, year } distinct เรียงจากล่าสุด
 export const getAvailableMonths = async (propertyId: string) => {
   return repo.getAvailableBillingMonths(propertyId)
 }

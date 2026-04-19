@@ -1,5 +1,10 @@
+// bookingService.ts (mobile) — business logic สำหรับ booking module ฝั่ง mobile
+// รับข้อมูลจาก bookingRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ bookingRepository สำหรับ query database
+
 import * as repo from "./bookingRepository"
 
+// แปลง Date เป็น YYYY-MM-DD timezone กรุงเทพ (ป้องกัน UTC offset ทำให้วันคลาดเคลื่อน)
 const toBkk = (d: Date) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(d)
 import type {
@@ -9,8 +14,10 @@ import type {
   CancelBookingResponse,
 } from "./bookingModel"
 
-// 1. ดึงข้อมูลสำหรับหน้าจอง
-
+// ดึงข้อมูลสำหรับแสดงหน้าก่อนจอง — ราคา ช่องทางชำระ และช่วงวันที่เข้าอยู่ได้
+// คำนวณ minMoveInDate: ถ้าไม่มีห้อง AVAILABLE ให้ใช้วันที่ห้องพร้อมเร็วสุด (PREPARING/MOVE_OUT_NOTICE + preparingDays)
+// เรียก: bookingRepository.getBookingInfo(), getRoomsForAvailabilityCheck()
+// ส่งกลับ: BookingInfoResponse
 export const getBookingInfo = async (
   propertyId: string,
   roomTypeId: string
@@ -27,8 +34,7 @@ export const getBookingInfo = async (
   const maxDate = new Date(today)
   maxDate.setDate(maxDate.getDate() + 45)
 
-  // ถ้าไม่มีห้อง AVAILABLE เลย แต่มีห้อง PREPARING/MOVE_OUT_NOTICE
-  // → minMoveInDate คือวันที่ห้องจะพร้อมเร็วสุด
+  // ถ้าไม่มีห้อง AVAILABLE เลย → หาวันที่ห้องพร้อมเร็วสุดจาก PREPARING/OCCUPIED
   const hasAvailableNow = rooms.some(r => r.status === "AVAILABLE")
 
   let minMoveInDate: Date
@@ -41,7 +47,7 @@ export const getBookingInfo = async (
       if (room.status === "PREPARING") {
         const moveOut = room.moveOutBills[0]
         if (!moveOut) {
-          readyDate = new Date(today)  // พร้อมแล้ว
+          readyDate = new Date(today)  // พร้อมแล้ว (ไม่มี moveOutBill)
         } else {
           readyDate = new Date(moveOut.moveOutDate)
           readyDate.setDate(readyDate.getDate() + preparingDays)
@@ -59,7 +65,7 @@ export const getBookingInfo = async (
       }
     }
 
-    // ใช้วันที่พร้อมเร็วสุด (แต่ไม่น้อยกว่าพรุ่งนี้)
+    // ใช้วันที่พร้อมเร็วสุด แต่ไม่น้อยกว่าพรุ่งนี้
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
     minMoveInDate = earliestReady && earliestReady > tomorrow ? earliestReady : tomorrow
@@ -86,8 +92,10 @@ export const getBookingInfo = async (
   }
 }
 
-// 2. สร้าง booking
-
+// สร้างการจองใหม่ — validate moveInDate อยู่ในช่วง [minMoveInDate, +45วัน]
+// คำนวณ minMoveInDate ใหม่อีกครั้งเพื่อป้องกัน race condition จากหน้า getBookingInfo
+// เรียก: bookingRepository.getBookingInfo(), getRoomsForAvailabilityCheck(), createBooking(), getBookingById()
+// ส่งกลับ: CreateBookingResponse
 export const createBooking = async (
   propertyId: string,
   roomTypeId: string,
@@ -101,14 +109,13 @@ export const createBooking = async (
   if (isNaN(moveInDate.getTime())) throw new Error("moveInDate is invalid")
   moveInDate.setHours(0, 0, 0, 0)
 
-  // ดึง roomType + คำนวณ minMoveInDate ตาม availability จริง
+  // ดึง roomType + คำนวณ minMoveInDate ตาม availability จริง ณ เวลาที่สร้าง
   const [rt, { rooms, preparingDays }] = await Promise.all([
     repo.getBookingInfo(propertyId, roomTypeId),
     repo.getRoomsForAvailabilityCheck(propertyId, roomTypeId),
   ])
   if (!rt) throw new Error("RoomType not found or not available for online booking")
 
-  // คำนวณ minMoveInDate: ถ้าไม่มีห้อง AVAILABLE → ใช้วันที่ห้องพร้อมเร็วสุด
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1)
   const maxDate = new Date(today); maxDate.setDate(maxDate.getDate() + 45)
@@ -144,7 +151,7 @@ export const createBooking = async (
     slipUrl: data.slipUrl,
   })
 
-  // ดึงข้อมูลครบสำหรับ response
+  // ดึงข้อมูลครบสำหรับ response (property name, roomType name, user name)
   const full = await repo.getBookingById(booking.id)
   if (!full) throw new Error("Booking not found")
 
@@ -162,8 +169,11 @@ export const createBooking = async (
   }
 }
 
-// 3. ยกเลิก booking
-
+// ยกเลิกการจอง — ตรวจสอบสิทธิ์และสถานะก่อนยกเลิก
+// ยกเลิกได้เฉพาะ PENDING และ CONFIRMED เท่านั้น
+// ถ้ามี roomId (admin assign แล้ว) → คืนห้องเป็น AVAILABLE ด้วย
+// เรียก: bookingRepository.getBookingById(), cancelBooking(), releaseRoom()
+// ส่งกลับ: CancelBookingResponse
 export const cancelBooking = async (
   bookingId: string,
   userId: string
@@ -171,16 +181,14 @@ export const cancelBooking = async (
   const booking = await repo.getBookingById(bookingId)
   if (!booking) throw new Error("Booking not found")
 
-  // เช็คว่าเป็น booking ของ user นี้
   if (booking.userId !== userId) throw new Error("Unauthorized")
 
-  // ยกเลิกได้เฉพาะ PENDING เท่านั้น
   if (booking.status === "CANCELLED") throw new Error("Booking is already cancelled")
   if (booking.status === "CHECKED_IN") throw new Error("Cannot cancel checked-in booking")
 
   await repo.cancelBooking(bookingId)
 
-  // คืนห้องถ้ามีการ assign แล้ว
+  // คืนห้องถ้า admin assign ไปแล้ว
   if (booking.roomId) {
     await repo.releaseRoom(booking.roomId)
   }
@@ -192,14 +200,17 @@ export const cancelBooking = async (
   }
 }
 
-// 4. ดึงรายการจองของฉัน (แท็บการจอง)
-
+// ดึงการจองทั้งหมดของ user พร้อม derive สถานะ CHECKED_IN
+// CONFIRMED + มีสัญญาผูกอยู่ → แสดงเป็น CHECKED_IN (สัญญาเริ่มแล้ว)
+// เรียก: bookingRepository.getMyBookings(), getContractsByUser()
+// ส่งกลับ: MyBookingItem[]
 export const getMyBookings = async (userId: string) => {
   const [bookings, userContracts] = await Promise.all([
     repo.getMyBookings(userId),
     repo.getContractsByUser(userId),
   ])
   return bookings.map((b) => {
+    // ตรวจว่า booking นี้มีสัญญาแล้วหรือไม่ (ผ่าน bookingId หรือ roomId ตรงกัน)
     const hasContract = !!b.contract || userContracts.some(
       (c) => c.bookingId === b.id || (b.roomId !== null && c.roomId === b.roomId)
     )

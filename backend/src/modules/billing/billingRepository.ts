@@ -1,6 +1,10 @@
+// billingRepository.ts — query database สำหรับ billing module
+// ทุก function ติดต่อ Prisma โดยตรง ไม่มี business logic
+// ถูกเรียกใช้จาก billingService.ts เท่านั้น
+
 import { prisma } from "../../lib/prisma"
 
-// ดึงสัญญา active ในเดือนนั้นๆ (สำหรับ sendAll ที่ต้องการเฉพาะปัจจุบัน)
+// ดึงสัญญา ACTIVE/MOVE_OUT_NOTICE ทั้งหมด — ใช้สำหรับ sendAllBills
 export const getActiveContractsByProperty = async (propertyId: string) => {
   return prisma.contract.findMany({
     where: {
@@ -15,8 +19,8 @@ export const getActiveContractsByProperty = async (propertyId: string) => {
 }
 
 // ดึงสัญญาที่ overlap กับเดือน/ปีที่ระบุ
-// activeOnly=true  เฉพาะ ACTIVE/MOVE_OUT_NOTICE (ใช้กับเดือนปัจจุบัน)
-// activeOnly=false  รวม ENDED ด้วย (ใช้กับเดือนที่ผ่านมา เพื่อแสดงบิลย้อนหลัง)
+// activeOnly=true: เฉพาะ ACTIVE/MOVE_OUT_NOTICE (ใช้กับเดือนปัจจุบัน)
+// activeOnly=false: รวม ENDED ด้วย (ใช้กับเดือนที่ผ่านมา เพื่อแสดงบิลย้อนหลัง)
 export const getContractsByPropertyForMonth = async (
   propertyId: string,
   month: number,
@@ -41,7 +45,7 @@ export const getContractsByPropertyForMonth = async (
   })
 }
 
-// ดึงข้อมูล มิเตอร์ที่อ่านได้
+// ดึงมิเตอร์น้ำ-ไฟที่บันทึกไว้สำหรับเดือน/ปีที่ระบุ
 export const getMeterReading = async (
   roomId: string,
   month: number,
@@ -53,7 +57,7 @@ export const getMeterReading = async (
   })
 }
 
-// มิเตอร์เดือนก่อนหน้า
+// ดึงมิเตอร์เดือนก่อนหน้า — ใช้คำนวณปริมาณการใช้ (current - previous)
 export const getPreviousMeterReading = async (
   roomId: string,
   month: number,
@@ -66,6 +70,7 @@ export const getPreviousMeterReading = async (
   })
 }
 
+// สร้างหรืออัปเดตมิเตอร์ (upsert) — ใช้เมื่อ admin กรอกหรือแก้ไขค่ามิเตอร์
 export const upsertMeterReading = async (
   roomId: string,
   month: number,
@@ -88,7 +93,7 @@ export const upsertMeterReading = async (
   })
 }
 
-// บิล
+// ดึงบิลของ contract เดือนนั้น พร้อม items และ payments
 export const getBillByContract = async (
   contractId: string,
   month: number,
@@ -100,6 +105,7 @@ export const getBillByContract = async (
   })
 }
 
+// ดึงบิลทั้งหมดของที่พักในเดือนนั้น — ใช้สร้าง billMap ใน getBillingSummary
 export const getBillsByProperty = async (
   propertyId: string,
   month: number,
@@ -121,6 +127,7 @@ export const getBillsByProperty = async (
   })
 }
 
+// สร้างบิลใหม่พร้อม items — status เริ่มต้นเป็น PENDING
 export const createBill = async (data: {
   contractId: string
   roomId: string
@@ -154,6 +161,8 @@ export const createBill = async (data: {
   })
 }
 
+// สร้าง payment record — เรียกเมื่อผู้เช่าหรือ admin อัปโหลดสลิป
+// status เริ่มต้นเป็น VERIFYING รอ admin ยืนยัน
 export const createPaymentForBill = async (data: {
   billId: string
   userId: string
@@ -171,6 +180,7 @@ export const createPaymentForBill = async (data: {
   })
 }
 
+// เปลี่ยนสถานะบิล — ใช้เมื่อส่งบิล (PENDING), ยืนยัน (PAID), หรือปฏิเสธ (กลับ PENDING)
 export const updateBillStatus = async (billId: string, status: string) => {
   return prisma.bill.update({
     where: { id: billId },
@@ -178,6 +188,7 @@ export const updateBillStatus = async (billId: string, status: string) => {
   })
 }
 
+// อัปเดต URL ไฟล์ PDF บิล — เรียกหลัง generate PDF สำเร็จ
 export const updateBillPdf = async (billId: string, pdfUrl: string) => {
   return prisma.bill.update({
     where: { id: billId },
@@ -185,7 +196,7 @@ export const updateBillPdf = async (billId: string, pdfUrl: string) => {
   })
 }
 
-// จ่ายเงิน
+// ดึง payments ที่มี record (ผู้เช่าส่งสลิปแล้ว) สำหรับเดือนนั้น
 export const getPaymentsByProperty = async (
   propertyId: string,
   month: number,
@@ -211,7 +222,7 @@ export const getPaymentsByProperty = async (
   })
 }
 
-// บิลที่ส่งแล้ว (PENDING) แต่ยังไม่มีการชำระเงิน
+// ดึงบิล PENDING ที่ยังไม่มี payment record — แสดงเป็นแถวรอชำระใน payment tab
 export const getPendingBillsWithoutPayment = async (
   propertyId: string,
   month: number,
@@ -233,6 +244,7 @@ export const getPendingBillsWithoutPayment = async (
   })
 }
 
+// ดึง payment เดี่ยวพร้อมข้อมูล bill และ roomType — ใช้แสดง popup รายละเอียด
 export const getPaymentById = async (paymentId: string) => {
   return prisma.payment.findUnique({
     where: { id: paymentId },
@@ -245,6 +257,7 @@ export const getPaymentById = async (paymentId: string) => {
   })
 }
 
+// เปลี่ยนสถานะ payment — ใช้เมื่อปฏิเสธ (REJECTED)
 export const updatePaymentStatus = async (paymentId: string, status: string) => {
   return prisma.payment.update({
     where: { id: paymentId },
@@ -252,6 +265,7 @@ export const updatePaymentStatus = async (paymentId: string, status: string) => 
   })
 }
 
+// ยืนยัน payment — เปลี่ยนเป็น CONFIRMED พร้อมบันทึก verifiedAt และ verifiedBy
 export const updatePaymentConfirmed = async (paymentId: string, verifiedBy: string) => {
   return prisma.payment.update({
     where: { id: paymentId },
@@ -263,7 +277,7 @@ export const updatePaymentConfirmed = async (paymentId: string, verifiedBy: stri
   })
 }
 
-// ใบแจ้งหนี้
+// ดึงข้อมูล property สำหรับพิมพ์ในใบแจ้งหนี้
 export const getPropertyForInvoice = async (propertyId: string) => {
   return prisma.property.findUnique({
     where: { id: propertyId },
@@ -280,6 +294,7 @@ export const getPropertyForInvoice = async (propertyId: string) => {
   })
 }
 
+// ดึงเดือน/ปีที่มีบิลในที่พักนี้ (distinct) — ใช้สำหรับ dropdown เลือกเดือน
 export const getAvailableBillingMonths = async (propertyId: string) => {
   const rows = await prisma.bill.findMany({
     where: { room: { propertyId } },
@@ -289,4 +304,3 @@ export const getAvailableBillingMonths = async (propertyId: string) => {
   })
   return rows
 }
-

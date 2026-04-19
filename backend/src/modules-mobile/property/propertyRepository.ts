@@ -1,6 +1,11 @@
+// propertyRepository.ts (mobile) — query database สำหรับ property module
+// ทุก function ติดต่อ Prisma โดยตรง ไม่มี business logic
+// ถูกเรียกใช้จาก propertyService.ts เท่านั้น
+
 import { prisma } from "../../lib/prisma"
 
-// ดึง property ทั้งหมดพร้อมข้อมูลที่ต้องใช้กรอง
+// ดึงที่พักทั้งหมดพร้อมข้อมูลที่ใช้กรองและแสดงผล
+// include: images, facilities, rooms (พร้อม moveOutBills ล่าสุด และ MOVE_OUT_NOTICE contracts), roomTypes
 export const getAllProperties = async () => {
   return prisma.property.findMany({
     include: {
@@ -9,10 +14,12 @@ export const getAllProperties = async () => {
       rooms: {
         include: {
           roomType: true,
+          // moveOutBills ล่าสุด — ใช้คำนวณวันพร้อมของห้อง PREPARING
           moveOutBills: {
             orderBy: { createdAt: "desc" },
             take: 1,
           },
+          // สัญญาที่แจ้งออก — ใช้คำนวณวันพร้อมของห้อง OCCUPIED
           contracts: {
             where: { status: "MOVE_OUT_NOTICE" },
             orderBy: { createdAt: "desc" },
@@ -32,7 +39,7 @@ export const getAllProperties = async () => {
   })
 }
 
-// ดึง property เดียวสำหรับหน้า detail
+// ดึงที่พักเดียวสำหรับหน้า detail — รวม roomTypes เฉพาะที่ allowOnlineBooking=true
 export const getPropertyById = async (propertyId: string) => {
   return prisma.property.findUnique({
     where: { id: propertyId },
@@ -54,6 +61,7 @@ export const getPropertyById = async (propertyId: string) => {
           },
         },
       },
+      // เฉพาะ roomType ที่เปิดรับจอง online
       roomTypes: {
         where: { allowOnlineBooking: true },
         include: {

@@ -1,7 +1,10 @@
+// moveOutRepository.ts — query database สำหรับ move-out module
+// ทุก function ติดต่อ Prisma โดยตรง ไม่มี business logic
+// ถูกเรียกใช้จาก moveOutService.ts เท่านั้น
+
 import { prisma } from "../../lib/prisma"
 
-// รายการแจ้งย้ายออก (MOVE_OUT_NOTICE)
-
+// ดึงสัญญาที่อยู่ในสถานะ MOVE_OUT_NOTICE — แสดงในรายการ pending
 export const getMoveOutContracts = async (propertyId: string) => {
   return prisma.contract.findMany({
     where: {
@@ -16,8 +19,7 @@ export const getMoveOutContracts = async (propertyId: string) => {
   })
 }
 
-// บิลแจ้งออกที่ออกแล้ว
-
+// ดึงบิลย้ายออกที่สร้างแล้วทั้งหมดของที่พัก — แสดงในรายการ completed
 export const getMoveOutBillsByProperty = async (propertyId: string) => {
   return prisma.moveOutBill.findMany({
     where: { room: { propertyId } },
@@ -31,8 +33,7 @@ export const getMoveOutBillsByProperty = async (propertyId: string) => {
   })
 }
 
-// Contract พร้อม roomType สำหรับคำนวณ
-
+// ดึงสัญญาเฉพาะ MOVE_OUT_NOTICE พร้อม roomType + fees — ใช้คำนวณบิลย้ายออก
 export const getContractForMoveOut = async (
   contractId: string,
   propertyId: string
@@ -50,8 +51,7 @@ export const getContractForMoveOut = async (
   })
 }
 
-// MeterReading
-
+// ดึงมิเตอร์เดือนปัจจุบัน — ใช้ pre-fill ค่า end ในฟอร์ม
 export const getMeterReading = async (
   roomId: string,
   month: number,
@@ -62,6 +62,7 @@ export const getMeterReading = async (
   })
 }
 
+// ดึงมิเตอร์เดือนก่อนหน้า — ใช้ pre-fill ค่า start ในฟอร์ม
 export const getPreviousMeterReading = async (
   roomId: string,
   month: number,
@@ -76,8 +77,7 @@ export const getPreviousMeterReading = async (
   })
 }
 
-// บิลรายเดือนล่าสุด (สำหรับดึงมิเตอร์เดิม)
-
+// ดึงบิลรายเดือนล่าสุด — ใช้ดึงค่ามิเตอร์เดิม (fallback กรณีไม่มี meterReading)
 export const getLatestBill = async (contractId: string) => {
   return prisma.bill.findFirst({
     where: { contractId },
@@ -86,8 +86,7 @@ export const getLatestBill = async (contractId: string) => {
   })
 }
 
-// สร้าง MoveOutBill
-
+// สร้าง MoveOutBill พร้อม items — status เริ่มต้นเป็น CONFIRMED เสมอ
 export const createMoveOutBill = async (data: {
   contractId: string
   roomId: string
@@ -125,8 +124,7 @@ export const createMoveOutBill = async (data: {
   })
 }
 
-// ดูรายละเอียด MoveOutBill
-
+// ดึงรายละเอียด MoveOutBill เดี่ยว — include property เพื่อแสดงในใบสรุปย้ายออก
 export const getMoveOutBillById = async (
   moveOutBillId: string,
   propertyId: string
@@ -142,8 +140,7 @@ export const getMoveOutBillById = async (
   })
 }
 
-// อัพเดท contract และห้องหลังแจ้งออก
-
+// เปลี่ยนสถานะสัญญาเป็น ENDED หลังออกบิลย้ายออกสำเร็จ
 export const endContract = async (contractId: string) => {
   return prisma.contract.update({
     where: { id: contractId },
@@ -151,6 +148,7 @@ export const endContract = async (contractId: string) => {
   })
 }
 
+// เปลี่ยนสถานะห้องเป็น PREPARING หลังผู้เช่าย้ายออก — รอทำความสะอาด
 export const setRoomPreparing = async (roomId: string) => {
   return prisma.room.update({
     where: { id: roomId },

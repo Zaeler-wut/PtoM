@@ -1,5 +1,13 @@
+// propertyService.ts (web) — business logic สำหรับ property module ฝั่ง web admin
+// รับข้อมูลจาก propertyRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ propertyRepository สำหรับ query database
+
 import * as repo from "./propertyRepository"
 
+// สร้าง property ใหม่ — ตรวจ limit ก่อนสร้าง
+// limit = null หมายถึง admin ยังไม่ถูกกำหนดสิทธิ์ (AdminLimit ยังไม่มี)
+// เรียก: propertyRepository.getAdminPropertyLimit(), createPropertyWithAdmin()
+// ส่งกลับ: property record ที่สร้าง
 export const createProperty = async (data: any) => {
   if (!data.userId) throw new Error("userId is required")
   if (!data.name) throw new Error("name is required")
@@ -16,6 +24,9 @@ export const createProperty = async (data: any) => {
   return repo.createPropertyWithAdmin(data)
 }
 
+// ดึง property ทั้งหมดของ admin พร้อมสรุปสถิติห้อง
+// เรียก: propertyRepository.getAdminProperties()
+// ส่งกลับ: PropertyListItem[]
 export const getMyProperties = async (userId: string) => {
   const data = await repo.getAdminProperties(userId)
   return data.map((item) => {
@@ -34,6 +45,9 @@ export const getMyProperties = async (userId: string) => {
   })
 }
 
+// ดึงข้อมูล property ฉบับเต็ม — format facilities และ images
+// เรียก: propertyRepository.getPropertyById()
+// ส่งกลับ: PropertyDetail
 export const getPropertyDetail = async (propertyId: string) => {
   const p = await repo.getPropertyById(propertyId)
   if (!p) throw new Error("Property not found")
@@ -51,6 +65,9 @@ export const getPropertyDetail = async (propertyId: string) => {
   }
 }
 
+// แก้ไขข้อมูล property — อัพเดท facilities แยก (replace all) ถ้าส่งมาเป็น array
+// เรียก: propertyRepository.updateProperty(), updatePropertyFacilities()
+// ส่งกลับ: PropertyDetail ล่าสุดหลัง update
 export const updateProperty = async (propertyId: string, data: any) => {
   console.log("updateProperty payload:", JSON.stringify(data))
   const p = await repo.getPropertyById(propertyId)
@@ -68,12 +85,16 @@ export const updateProperty = async (propertyId: string, data: any) => {
   return getPropertyDetail(propertyId)
 }
 
+// ลบ property และทุกอย่างในนั้น (cascade ด้วยมือ)
+// เรียก: propertyRepository.getPropertyById(), deleteProperty()
 export const deleteProperty = async (propertyId: string) => {
   const p = await repo.getPropertyById(propertyId)
   if (!p) throw new Error("Property not found")
   return repo.deleteProperty(propertyId)
 }
 
+// เพิ่มรูป property — validate property ก่อน
+// เรียก: propertyRepository.addPropertyImages()
 export const addPropertyImages = async (propertyId: string, urls: string[]) => {
   const p = await repo.getPropertyById(propertyId)
   if (!p) throw new Error("Property not found")
@@ -81,6 +102,8 @@ export const addPropertyImages = async (propertyId: string, urls: string[]) => {
   return repo.addPropertyImages(propertyId, urls)
 }
 
+// ลบรูป property — validate ว่ารูปนั้นเป็นของ property นี้
+// เรียก: propertyRepository.deletePropertyImage()
 export const deletePropertyImage = async (propertyId: string, imageId: string) => {
   const p = await repo.getPropertyById(propertyId)
   if (!p) throw new Error("Property not found")
@@ -88,6 +111,8 @@ export const deletePropertyImage = async (propertyId: string, imageId: string) =
   return repo.deletePropertyImage(imageId)
 }
 
+// ตั้งรูป cover — validate property และ imageId ก่อน
+// เรียก: propertyRepository.setCoverImage()
 export const setCoverImage = async (propertyId: string, imageId: string) => {
   const p = await repo.getPropertyById(propertyId)
   if (!p) throw new Error("Property not found")
@@ -95,11 +120,16 @@ export const setCoverImage = async (propertyId: string, imageId: string) => {
   return repo.setCoverImage(propertyId, imageId)
 }
 
+// สร้าง room type ใหม่ — validate name
+// เรียก: propertyRepository.createRoomType()
 export const createRoomType = async (propertyId: string, data: any) => {
   if (!data.name) throw new Error("name is required")
   return repo.createRoomType(propertyId, data)
 }
 
+// ดึง room type ทั้งหมดของ property — format fees label (name → title)
+// เรียก: propertyRepository.getRoomTypesByProperty()
+// ส่งกลับ: array ของ room type พร้อม roomCount
 export const getRoomTypes = async (propertyId: string) => {
   const roomTypes = await repo.getRoomTypesByProperty(propertyId)
   return roomTypes.map((rt) => ({
@@ -123,6 +153,8 @@ export const getRoomTypes = async (propertyId: string) => {
   }))
 }
 
+// ลบ room type — ป้องกันการลบถ้ามีห้องใช้ประเภทนี้อยู่
+// เรียก: propertyRepository.getRoomTypeById(), deleteRoomType()
 export const deleteRoomType = async (roomTypeId: string) => {
   const rt = await repo.getRoomTypeById(roomTypeId)
   if (!rt) throw new Error("RoomType not found")
@@ -130,6 +162,9 @@ export const deleteRoomType = async (roomTypeId: string) => {
   return repo.deleteRoomType(roomTypeId)
 }
 
+// ดึงข้อมูล room type ฉบับเต็ม สำหรับหน้าแก้ไข
+// เรียก: propertyRepository.getRoomTypeById()
+// ส่งกลับ: RoomTypeDetail
 export const getRoomTypeDetail = async (roomTypeId: string) => {
   const rt = await repo.getRoomTypeById(roomTypeId)
   if (!rt) throw new Error("RoomType not found")
@@ -145,6 +180,9 @@ export const getRoomTypeDetail = async (roomTypeId: string) => {
   }
 }
 
+// แก้ไข room type — validate ค่าติดลบและ maxOccupants < 1
+// อัพเดท facilities และ fees แยกถ้าส่งมา (replace all)
+// เรียก: propertyRepository.updateRoomType(), updateRoomTypeFacilities(), updateRoomTypeFees()
 export const updateRoomType = async (roomTypeId: string, data: any) => {
   const rt = await repo.getRoomTypeById(roomTypeId)
   if (!rt) throw new Error("RoomType not found")
@@ -160,6 +198,8 @@ export const updateRoomType = async (roomTypeId: string, data: any) => {
   return updated
 }
 
+// เพิ่มรูป room type — จำกัดสูงสุด 5 รูป (นับจากที่มีอยู่แล้ว)
+// เรียก: propertyRepository.addRoomTypeImages()
 export const addRoomTypeImages = async (roomTypeId: string, urls: string[]) => {
   const rt = await repo.getRoomTypeById(roomTypeId)
   if (!rt) throw new Error("RoomType not found")
@@ -169,6 +209,8 @@ export const addRoomTypeImages = async (roomTypeId: string, urls: string[]) => {
   return repo.addRoomTypeImages(roomTypeId, urls.slice(0, remaining))
 }
 
+// ลบรูป room type — validate ว่ารูปนั้นเป็นของ room type นี้
+// เรียก: propertyRepository.deleteRoomTypeImage()
 export const deleteRoomTypeImage = async (roomTypeId: string, imageId: string) => {
   const rt = await repo.getRoomTypeById(roomTypeId)
   if (!rt) throw new Error("RoomType not found")

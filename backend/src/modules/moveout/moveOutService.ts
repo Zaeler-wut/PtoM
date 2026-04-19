@@ -1,10 +1,17 @@
+// moveOutService.ts — business logic สำหรับ move-out module
+// รับข้อมูลจาก moveOutRouter ประมวลผลและส่งผลลัพธ์กลับ
+// เรียกใช้ moveOutRepository สำหรับ query database
+
 import * as repo from "./moveOutRepository"
 
+// คืนค่าจำนวนวันในเดือน/ปีที่ระบุ
 function getDaysInMonth(month: number, year: number) {
   return new Date(year, month, 0).getDate()
 }
 
-// ตรวจสอบว่าอยู่ครบตามระยะสัญญาไหม
+// ตรวจสอบว่าผู้เช่าอยู่ครบตามระยะสัญญาหรือไม่
+// ใช้เปรียบเทียบ startDate กับ moveOutDate (นับเป็นเดือน)
+// ส่งกลับ: isComplete, actualMonths, expectedMonths
 function checkContractCompletion(
   startDate: Date,
   moveOutDate: Date,
@@ -21,7 +28,9 @@ function checkContractCompletion(
   }
 }
 
-// คำนวณบิลสุดท้าย (คิดตามรายวัน)
+// คำนวณบิลสุดท้ายตามจำนวนวันจริง (billingStartDay ถึง billingEndDay)
+// เฉลี่ยค่าเช่าและค่าบริการตามสัดส่วน days/daysInMonth
+// ส่งกลับ: days, daysInMonth, waterUsed, electricUsed, roomRent, furnitureRent, total, items
 function calculateFinalBill(data: {
   roomPrice: number
   furniturePrice: number | null
@@ -97,8 +106,10 @@ function calculateFinalBill(data: {
   }
 }
 
-// 1. รายการแจ้งย้ายออก + บิลที่ออกแล้ว
-
+// ดึงรายการแจ้งย้ายออก — แสดงทั้ง pending (รอดำเนินการ) และ completed (ออกบิลแล้ว)
+// กรองตาม year และ status ถ้ามี
+// เรียก: moveOutRepository.getMoveOutContracts(), getMoveOutBillsByProperty()
+// ส่งกลับ: { pending: array, completed: array }
 export const getMoveOutList = async (
   propertyId: string,
   filters?: { year?: number; status?: string }
@@ -148,8 +159,10 @@ export const getMoveOutList = async (
   return { pending, completed }
 }
 
-// 2. Preview — คำนวณยอดก่อนสร้างบิล
-
+// คำนวณ preview บิลย้ายออก — ไม่บันทึกข้อมูลลง DB
+// ตรวจสอบครบสัญญา, คำนวณบิลสุดท้าย, ค่าเสียหาย, ยอดเงินคืน
+// เรียก: moveOutRepository.getContractForMoveOut(), getMeterReading(), getPreviousMeterReading()
+// ส่งกลับ: ข้อมูลผู้เช่า, บิลสุดท้าย, ค่าเสียหาย, มิเตอร์ pre-fill, สรุปเงินคืน
 export const getMoveOutPreview = async (
   contractId: string,
   propertyId: string,
@@ -172,8 +185,7 @@ export const getMoveOutPreview = async (
   const moveOutDate = new Date(data.moveOutDate)
   if (isNaN(moveOutDate.getTime())) throw new Error("moveOutDate is invalid")
 
-  // ── ตรวจสอบว่าอยู่ครบตามระยะสัญญา ──
-  // คำนวณจาก startDate และ endDate ของสัญญาจริง
+  // คำนวณระยะสัญญา (เดือน) เพื่อตรวจสอบว่าอยู่ครบหรือไม่
   const contractStart = new Date(contract.startDate)
   const contractEnd = new Date(contract.endDate)
   const contractTermMonths =
@@ -183,14 +195,12 @@ export const getMoveOutPreview = async (
     ? checkContractCompletion(contract.startDate, moveOutDate, contractTermMonths)
     : null
 
-  // ── เงินประกัน + ล่วงหน้า (ดึงจาก securityDeposit ของสัญญา) ──
   const securityDeposit = contract.securityDeposit
 
-  // ── คำนวณบิลสุดท้าย ──
   const month = moveOutDate.getMonth() + 1
   const year = moveOutDate.getFullYear()
 
-  // ── ดึงมิเตอร์: เดือนก่อน = start, เดือนปัจจุบัน = end ──
+  // ดึงมิเตอร์เดือนก่อนหน้าและปัจจุบันสำหรับ pre-fill ในฟอร์ม
   const prevMeter = await repo.getPreviousMeterReading(contract.roomId, month, year)
   const currentMeter = await repo.getMeterReading(contract.roomId, month, year)
 
@@ -206,44 +216,38 @@ export const getMoveOutPreview = async (
     electricStart: data.electricStart,
     electricEnd: data.electricEnd,
     extraFees,
-    additionalItems: [],   // รายการเพิ่มเติมไม่รวมในบิลเดือน แต่หักจากเงินประกันโดยตรง
+    additionalItems: [],   // รายการเพิ่มเติมหักจากเงินประกัน ไม่รวมในบิลเดือน
     billingStartDay: data.billingStartDay,
     billingEndDay: data.billingEndDay,
     month,
     year,
   })
 
-  // ── ค่าเสียหาย + รายการเพิ่มเติม (หักจากเงินประกัน) ──
   const damageTotal = (data.damageItems ?? []).reduce((sum, i) => sum + i.amount, 0)
   const additionalTotal = (data.additionalItems ?? []).reduce((sum, i) => sum + i.amount, 0)
 
-  // ── ยอดคืนเงิน ──
+  // ยอดคืนเงิน = เงินประกัน - บิลสุดท้าย - ค่าเสียหาย - รายการเพิ่มเติม
   const refundAmount = securityDeposit - bill.total - damageTotal - additionalTotal
 
   return {
-    // ข้อมูลผู้เช่า
     tenant: {
       firstName: contract.user.firstName,
       lastName: contract.user.lastName,
       roomNumber: contract.room.roomNumber,
       roomType: rt.name,
     },
-    // ข้อมูลสัญญา
     contract: {
       startDate: contract.startDate,
       endDate: contract.endDate,
       securityDeposit,
     },
-    // ตรวจสอบครบสัญญา
     completion,
-    // ราคาต่อหน่วยของห้อง
     roomDetails: {
       roomPrice: rt.roomPrice,
       furniturePrice: rt.furniturePrice ?? 0,
       waterRate: rt.waterRate,
       electricRate: rt.electricRate,
     },
-    // บิลสุดท้าย
     finalBill: {
       billingPeriod: `${data.billingStartDay} - ${data.billingEndDay}`,
       daysInMonth: bill.daysInMonth,
@@ -251,13 +255,10 @@ export const getMoveOutPreview = async (
       items: bill.items,
       total: bill.total,
     },
-    // ค่าเสียหาย
     damageItems: data.damageItems ?? [],
     damageTotal,
-    // รายการเพิ่มเติม (หักจากเงินประกัน ไม่ใช่บิลเดือน)
     additionalItems: data.additionalItems ?? [],
     additionalTotal,
-    // สรุปเงินคืน
     summary: {
       securityDeposit,
       deductFinalBill: -bill.total,
@@ -265,7 +266,7 @@ export const getMoveOutPreview = async (
       deductAdditional: -additionalTotal,
       refundAmount,
     },
-    // มิเตอร์สำหรับ pre-fill: prevMeter = start, currentMeter = end
+    // มิเตอร์สำหรับ pre-fill ในฟอร์ม: prev = start, current = end
     lastMeter: {
       prev: prevMeter ? { waterMeter: prevMeter.waterMeter, electricMeter: prevMeter.electricMeter } : null,
       current: currentMeter ? { waterMeter: currentMeter.waterMeter, electricMeter: currentMeter.electricMeter } : null,
@@ -273,8 +274,11 @@ export const getMoveOutPreview = async (
   }
 }
 
-// 3. สร้างบิลแจ้งออก
-
+// สร้างบิลย้ายออกจริง — ตรวจสอบว่ายังไม่มีบิลก่อน
+// หลังสร้าง: contract → ENDED, ห้อง → PREPARING
+// รวม items ทั้งหมด: บิลสุดท้าย + ค่าเสียหาย (prefix "[ค่าเสียหาย]") + รายการเพิ่มเติม (prefix "[รายการเพิ่มเติม]")
+// เรียก: moveOutRepository.createMoveOutBill(), endContract(), setRoomPreparing()
+// ส่งกลับ: moveOutBillId, refundAmount, totalCharge, status (status 201)
 export const createMoveOutBill = async (
   contractId: string,
   propertyId: string,
@@ -293,7 +297,7 @@ export const createMoveOutBill = async (
   const contract = await repo.getContractForMoveOut(contractId, propertyId)
   if (!contract) throw new Error("Contract not found or not in MOVE_OUT_NOTICE status")
 
-  // เช็คว่ามี MoveOutBill อยู่แล้วไหม
+  // ตรวจสอบว่ามี MoveOutBill อยู่แล้วหรือไม่
   const { prisma } = await import("../../lib/prisma")
   const existing = await prisma.moveOutBill.findFirst({
     where: { contractId },
@@ -332,7 +336,7 @@ export const createMoveOutBill = async (
   const additionalTotal = additionalItems.reduce((sum, i) => sum + i.amount, 0)
   const refundAmount = contract.securityDeposit - bill.total - damageTotal - additionalTotal
 
-  // รวม items ทั้งหมด (บิลสุดท้าย + ค่าเสียหาย + รายการเพิ่มเติม)
+  // รวม items ทั้งหมดพร้อม prefix เพื่อแยกกลุ่มเมื่อดูรายละเอียด
   const allItems = [
     ...bill.items,
     ...damageItems.map((i) => ({ title: `[ค่าเสียหาย] ${i.title}`, amount: i.amount })),
@@ -353,7 +357,7 @@ export const createMoveOutBill = async (
     items: allItems,
   })
 
-  // อัพเดท contract → ENDED และห้อง → PREPARING
+  // อัปเดต contract เป็น ENDED และห้องเป็น PREPARING
   await repo.endContract(contractId)
   await repo.setRoomPreparing(contract.roomId)
 
@@ -365,8 +369,9 @@ export const createMoveOutBill = async (
   }
 }
 
-// 4. ดูรายละเอียดบิลแจ้งออก
-
+// ดูรายละเอียดบิลย้ายออก — แยก items ออกเป็น 3 กลุ่มตาม prefix
+// เรียก: moveOutRepository.getMoveOutBillById()
+// ส่งกลับ: ข้อมูล property, ผู้เช่า, มิเตอร์, บิลสุดท้าย, ค่าเสียหาย, รายการเพิ่มเติม, สรุปเงินคืน
 export const getMoveOutBillDetail = async (
   moveOutBillId: string,
   propertyId: string
@@ -378,7 +383,7 @@ export const getMoveOutBillDetail = async (
   const waterUsed = Math.max(0, bill.waterEnd - bill.waterStart)
   const electricUsed = Math.max(0, bill.electricEnd - bill.electricStart)
 
-  // แยก items ออกเป็น 3 กลุ่ม
+  // แยก items ออกเป็น 3 กลุ่มตาม prefix ที่ตั้งไว้ตอนสร้าง
   const finalBillItems = bill.items.filter(
     (item) => !item.title.startsWith("[ค่าเสียหาย]") && !item.title.startsWith("[รายการเพิ่มเติม]")
   )
@@ -399,7 +404,6 @@ export const getMoveOutBillDetail = async (
     moveOutBillId: bill.id,
     status: bill.status,
     createdAt: bill.createdAt,
-    // ข้อมูล property
     property: {
       name: property.name,
       address: property.address,
@@ -409,7 +413,6 @@ export const getMoveOutBillDetail = async (
       paymentQrUrl: property.paymentQrUrl,
       logoUrl: property.logoUrl,
     },
-    // ข้อมูลผู้เช่า
     tenant: {
       firstName: bill.user.firstName,
       lastName: bill.user.lastName,
@@ -417,7 +420,6 @@ export const getMoveOutBillDetail = async (
       roomType: rt.name,
       moveOutDate: bill.moveOutDate,
     },
-    // มิเตอร์
     meter: {
       waterStart: bill.waterStart,
       waterEnd: bill.waterEnd,
@@ -426,22 +428,18 @@ export const getMoveOutBillDetail = async (
       electricEnd: bill.electricEnd,
       electricUsed,
     },
-    // บิลสุดท้าย
     finalBill: {
       items: finalBillItems.map((i) => ({ title: i.title, amount: i.amount })),
       total: finalBillTotal,
     },
-    // ค่าเสียหาย
     damage: {
       items: damageItems,
       total: damageTotal,
     },
-    // รายการเพิ่มเติม (หักจากเงินประกัน)
     additional: {
       items: additionalItems,
       total: additionalTotal,
     },
-    // สรุปเงินคืน
     summary: {
       securityDeposit: bill.contract.securityDeposit,
       deductFinalBill: -finalBillTotal,

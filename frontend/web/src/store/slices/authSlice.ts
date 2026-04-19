@@ -1,14 +1,21 @@
+// authSlice.ts — Redux slice สำหรับ Authentication ฝั่ง web admin
+// จัดการ state: user, accessToken, isLoading, error
+// เรียกใช้ authApi สำหรับ login/logout
+// ถูกเรียกใช้จาก LoginPage และ App (restore session)
+
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 import { authApi } from "../../api/auth/authApi"
 import { setAccessToken } from "../../api/axiosInstance"
 import type { AuthState, LoginPayload } from "../../types/auth.types"
 
+// thunk: login — เรียก authApi.login แล้วเก็บ token ใน memory
+// แปลง error message เป็นภาษาไทยก่อน rejectWithValue
 export const loginThunk = createAsyncThunk(
   "auth/login",
   async (data: LoginPayload, { rejectWithValue }) => {
     try {
       const res = await authApi.login(data)
-      setAccessToken(res.accessToken)  // เก็บใน memory
+      setAccessToken(res.accessToken)  // เก็บใน memory (ไม่ใช้ localStorage)
       return res
     } catch (err: any) {
       const msg = err.response?.data?.error ?? ""
@@ -19,6 +26,7 @@ export const loginThunk = createAsyncThunk(
   }
 )
 
+// thunk: logout — เรียก authApi.logout แล้ว clear token เสมอใน finally
 export const logoutThunk = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
@@ -27,7 +35,7 @@ export const logoutThunk = createAsyncThunk(
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error ?? "Logout failed")
     } finally {
-      setAccessToken(null)  // clear memory
+      setAccessToken(null)  // clear memory แม้ logout fail
     }
   }
 )
@@ -43,7 +51,9 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
+    // ล้าง error message (ใช้ก่อนเปิด form login ใหม่)
     clearError: (state) => { state.error = null },
+    // restore session หลัง refresh token สำเร็จ — เซ็ต user + token ใน state
     setUser: (state, action) => {
       state.user = action.payload.user
       state.accessToken = action.payload.accessToken
