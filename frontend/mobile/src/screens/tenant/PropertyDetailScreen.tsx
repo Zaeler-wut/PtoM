@@ -8,8 +8,6 @@ import { useState, useCallback, useRef } from 'react'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { mobilePropertyApi } from '../../api/property/mobilePropertyApi'
 import type { MobilePropertyDetail } from '../../types/mobileProperty.types'
-import MapView, { Marker } from 'react-native-maps'
-
 const FACILITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Wi-Fi': 'wifi-outline',
   'ลิฟต์': 'layers-outline',
@@ -30,46 +28,11 @@ function PropertyMap({ lat, lng, googleMap }: { lat: number | null; lng: number 
     }
   }
 
-  if (!lat || !lng) {
-    return (
-      <TouchableOpacity style={s.mapFallback} onPress={openMap} activeOpacity={0.85}>
-        <Ionicons name="map-outline" size={28} color="#7C5CFC" />
-        <Text style={s.mapFallbackText}>เปิดแผนที่</Text>
-      </TouchableOpacity>
-    )
-  }
-
-  const coordLat = lat as number
-  const coordLng = lng as number
-
   return (
-    <View style={{ height: 180, borderRadius: 14, overflow: 'hidden' }}>
-      <MapView
-        style={{ flex: 1 }}
-        initialRegion={{
-          latitude: coordLat,
-          longitude: coordLng,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        }}
-        scrollEnabled={false}
-        zoomEnabled={false}
-        pitchEnabled={false}
-        rotateEnabled={false}
-      >
-        <Marker coordinate={{ latitude: coordLat, longitude: coordLng }} />
-      </MapView>
-      <TouchableOpacity
-        style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', alignItems: 'flex-end', padding: 10 }]}
-        onPress={openMap}
-        activeOpacity={1}
-      >
-        <View style={s.mapOpenBtn}>
-          <Ionicons name="navigate-outline" size={13} color="#fff" />
-          <Text style={s.mapOpenBtnText}>เปิดแผนที่</Text>
-        </View>
-      </TouchableOpacity>
-    </View>
+    <TouchableOpacity style={s.mapFallback} onPress={openMap} activeOpacity={0.85}>
+      <Ionicons name="map-outline" size={28} color="#7C5CFC" />
+      <Text style={s.mapFallbackText}>เปิดแผนที่</Text>
+    </TouchableOpacity>
   )
 }
 
