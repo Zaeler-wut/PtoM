@@ -30,8 +30,10 @@ export const loginThunk = createAsyncThunk(
     } catch (err: any) {
       // Network error (ไม่มี response = backend ไม่ตอบ)
       if (!err.response) {
+        console.error("[login] network error:", err.message)
         return rejectWithValue("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ")
       }
+      console.error("[login] status:", err.response.status, "body:", JSON.stringify(err.response.data))
       const msg = err.response?.data?.error ?? ""
       if (msg === "User account is inactive") return rejectWithValue("บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
       if (err.response.status === 401) return rejectWithValue("อีเมลหรือรหัสผ่านไม่ถูกต้อง")

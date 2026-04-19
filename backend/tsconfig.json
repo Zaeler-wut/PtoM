@@ -11,6 +11,6 @@
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true,
   },
-  "include": ["src/**/*.ts", "src/controllers/auth.js", "src/utils/password.js", "src/utils/jwt.js"],
+  "include": ["src/**/*.ts", "prisma.config.ts"],
   "exclude": ["node_modules"]
 }
