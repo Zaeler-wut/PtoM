@@ -8,8 +8,8 @@ import { FormInput } from "../../components/shared/FormInput";
 import { StatusBadge } from "../../components/shared/StatusBadge";
 import { SelectInput } from "../../components/shared/SelectInput";
 import { useToast } from "../../components/shared/Toast";
-import { RiAddLine, RiSearchLine, RiFilterLine, RiEditLine, RiLineChartLine, RiDropLine, RiFlashlightLine } from "react-icons/ri";
-import { getRooms, createRoom, updateRoom, getMeterHistory, type Room, type RoomStatus, type MeterReading } from "../../api/room/roomApi";
+import { RiAddLine, RiSearchLine, RiFilterLine, RiEditLine, RiLineChartLine, RiDropLine, RiFlashlightLine, RiDeleteBinLine } from "react-icons/ri";
+import { getRooms, createRoom, updateRoom, deleteRoom, getMeterHistory, type Room, type RoomStatus, type MeterReading } from "../../api/room/roomApi";
 import { getRoomTypes, type RoomType } from "../../api/room/roomTypeApi";
 import { Pagination } from "../../components/shared/Pagination";
 
@@ -49,6 +49,26 @@ export default function RoomListPage() {
   const [meterRoom, setMeterRoom] = useState<Room | null>(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [deleteConfirm, setDeleteConfirm] = useState<Room | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const canDelete = (room: Room) =>
+    room.status !== "OCCUPIED" && room.status !== "PREPARING" && room.contractStatus !== "MOVE_OUT_NOTICE";
+
+  const handleDelete = async () => {
+    if (!deleteConfirm || !propertyId) return;
+    setIsDeleting(true);
+    try {
+      await deleteRoom(propertyId, deleteConfirm.id);
+      setDeleteConfirm(null);
+      fetchAll();
+      toast("ลบห้องสำเร็จ");
+    } catch (err: any) {
+      toast(err?.response?.data?.error ?? "เกิดข้อผิดพลาด", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const fetchAll = async () => {
     if (!propertyId) return;
@@ -166,6 +186,17 @@ export default function RoomListPage() {
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
                           <RiLineChartLine size={13} /> ประวัติมิเตอร์
                         </button>
+                        {canDelete(room) ? (
+                          <button onClick={() => setDeleteConfirm(room)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                            <RiDeleteBinLine size={13} /> ลบ
+                          </button>
+                        ) : (
+                          <button disabled title="ไม่สามารถลบได้เนื่องจากสถานะห้อง"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-100 rounded-lg text-gray-300 cursor-not-allowed">
+                            <RiDeleteBinLine size={13} /> ลบ
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -193,6 +224,26 @@ export default function RoomListPage() {
           propertyId={propertyId}
           onClose={() => setMeterRoom(null)}
         />
+      )}
+
+      {deleteConfirm && (
+        <Modal open onOpenChange={(v) => { if (!v) setDeleteConfirm(null); }}
+          title="ยืนยันการลบห้อง" size="sm">
+          <p className="text-sm text-gray-600 mb-6">
+            คุณต้องการลบ <span className="font-semibold text-gray-900">ห้อง {deleteConfirm.roomNumber}</span> ใช่หรือไม่?
+            <br /><span className="text-red-500 text-xs mt-1 block">การลบไม่สามารถย้อนกลับได้</span>
+          </p>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setDeleteConfirm(null)} disabled={isDeleting}
+              className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+              ยกเลิก
+            </button>
+            <button onClick={handleDelete} disabled={isDeleting}
+              className="px-6 py-2.5 bg-red-500 text-white text-sm rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50">
+              {isDeleting ? "กำลังลบ..." : "ลบห้อง"}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

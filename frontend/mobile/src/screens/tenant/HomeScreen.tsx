@@ -325,9 +325,6 @@ export default function HomeScreen() {
 
       <View style={styles.sectionRow}>
         <Text style={styles.sectionTitle}>ที่พักแนะนำ</Text>
-        <TouchableOpacity>
-          <Text style={styles.sectionLink}>ดูทั้งหมด</Text>
-        </TouchableOpacity>
       </View>
 
       {isLoading && <ActivityIndicator color="#7C5CFC" style={{ marginTop: 24 }} />}

@@ -62,6 +62,10 @@ export const getMeterHistory = async (roomId: string, propertyId: string) => {
   })
 }
 
+export const deleteRoom = async (roomId: string) => {
+  return prisma.room.delete({ where: { id: roomId } })
+}
+
 export const createRoom = async (data: {
   propertyId: string
   roomTypeId: string

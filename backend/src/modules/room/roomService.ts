@@ -68,6 +68,14 @@ export const getMeterHistory = async (roomId: string, propertyId: string) => {
   }))
 }
 
+export const deleteRoom = async (roomId: string) => {
+  const room = await repo.getRoomById(roomId)
+  if (!room) throw new Error("Room not found")
+  if (room.status === "OCCUPIED") throw new Error("ห้องมีผู้เช่าอยู่ ไม่สามารถลบได้")
+  if (room.status === "PREPARING") throw new Error("ห้องอยู่ในสถานะเตรียมว่าง ไม่สามารถลบได้")
+  return repo.deleteRoom(roomId)
+}
+
 export const createRoom = async (propertyId: string, data: any) => {
   if (!data.roomNumber) throw new Error("roomNumber is required")
   if (!data.roomTypeId) throw new Error("roomTypeId is required")

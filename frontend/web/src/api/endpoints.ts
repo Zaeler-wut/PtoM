@@ -34,6 +34,7 @@ export const ENDPOINTS = {
     list: (propertyId: string) => `/admin/properties/${propertyId}/rooms`,
     create: (propertyId: string) => `/admin/properties/${propertyId}/rooms`,
     update: (propertyId: string, roomId: string) => `/admin/properties/${propertyId}/rooms/${roomId}`,
+    delete: (propertyId: string, roomId: string) => `/admin/properties/${propertyId}/rooms/${roomId}`,
     meterHistory: (propertyId: string, roomId: string) => `/admin/properties/${propertyId}/rooms/${roomId}/meters`,
   },
 

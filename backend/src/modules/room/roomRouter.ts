@@ -30,6 +30,15 @@ router.put("/properties/:propertyId/rooms/:roomId", authenticate, authorize("ADM
   }
 })
 
+router.delete("/properties/:propertyId/rooms/:roomId", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
+  try {
+    await service.deleteRoom(req.params.roomId)
+    res.json({ message: "ลบห้องสำเร็จ" })
+  } catch (err: any) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 router.get("/properties/:propertyId/rooms/:roomId/meters", authenticate, authorize("ADMIN"), authorizePropertyAdmin(), async (req: any, res) => {
   try {
     res.json(await service.getMeterHistory(req.params.roomId, req.params.propertyId))

@@ -26,6 +26,9 @@ export const createRoom = (
 ) =>
   api.post<Room>(ENDPOINTS.rooms.create(propertyId), data).then((r) => r.data)
 
+export const deleteRoom = (propertyId: string, roomId: string) =>
+  api.delete(ENDPOINTS.rooms.delete(propertyId, roomId))
+
 export const updateRoom = (
   propertyId: string,
   roomId: string,
