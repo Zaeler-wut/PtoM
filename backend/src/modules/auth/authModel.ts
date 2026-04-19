@@ -1,106 +1,46 @@
-import * as repo from "./authRepository"
-import * as service from "./authService"
-import jwt from "jsonwebtoken"
-import { generateAccessToken } from "../../utils/jwt"
+// authModel.ts — TypeScript interfaces สำหรับ auth module
+// กำหนด shape ของ request body และ response ที่ authService รับและส่งออก
 
-// validation
-function validateRegister(data: any) {
+// ข้อมูลที่รับจาก request body ตอน POST /auth/register
+export interface RegisterInput {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+}
 
-  if (!data.email || typeof data.email !== "string") {
-    throw new Error("Email must be string")
-  }
+// ข้อมูลที่รับจาก request body ตอน POST /auth/login
+export interface LoginInput {
+  email: string
+  password: string
+}
 
-  if (!data.email.includes("@")) {
-    throw new Error("Invalid email format")
-  }
-
-  if (!data.name || typeof data.name !== "string") {
-    throw new Error("Name required")
-  }
-
-  if (!data.password || data.password.length < 6) {
-    throw new Error("Password must be at least 6 chars")
+// response ที่ส่งกลับหลัง register สำเร็จ
+// ส่งไปยัง client พร้อม accessToken, refreshToken และข้อมูล user
+export interface RegisterResponse {
+  accessToken: string
+  refreshToken: string
+  user: {
+    id: string
+    name: string
+    email: string
+    role: string
   }
 }
 
-function validateLogin(data: any) {
-
-  if (!data.email || typeof data.email !== "string") {
-    throw new Error("Email required")
-  }
-
-  if (!data.password) {
-    throw new Error("Password required")
-  }
-}
-
-
-// REGISTER
-export const register = async (data: any) => {
-
-  validateRegister(data)
-
-  const exist = await repo.findByEmail(data.email)
-
-  if (exist) {
-    throw new Error("Email already exists")
-  }
-
-  const user = await service.registerService(data, repo)
-
-  return {
-    id: user.id,
-    email: user.email
+// response ที่ส่งกลับหลัง login หรือ refresh token สำเร็จ
+export interface AuthResponse {
+  accessToken: string
+  refreshToken: string
+  user: {
+    id: string
+    name: string
+    email: string
+    role: string
   }
 }
 
-
-// LOGIN
-export const login = async (data: any) => {
-
-  validateLogin(data)
-
-  const user = await repo.findByEmail(data.email)
-
-  if (!user) {
-    throw new Error("Invalid credentials")
-  }
-
-  if (!user.isActive) {
-    throw new Error("User inactive")
-  }
-
-  const tokens = await service.loginService(data, user)
-
-  await repo.updateLastLogin(user.id)
-
-  return tokens
-}
-
-export const refreshToken = async (req: any) => {
-
-  const token = req.cookies?.refreshToken
-
-  if (!token) {
-    throw new Error("No refresh token")
-  }
-
-  const decoded: any = jwt.verify(
-    token,
-    process.env.REFRESH_TOKEN_SECRET as string
-  )
-
-  const user = await repo.findById(decoded.sub)
-
-  if (!user) {
-    throw new Error("User not found")
-  }
-
-  if (!user.isActive) {
-    throw new Error("User inactive")
-  }
-
-  return {
-    accessToken: generateAccessToken(user)
-  }
+// response เมื่อขอ refresh token ใหม่ (ใช้เฉพาะบางกรณี)
+export interface RefreshTokenResponse {
+  accessToken: string
 }

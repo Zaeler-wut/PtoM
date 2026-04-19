@@ -1,10 +1,21 @@
-import "./global.css"
-import { Text, View } from "react-native";
+import { Redirect } from 'expo-router'
+import { ActivityIndicator, View } from 'react-native'
+import { useAppSelector } from '../src/store/hooks'
 
 export default function Index() {
-  return (
-    <View className="flex-1 justify-center items-center bg-blue-500">
-      <Text className="text-white text-lg font-bold">Hello Nativewind Tyscript!</Text>
-    </View>
-  );
+  const { isRestored, user } = useAppSelector((s) => s.auth)
+
+  if (!isRestored) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0F0F13' }}>
+        <ActivityIndicator size="large" color="#7C3AED" />
+      </View>
+    )
+  }
+
+  if (!user) return <Redirect href={'/(auth)/login' as any} />
+
+  console.log('user role:', user.role)
+
+  return <Redirect href={'/(app)/(tenant)' as any} />
 }

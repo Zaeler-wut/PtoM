@@ -1,0 +1,38 @@
+export interface LoginPayload {
+  email: string
+  password: string
+}
+
+export interface RegisterPayload {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+}
+
+export interface RegisterResponse {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+}
+
+export interface LoginResponse {
+  accessToken: string
+  refreshToken: string
+  user: AuthUser
+}
+
+export interface AuthUser {
+  id: string
+  name: string
+  email: string
+  role: "USER" | "ADMIN" | "SUPERADMIN"
+}
+
+export interface AuthState {
+  user: AuthUser | null
+  accessToken: string | null
+  isLoading: boolean
+  error: string | null
+}

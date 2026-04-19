@@ -1,0 +1,393 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getMoveOutBillDetail = exports.createMoveOutBill = exports.getMoveOutPreview = exports.getMoveOutList = void 0;
+const repo = __importStar(require("./moveOutRepository"));
+function getDaysInMonth(month, year) {
+    return new Date(year, month, 0).getDate();
+}
+// ตรวจสอบว่าอยู่ครบตามระยะสัญญาไหม
+function checkContractCompletion(startDate, moveOutDate, contractTermMonths) {
+    const actualMonths = (moveOutDate.getFullYear() - startDate.getFullYear()) * 12 +
+        (moveOutDate.getMonth() - startDate.getMonth());
+    return {
+        isComplete: actualMonths >= contractTermMonths,
+        actualMonths,
+        expectedMonths: contractTermMonths,
+    };
+}
+// คำนวณบิลสุดท้าย (คิดตามรายวัน)
+function calculateFinalBill(data) {
+    const daysInMonth = getDaysInMonth(data.month, data.year);
+    const days = data.billingEndDay - data.billingStartDay + 1;
+    const ratio = days / daysInMonth;
+    const waterUsed = Math.max(0, data.waterEnd - data.waterStart);
+    const electricUsed = Math.max(0, data.electricEnd - data.electricStart);
+    const roomRent = Math.round(data.roomPrice * ratio);
+    const furnitureRent = data.furniturePrice
+        ? Math.round(data.furniturePrice * ratio)
+        : 0;
+    const waterCharge = Math.round(waterUsed * data.waterRate);
+    const electricCharge = Math.round(electricUsed * data.electricRate);
+    const extraTotal = data.extraFees.reduce((sum, f) => sum + f.amount, 0);
+    const additionalTotal = data.additionalItems.reduce((sum, i) => sum + i.amount, 0);
+    const total = roomRent +
+        furnitureRent +
+        waterCharge +
+        electricCharge +
+        extraTotal +
+        additionalTotal;
+    const items = [
+        { title: `ค่าห้อง (คำนวณรายวัน)`, amount: roomRent },
+    ];
+    if (furnitureRent > 0)
+        items.push({ title: "ค่าเฟอร์นิเจอร์ (คำนวณรายวัน)", amount: furnitureRent });
+    if (waterCharge > 0)
+        items.push({
+            title: `ค่าน้ำ (${waterUsed} หน่วย)`,
+            amount: waterCharge,
+        });
+    if (electricCharge > 0)
+        items.push({
+            title: `ค่าไฟ (${electricUsed} หน่วย)`,
+            amount: electricCharge,
+        });
+    data.extraFees.forEach((f) => items.push(f));
+    data.additionalItems.forEach((i) => items.push(i));
+    return {
+        days,
+        daysInMonth,
+        waterUsed,
+        electricUsed,
+        roomRent,
+        furnitureRent,
+        waterCharge,
+        electricCharge,
+        total,
+        items,
+    };
+}
+// 1. รายการแจ้งย้ายออก + บิลที่ออกแล้ว
+const getMoveOutList = async (propertyId, filters) => {
+    const [contracts, bills] = await Promise.all([
+        repo.getMoveOutContracts(propertyId),
+        repo.getMoveOutBillsByProperty(propertyId),
+    ]);
+    let pending = contracts.map((c) => {
+        var _a;
+        return ({
+            contractId: c.id,
+            firstName: c.user.firstName,
+            lastName: c.user.lastName,
+            phone: c.user.phone,
+            roomNumber: c.room.roomNumber,
+            roomType: c.room.roomType.name,
+            status: c.status,
+            moveOutDate: (_a = c.moveOutNoticeDate) !== null && _a !== void 0 ? _a : c.endDate,
+        });
+    });
+    let completed = bills.map((b) => ({
+        moveOutBillId: b.id,
+        firstName: b.user.firstName,
+        lastName: b.user.lastName,
+        roomNumber: b.room.roomNumber,
+        roomType: b.room.roomType.name,
+        moveOutDate: b.moveOutDate,
+        refundAmount: b.refundAmount,
+        status: b.status,
+    }));
+    // กรองตามปี
+    if (filters === null || filters === void 0 ? void 0 : filters.year) {
+        pending = pending.filter((c) => new Date(c.moveOutDate).getFullYear() === filters.year);
+        completed = completed.filter((b) => new Date(b.moveOutDate).getFullYear() === filters.year);
+    }
+    // กรองตามสถานะ (เฉพาะ completed)
+    if (filters === null || filters === void 0 ? void 0 : filters.status) {
+        completed = completed.filter((b) => b.status === filters.status);
+    }
+    return { pending, completed };
+};
+exports.getMoveOutList = getMoveOutList;
+// 2. Preview — คำนวณยอดก่อนสร้างบิล
+const getMoveOutPreview = async (contractId, propertyId, data) => {
+    var _a, _b, _c, _d, _e;
+    const contract = await repo.getContractForMoveOut(contractId, propertyId);
+    if (!contract)
+        throw new Error("Contract not found or not in MOVE_OUT_NOTICE status");
+    const rt = contract.room.roomType;
+    const moveOutDate = new Date(data.moveOutDate);
+    if (isNaN(moveOutDate.getTime()))
+        throw new Error("moveOutDate is invalid");
+    // ── ตรวจสอบว่าอยู่ครบตามระยะสัญญา ──
+    // คำนวณจาก startDate และ endDate ของสัญญาจริง
+    const contractStart = new Date(contract.startDate);
+    const contractEnd = new Date(contract.endDate);
+    const contractTermMonths = (contractEnd.getFullYear() - contractStart.getFullYear()) * 12 +
+        (contractEnd.getMonth() - contractStart.getMonth());
+    const completion = contractTermMonths > 0
+        ? checkContractCompletion(contract.startDate, moveOutDate, contractTermMonths)
+        : null;
+    // ── เงินประกัน + ล่วงหน้า (ดึงจาก securityDeposit ของสัญญา) ──
+    const securityDeposit = contract.securityDeposit;
+    // ── คำนวณบิลสุดท้าย ──
+    const month = moveOutDate.getMonth() + 1;
+    const year = moveOutDate.getFullYear();
+    // ── ดึงมิเตอร์: เดือนก่อน = start, เดือนปัจจุบัน = end ──
+    const prevMeter = await repo.getPreviousMeterReading(contract.roomId, month, year);
+    const currentMeter = await repo.getMeterReading(contract.roomId, month, year);
+    const extraFees = rt.fees.map((f) => ({ title: f.title, amount: f.amount }));
+    const bill = calculateFinalBill({
+        roomPrice: rt.roomPrice,
+        furniturePrice: rt.furniturePrice,
+        waterRate: rt.waterRate,
+        electricRate: rt.electricRate,
+        waterStart: data.waterStart,
+        waterEnd: data.waterEnd,
+        electricStart: data.electricStart,
+        electricEnd: data.electricEnd,
+        extraFees,
+        additionalItems: [], // รายการเพิ่มเติมไม่รวมในบิลเดือน แต่หักจากเงินประกันโดยตรง
+        billingStartDay: data.billingStartDay,
+        billingEndDay: data.billingEndDay,
+        month,
+        year,
+    });
+    // ── ค่าเสียหาย + รายการเพิ่มเติม (หักจากเงินประกัน) ──
+    const damageTotal = ((_a = data.damageItems) !== null && _a !== void 0 ? _a : []).reduce((sum, i) => sum + i.amount, 0);
+    const additionalTotal = ((_b = data.additionalItems) !== null && _b !== void 0 ? _b : []).reduce((sum, i) => sum + i.amount, 0);
+    // ── ยอดคืนเงิน ──
+    const refundAmount = securityDeposit - bill.total - damageTotal - additionalTotal;
+    return {
+        // ข้อมูลผู้เช่า
+        tenant: {
+            firstName: contract.user.firstName,
+            lastName: contract.user.lastName,
+            roomNumber: contract.room.roomNumber,
+            roomType: rt.name,
+        },
+        // ข้อมูลสัญญา
+        contract: {
+            startDate: contract.startDate,
+            endDate: contract.endDate,
+            securityDeposit,
+        },
+        // ตรวจสอบครบสัญญา
+        completion,
+        // ราคาต่อหน่วยของห้อง
+        roomDetails: {
+            roomPrice: rt.roomPrice,
+            furniturePrice: (_c = rt.furniturePrice) !== null && _c !== void 0 ? _c : 0,
+            waterRate: rt.waterRate,
+            electricRate: rt.electricRate,
+        },
+        // บิลสุดท้าย
+        finalBill: {
+            billingPeriod: `${data.billingStartDay} - ${data.billingEndDay}`,
+            daysInMonth: bill.daysInMonth,
+            days: bill.days,
+            items: bill.items,
+            total: bill.total,
+        },
+        // ค่าเสียหาย
+        damageItems: (_d = data.damageItems) !== null && _d !== void 0 ? _d : [],
+        damageTotal,
+        // รายการเพิ่มเติม (หักจากเงินประกัน ไม่ใช่บิลเดือน)
+        additionalItems: (_e = data.additionalItems) !== null && _e !== void 0 ? _e : [],
+        additionalTotal,
+        // สรุปเงินคืน
+        summary: {
+            securityDeposit,
+            deductFinalBill: -bill.total,
+            deductDamage: -damageTotal,
+            deductAdditional: -additionalTotal,
+            refundAmount,
+        },
+        // มิเตอร์สำหรับ pre-fill: prevMeter = start, currentMeter = end
+        lastMeter: {
+            prev: prevMeter ? { waterMeter: prevMeter.waterMeter, electricMeter: prevMeter.electricMeter } : null,
+            current: currentMeter ? { waterMeter: currentMeter.waterMeter, electricMeter: currentMeter.electricMeter } : null,
+        },
+    };
+};
+exports.getMoveOutPreview = getMoveOutPreview;
+// 3. สร้างบิลแจ้งออก
+const createMoveOutBill = async (contractId, propertyId, data) => {
+    var _a, _b;
+    const contract = await repo.getContractForMoveOut(contractId, propertyId);
+    if (!contract)
+        throw new Error("Contract not found or not in MOVE_OUT_NOTICE status");
+    // เช็คว่ามี MoveOutBill อยู่แล้วไหม
+    const { prisma } = await Promise.resolve().then(() => __importStar(require("../../lib/prisma")));
+    const existing = await prisma.moveOutBill.findFirst({
+        where: { contractId },
+    });
+    if (existing)
+        throw new Error("MoveOutBill already exists for this contract");
+    const rt = contract.room.roomType;
+    const moveOutDate = new Date(data.moveOutDate);
+    if (isNaN(moveOutDate.getTime()))
+        throw new Error("moveOutDate is invalid");
+    const month = moveOutDate.getMonth() + 1;
+    const year = moveOutDate.getFullYear();
+    const extraFees = rt.fees.map((f) => ({ title: f.title, amount: f.amount }));
+    const bill = calculateFinalBill({
+        roomPrice: rt.roomPrice,
+        furniturePrice: rt.furniturePrice,
+        waterRate: rt.waterRate,
+        electricRate: rt.electricRate,
+        waterStart: data.waterStart,
+        waterEnd: data.waterEnd,
+        electricStart: data.electricStart,
+        electricEnd: data.electricEnd,
+        extraFees,
+        additionalItems: [], // รายการเพิ่มเติมหักจากเงินประกัน ไม่รวมในบิลเดือน
+        billingStartDay: data.billingStartDay,
+        billingEndDay: data.billingEndDay,
+        month,
+        year,
+    });
+    const damageItems = (_a = data.damageItems) !== null && _a !== void 0 ? _a : [];
+    const additionalItems = (_b = data.additionalItems) !== null && _b !== void 0 ? _b : [];
+    const damageTotal = damageItems.reduce((sum, i) => sum + i.amount, 0);
+    const additionalTotal = additionalItems.reduce((sum, i) => sum + i.amount, 0);
+    const refundAmount = contract.securityDeposit - bill.total - damageTotal - additionalTotal;
+    // รวม items ทั้งหมด (บิลสุดท้าย + ค่าเสียหาย + รายการเพิ่มเติม)
+    const allItems = [
+        ...bill.items,
+        ...damageItems.map((i) => ({ title: `[ค่าเสียหาย] ${i.title}`, amount: i.amount })),
+        ...additionalItems.map((i) => ({ title: `[รายการเพิ่มเติม] ${i.title}`, amount: i.amount })),
+    ];
+    const moveOutBill = await repo.createMoveOutBill({
+        contractId: contract.id,
+        roomId: contract.roomId,
+        userId: contract.userId,
+        moveOutDate,
+        waterStart: data.waterStart,
+        waterEnd: data.waterEnd,
+        electricStart: data.electricStart,
+        electricEnd: data.electricEnd,
+        totalCharge: bill.total + damageTotal + additionalTotal,
+        refundAmount,
+        items: allItems,
+    });
+    // อัพเดท contract → ENDED และห้อง → PREPARING
+    await repo.endContract(contractId);
+    await repo.setRoomPreparing(contract.roomId);
+    return {
+        moveOutBillId: moveOutBill.id,
+        refundAmount,
+        totalCharge: moveOutBill.totalCharge,
+        status: moveOutBill.status,
+    };
+};
+exports.createMoveOutBill = createMoveOutBill;
+// 4. ดูรายละเอียดบิลแจ้งออก
+const getMoveOutBillDetail = async (moveOutBillId, propertyId) => {
+    const bill = await repo.getMoveOutBillById(moveOutBillId, propertyId);
+    if (!bill)
+        throw new Error("MoveOutBill not found");
+    const rt = bill.room.roomType;
+    const waterUsed = Math.max(0, bill.waterEnd - bill.waterStart);
+    const electricUsed = Math.max(0, bill.electricEnd - bill.electricStart);
+    // แยก items ออกเป็น 3 กลุ่ม
+    const finalBillItems = bill.items.filter((item) => !item.title.startsWith("[ค่าเสียหาย]") && !item.title.startsWith("[รายการเพิ่มเติม]"));
+    const damageItems = bill.items
+        .filter((item) => item.title.startsWith("[ค่าเสียหาย]"))
+        .map((item) => ({ title: item.title.replace("[ค่าเสียหาย] ", ""), amount: item.amount }));
+    const additionalItems = bill.items
+        .filter((item) => item.title.startsWith("[รายการเพิ่มเติม]"))
+        .map((item) => ({ title: item.title.replace("[รายการเพิ่มเติม] ", ""), amount: item.amount }));
+    const finalBillTotal = finalBillItems.reduce((sum, i) => sum + i.amount, 0);
+    const damageTotal = damageItems.reduce((sum, i) => sum + i.amount, 0);
+    const additionalTotal = additionalItems.reduce((sum, i) => sum + i.amount, 0);
+    const property = bill.room.property;
+    return {
+        moveOutBillId: bill.id,
+        status: bill.status,
+        createdAt: bill.createdAt,
+        // ข้อมูล property
+        property: {
+            name: property.name,
+            address: property.address,
+            bankName: property.bankName,
+            bankAccount: property.bankAccount,
+            bankHolder: property.bankHolder,
+            paymentQrUrl: property.paymentQrUrl,
+            logoUrl: property.logoUrl,
+        },
+        // ข้อมูลผู้เช่า
+        tenant: {
+            firstName: bill.user.firstName,
+            lastName: bill.user.lastName,
+            roomNumber: bill.room.roomNumber,
+            roomType: rt.name,
+            moveOutDate: bill.moveOutDate,
+        },
+        // มิเตอร์
+        meter: {
+            waterStart: bill.waterStart,
+            waterEnd: bill.waterEnd,
+            waterUsed,
+            electricStart: bill.electricStart,
+            electricEnd: bill.electricEnd,
+            electricUsed,
+        },
+        // บิลสุดท้าย
+        finalBill: {
+            items: finalBillItems.map((i) => ({ title: i.title, amount: i.amount })),
+            total: finalBillTotal,
+        },
+        // ค่าเสียหาย
+        damage: {
+            items: damageItems,
+            total: damageTotal,
+        },
+        // รายการเพิ่มเติม (หักจากเงินประกัน)
+        additional: {
+            items: additionalItems,
+            total: additionalTotal,
+        },
+        // สรุปเงินคืน
+        summary: {
+            securityDeposit: bill.contract.securityDeposit,
+            deductFinalBill: -finalBillTotal,
+            deductDamage: -damageTotal,
+            deductAdditional: -additionalTotal,
+            refundAmount: bill.refundAmount,
+        },
+    };
+};
+exports.getMoveOutBillDetail = getMoveOutBillDetail;
+//# sourceMappingURL=moveOutService.js.map
