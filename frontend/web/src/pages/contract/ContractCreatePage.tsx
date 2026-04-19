@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { RiArrowLeftLine, RiCalendarLine } from "react-icons/ri"
 import { getBookings, getContractPrefill } from "../../api/booking/bookingApi"
 import { createOfflineContract } from "../../api/contract/contractApi"
 import { getRooms, type Room } from "../../api/room/roomApi"
 import type { BookingListItem } from "../../types/booking.types"
-import type { CreateContractInput } from "../../types/contract.types"
+import { createContractSchema, type CreateContractFormData } from "../../schemas/contractSchema"
 import { FormInput } from "../../components/shared/FormInput"
 import { SelectInput } from "../../components/shared/SelectInput"
 
@@ -27,7 +28,7 @@ export default function ContractCreatePage() {
   } | null>(null)
 
   const { register, handleSubmit, setValue, reset, formState: { errors } } =
-    useForm<CreateContractInput>()
+    useForm<CreateContractFormData>({ resolver: zodResolver(createContractSchema) as any })
 
   useEffect(() => {
     if (!propertyId) return
@@ -75,7 +76,7 @@ export default function ContractCreatePage() {
     }
   }
 
-  const onSubmit = async (data: CreateContractInput) => {
+  const onSubmit = async (data: CreateContractFormData) => {
     if (!propertyId) return
     setSubmitting(true)
     setSubmitError("")

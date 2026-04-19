@@ -357,7 +357,7 @@ export default function TenantListPage() {
         ? t.contractStatus === "ACTIVE" || t.contractStatus === "MOVE_OUT_NOTICE"
         : t.contractStatus === statusFilter)
     return matchSearch && matchStatus
-  })
+  }).sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }))
 
   useEffect(() => { setPage(1) }, [search, statusFilter])
   const pagedFiltered = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage)

@@ -97,7 +97,7 @@ export default function ContractListPage() {
       statusFilter === "ALL" ||
       (statusFilter === "CURRENT" ? c.status === "ACTIVE" || c.status === "MOVE_OUT_NOTICE" : c.status === statusFilter)
     return matchSearch && matchStatus
-  })
+  }).sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }))
 
   useEffect(() => { setPage(1) }, [search, statusFilter])
   const pagedFiltered = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage)
@@ -483,7 +483,6 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
         <div className="grid grid-cols-2 gap-3">
           <SelectInput
             label="ห้อง *"
-            required
             placeholder="เลือกห้อง"
             options={roomOptions}
             value={form.roomId}
@@ -508,7 +507,6 @@ function CreateContractModal({ open, onClose, onSuccess, propertyId }: {
         <div className="grid grid-cols-2 gap-3">
           <SelectInput
             label="ระยะเวลาสัญญา *"
-            required
             placeholder="เลือกระยะเวลา"
             options={DURATION_OPTIONS}
             value={duration}

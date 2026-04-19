@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { roomTypeSchema } from "../../schemas/roomTypeSchema";
 import { Modal } from "../../components/shared/Modal";
 import { FormInput } from "../../components/shared/FormInput";
 import {
@@ -360,7 +362,7 @@ function RoomTypeModal({ open, onClose, mode, propertyId, roomTypeId, defaultVal
   const [allowOnlineBooking, setAllowOnlineBooking] = useState(defaultValues?.allowOnlineBooking ?? false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, handleSubmit, watch, control, formState: { errors } } = useForm<RoomTypeForm>({
+  const { register, handleSubmit, watch, control, formState: { errors } } = useForm<RoomTypeForm>({ resolver: zodResolver(roomTypeSchema) as any,
     defaultValues: {
       name: defaultValues?.name ?? "",
       description: defaultValues?.description ?? "",

@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link } from "react-router-dom";
 import { RiEyeLine, RiEyeOffLine, RiHome2Line } from "react-icons/ri";
 import { authApi } from "../../api/auth/authApi";
-import type { RegisterPayload } from "../../types/auth.types";
-
-type RegisterForm = RegisterPayload & { confirmPassword: string };
+import { registerSchema, type RegisterFormData } from "../../schemas/authSchema";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -14,10 +13,11 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>();
-  const password = watch("password");
+  const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+  });
 
-  const onSubmit = async (data: RegisterForm) => {
+  const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -55,7 +55,7 @@ export default function RegisterPage() {
               <input
                 type="text"
                 placeholder="ชื่อ"
-                {...register("firstName", { required: "กรุณากรอกชื่อ" })}
+                {...register("firstName")}
                 className={`w-full bg-white/[0.06] border rounded-xl px-4 py-3 text-sm text-white/85 placeholder:text-white/25 outline-none focus:border-white/30 transition-colors ${errors.firstName ? "border-red-500/60" : "border-white/12"}`}
               />
               {errors.firstName && <p className="text-red-400 text-xs mt-1 ml-1">{errors.firstName.message}</p>}
@@ -64,7 +64,7 @@ export default function RegisterPage() {
               <input
                 type="text"
                 placeholder="นามสกุล"
-                {...register("lastName", { required: "กรุณากรอกนามสกุล" })}
+                {...register("lastName")}
                 className={`w-full bg-white/[0.06] border rounded-xl px-4 py-3 text-sm text-white/85 placeholder:text-white/25 outline-none focus:border-white/30 transition-colors ${errors.lastName ? "border-red-500/60" : "border-white/12"}`}
               />
               {errors.lastName && <p className="text-red-400 text-xs mt-1 ml-1">{errors.lastName.message}</p>}
@@ -77,10 +77,7 @@ export default function RegisterPage() {
               type="email"
               placeholder="Enter your email address"
               autoComplete="email"
-              {...register("email", {
-                required: "Email is required",
-                pattern: { value: /^\S+@\S+\.\S+$/, message: "Invalid email" },
-              })}
+              {...register("email")}
               className={`w-full bg-white/[0.06] border rounded-xl px-4 py-3 text-sm text-white/85 placeholder:text-white/25 outline-none focus:border-white/30 transition-colors ${errors.email ? "border-red-500/60" : "border-white/12"}`}
             />
             {errors.email && <p className="text-red-400 text-xs mt-1 ml-1">{errors.email.message}</p>}
@@ -93,10 +90,7 @@ export default function RegisterPage() {
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 autoComplete="new-password"
-                {...register("password", {
-                  required: "Password is required",
-                  minLength: { value: 6, message: "Minimum 6 characters" },
-                })}
+                {...register("password")}
                 className={`w-full bg-white/[0.06] border rounded-xl px-4 py-3 pr-11 text-sm text-white/85 placeholder:text-white/25 outline-none focus:border-white/30 transition-colors ${errors.password ? "border-red-500/60" : "border-white/12"}`}
               />
               <button
@@ -117,10 +111,7 @@ export default function RegisterPage() {
                 type={showConfirm ? "text" : "password"}
                 placeholder="Confirm Password"
                 autoComplete="new-password"
-                {...register("confirmPassword", {
-                  required: "Please confirm your password",
-                  validate: (v) => v === password || "Passwords do not match",
-                })}
+                {...register("confirmPassword")}
                 className={`w-full bg-white/[0.06] border rounded-xl px-4 py-3 pr-11 text-sm text-white/85 placeholder:text-white/25 outline-none focus:border-white/30 transition-colors ${errors.confirmPassword ? "border-red-500/60" : "border-white/12"}`}
               />
               <button

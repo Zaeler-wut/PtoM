@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { RiEyeLine, RiEyeOffLine, RiHome2Line } from "react-icons/ri";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { loginThunk, clearError } from "../../store/slices/authSlice";
-import type { LoginPayload } from "../../types/auth.types";
+import { loginSchema, type LoginFormData } from "../../schemas/authSchema";
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
@@ -12,11 +13,13 @@ export default function LoginPage() {
   const { isLoading, error } = useAppSelector((s) => s.auth);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginPayload>();
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
 
   useEffect(() => { return () => { dispatch(clearError()); }; }, [dispatch]);
 
-  const onSubmit = async (data: LoginPayload) => {
+  const onSubmit = async (data: LoginFormData) => {
     const result = await dispatch(loginThunk(data));
     if (loginThunk.fulfilled.match(result)) {
       const role = result.payload.user.role;
@@ -47,10 +50,7 @@ export default function LoginPage() {
               type="email"
               placeholder="Enter your email address"
               autoComplete="email"
-              {...register("email", {
-                required: "Email is required",
-                pattern: { value: /^\S+@\S+\.\S+$/, message: "Invalid email" },
-              })}
+              {...register("email")}
               className={`w-full bg-white/[0.06] border rounded-xl px-4 py-3 text-sm text-white/85 placeholder:text-white/25 outline-none focus:border-white/30 transition-colors ${errors.email ? "border-red-500/60" : "border-white/12"}`}
             />
             {errors.email && <p className="text-red-400 text-xs mt-1 ml-1">{errors.email.message}</p>}
@@ -63,10 +63,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 autoComplete="current-password"
-                {...register("password", {
-                  required: "Password is required",
-                  minLength: { value: 6, message: "Minimum 6 characters" },
-                })}
+                {...register("password")}
                 className={`w-full bg-white/[0.06] border rounded-xl px-4 py-3 pr-11 text-sm text-white/85 placeholder:text-white/25 outline-none focus:border-white/30 transition-colors ${errors.password ? "border-red-500/60" : "border-white/12"}`}
               />
               <button

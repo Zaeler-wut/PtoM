@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { addRoomSchema, editRoomSchema } from "../../schemas/roomSchema";
 import { Modal } from "../../components/shared/Modal";
 import { FormInput } from "../../components/shared/FormInput";
 import { StatusBadge } from "../../components/shared/StatusBadge";
@@ -263,7 +265,7 @@ function AddRoomModal({ open, onClose, propertyId, roomTypes, onSuccess }: {
   open: boolean; onClose: () => void; propertyId: string; roomTypes: RoomType[]; onSuccess: () => void;
 }) {
   const { toast } = useToast();
-  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<AddRoomForm>();
+  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<AddRoomForm>({ resolver: zodResolver(addRoomSchema) as any });
 
   const roomTypeOptions = roomTypes.map((rt) => ({
     value: rt.id, label: `${rt.name} — ฿${(rt.roomPrice + (rt.furniturePrice ?? 0)).toLocaleString()}/เดือน`,
@@ -316,7 +318,7 @@ function EditRoomModal({ open, room, propertyId, roomTypes, onClose, onSuccess }
   open: boolean; room: Room; propertyId: string; roomTypes: RoomType[]; onClose: () => void; onSuccess: () => void;
 }) {
   const { toast } = useToast();
-  const { register, handleSubmit, control, formState: { isSubmitting } } = useForm<EditRoomForm>({
+  const { register, handleSubmit, control, formState: { isSubmitting } } = useForm<EditRoomForm>({ resolver: zodResolver(editRoomSchema) as any,
     defaultValues: {
       roomNumber: room.roomNumber,
       floor: room.floor != null ? String(room.floor) : "",

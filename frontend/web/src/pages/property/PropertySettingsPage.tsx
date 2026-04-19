@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ENDPOINTS } from "../../api/endpoints";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { propertySettingsSchema } from "../../schemas/propertySchema";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchPropertyDetail, updateProperty } from "../../store/slices/propertySlice";
 import { useToast } from "../../components/shared/Toast";
@@ -53,7 +55,7 @@ export default function PropertySettingsPage() {
   const [amenityInput, setAmenityInput] = useState("");
   const { toast } = useToast();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<SettingsForm>({ mode: "onTouched" });
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<SettingsForm>({ mode: "onTouched", resolver: zodResolver(propertySettingsSchema) as any });
   const googleMapValue = watch("googleMap");
 
   // ── ดึง lat/lng จาก Google Maps URL อัตโนมัติ ──

@@ -273,7 +273,7 @@ export default function MeterUploadScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <ActivityIndicator color="#fff" />
                 <Text style={styles.nextBtnText}>
-                  {`AI กำลังอ่าน ${progressDone}/${progressTotal} รูป...`}
+                  {`กำลังอ่าน ${progressDone}/${progressTotal} รูป...`}
                 </Text>
               </View>
               <View style={styles.progressBar}>

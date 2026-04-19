@@ -1,6 +1,7 @@
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, TextInput, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -344,8 +345,12 @@ export default function MeterFormScreen() {
 
       {/* Edit Modal */}
       <Modal visible={!!editRoom} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>ห้อง {editRoom?.roomNumber}</Text>
               <TouchableOpacity onPress={() => setEditRoom(null)}>
@@ -361,6 +366,8 @@ export default function MeterFormScreen() {
               placeholder="0"
               placeholderTextColor="#C4B5FD"
               keyboardType="decimal-pad"
+              autoFocus
+              returnKeyType="next"
             />
 
             <Text style={styles.inputLabel}>ค่าน้ำ (หน่วย)</Text>
@@ -371,13 +378,15 @@ export default function MeterFormScreen() {
               placeholder="0"
               placeholderTextColor="#C4B5FD"
               keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={handleSaveEdit}
             />
 
             <TouchableOpacity style={styles.saveBtn} onPress={handleSaveEdit} activeOpacity={0.85}>
               <Text style={styles.saveBtnText}>บันทึก</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   )
@@ -481,6 +490,10 @@ const styles = StyleSheet.create({
   modalSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40,
+  },
+  modalHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16,
   },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between',
