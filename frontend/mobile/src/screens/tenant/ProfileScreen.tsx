@@ -17,6 +17,7 @@ interface CurrentRoom {
   roomType: string
   startDate: string
   monthlyRent: number
+  status?: string
 }
 
 interface ProfileData {
@@ -25,7 +26,8 @@ interface ProfileData {
   email: string
   phone: string | null
   role: string
-  currentRoom: CurrentRoom | null
+  currentRooms?: CurrentRoom[]
+  currentRoom?: CurrentRoom | null
   billSummary: { total: number; paid: number; unpaid: number }
 }
 
@@ -113,6 +115,12 @@ export default function ProfileScreen() {
     ? `${profile.firstName} ${profile.lastName}`
     : (user?.name ?? '-')
 
+  const currentRooms: CurrentRoom[] = profile?.currentRooms?.length
+    ? profile.currentRooms
+    : profile?.currentRoom
+      ? [profile.currentRoom]
+      : []
+
   if (loading) return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
@@ -174,44 +182,10 @@ export default function ProfileScreen() {
               <Text style={styles.sectionTitle}>ห้องพักปัจจุบัน</Text>
             </View>
 
-            {profile?.currentRoom ? (
-              <>
-                <View style={styles.roomInfoCard}>
-                  <View style={styles.roomInfoRow}>
-                    <Ionicons name="home-outline" size={16} color="#9CA3AF" />
-                    <View>
-                      <Text style={styles.roomInfoLabel}>สถานที่</Text>
-                      <Text style={styles.roomInfoVal}>{profile.currentRoom.propertyName}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.roomGridRow}>
-                  <View style={styles.roomGridCard}>
-                    <Text style={styles.roomGridLabel}>หมายเลขห้อง</Text>
-                    <Text style={styles.roomGridVal}>{profile.currentRoom.roomNumber}</Text>
-                  </View>
-                  <View style={styles.roomGridCard}>
-                    <Text style={styles.roomGridLabel}>ประเภทห้อง</Text>
-                    <Text style={styles.roomGridVal}>{profile.currentRoom.roomType}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.roomInfoCard}>
-                  <View style={styles.roomInfoRow}>
-                    <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
-                    <View>
-                      <Text style={styles.roomInfoLabel}>วันที่เข้าอยู่</Text>
-                      <Text style={styles.roomInfoVal}>{formatDate(profile.currentRoom.startDate)}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.rentCard}>
-                  <Text style={styles.rentLabel}>ค่าเช่ารายเดือน</Text>
-                  <Text style={styles.rentVal}>{profile.currentRoom.monthlyRent.toLocaleString('th-TH')} ฿</Text>
-                </View>
-              </>
+            {currentRooms.length > 0 ? (
+              currentRooms.map((room, index) => (
+                <RoomCard key={index} room={room} />
+              ))
             ) : (
               <View style={styles.noRoomBox}>
                 <Ionicons name="home-outline" size={32} color="#C4B5FD" />
@@ -337,6 +311,45 @@ export default function ProfileScreen() {
   )
 }
 
+const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
+  ACTIVE:           { label: 'กำลังเช่า',    color: '#059669', bg: '#DCFCE7' },
+  MOVE_OUT_NOTICE:  { label: 'แจ้งออกแล้ว',  color: '#EA580C', bg: '#FFF7ED' },
+  ENDED:            { label: 'สิ้นสุดสัญญา', color: '#6B7280', bg: '#F3F4F6' },
+}
+
+function RoomCard({ room }: { room: CurrentRoom }) {
+  const st = STATUS_LABEL[room.status ?? ''] ?? STATUS_LABEL['ACTIVE']
+  return (
+    <View style={styles.roomCard}>
+      <View style={styles.roomCardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.roomCardProperty}>{room.propertyName}</Text>
+          <Text style={styles.roomCardNumber}>ห้อง {room.roomNumber}</Text>
+        </View>
+        <View style={[styles.roomStatusBadge, { backgroundColor: st.bg }]}>
+          <Text style={[styles.roomStatusText, { color: st.color }]}>{st.label}</Text>
+        </View>
+      </View>
+
+      <View style={styles.roomCardRow}>
+        <View style={styles.roomCardCell}>
+          <Text style={styles.roomCardLabel}>ประเภทห้อง</Text>
+          <Text style={styles.roomCardVal}>{room.roomType}</Text>
+        </View>
+        <View style={styles.roomCardCell}>
+          <Text style={styles.roomCardLabel}>วันที่เข้าอยู่</Text>
+          <Text style={styles.roomCardVal}>{formatDate(room.startDate)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.roomCardRent}>
+        <Text style={styles.roomCardRentLabel}>ค่าเช่ารายเดือน</Text>
+        <Text style={styles.roomCardRentVal}>{room.monthlyRent.toLocaleString('th-TH')} ฿</Text>
+      </View>
+    </View>
+  )
+}
+
 function MenuItem({
   icon, label, onPress, bg, color, active,
 }: {
@@ -404,6 +417,14 @@ const styles = StyleSheet.create({
   rentLabel: { fontSize: 14, fontWeight: '500', color: '#fff' },
   rentVal: { fontSize: 18, fontWeight: '700', color: '#fff' },
 
+  roomBlock: { gap: 10 },
+  roomBlockDivider: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#EDE9FE' },
+  roomIndexBadge: {
+    alignSelf: 'flex-start', backgroundColor: '#EDE9FE',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 4,
+  },
+  roomIndexText: { fontSize: 12, color: '#7C5CFC', fontWeight: '600' },
+
   noRoomBox: {
     alignItems: 'center', paddingVertical: 24, gap: 10,
     backgroundColor: '#F9F7FF', borderRadius: 12,
@@ -460,4 +481,24 @@ const styles = StyleSheet.create({
     height: 50, alignItems: 'center', justifyContent: 'center', marginTop: 4,
   },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  roomCard: {
+    borderWidth: 1, borderColor: '#EDE9FE', borderRadius: 16,
+    padding: 14, gap: 10,
+  },
+  roomCardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  roomCardProperty: { fontSize: 13, color: '#6B7280', marginBottom: 2 },
+  roomCardNumber: { fontSize: 18, fontWeight: '700', color: '#1F1D2E' },
+  roomStatusBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  roomStatusText: { fontSize: 11, fontWeight: '600' },
+  roomCardRow: { flexDirection: 'row', gap: 10 },
+  roomCardCell: { flex: 1, backgroundColor: '#F9F7FF', borderRadius: 10, padding: 10 },
+  roomCardLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 3 },
+  roomCardVal: { fontSize: 13, fontWeight: '500', color: '#1F1D2E' },
+  roomCardRent: {
+    backgroundColor: '#7C5CFC', borderRadius: 12, padding: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+  roomCardRentLabel: { fontSize: 13, color: 'rgba(255,255,255,0.85)' },
+  roomCardRentVal: { fontSize: 16, fontWeight: '700', color: '#fff' },
 })

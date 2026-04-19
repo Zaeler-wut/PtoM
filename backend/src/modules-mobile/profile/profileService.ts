@@ -10,24 +10,22 @@ export const getProfile = async (userId: string): Promise<ProfileResponse> => {
   const user = await repo.getUserProfile(userId)
   if (!user) throw new Error("User not found")
 
-  // ห้องปัจจุบัน
-  const activeContract = user.contracts[0] ?? null
-  let currentRoom = null
+  console.log("[profile] contracts found:", user.contracts.length, user.contracts.map(c => ({ id: c.id, status: c.status, room: c.room.roomNumber })))
 
-  if (activeContract) {
-    const rt = activeContract.room.roomType
-    const monthlyRent = rt.roomPrice + (rt.furniturePrice ?? 0)
-
-    currentRoom = {
-      propertyName: activeContract.room.property.name,
-      roomNumber: activeContract.room.roomNumber,
+  // ห้องปัจจุบันทั้งหมด (อาจมีหลายห้องหลายที่)
+  const currentRooms = user.contracts.map((contract) => {
+    const rt = contract.room.roomType
+    return {
+      propertyName: contract.room.property.name,
+      roomNumber: contract.room.roomNumber,
       roomType: rt.name,
-      startDate: activeContract.startDate.toISOString().split("T")[0],
-      monthlyRent,
+      startDate: contract.startDate.toISOString().split("T")[0],
+      monthlyRent: rt.roomPrice + (rt.furniturePrice ?? 0),
       roomPrice: rt.roomPrice,
       furniturePrice: rt.furniturePrice,
+      status: contract.status,
     }
-  }
+  })
 
   // สรุปบิล
   const total = user.bills.length
@@ -43,7 +41,7 @@ export const getProfile = async (userId: string): Promise<ProfileResponse> => {
     email: user.email,
     phone: user.phone,
     role: user.role,
-    currentRoom,
+    currentRooms,
     billSummary: { total, paid, unpaid },
   }
 }

@@ -7,7 +7,7 @@ export const getUserProfile = async (userId: string) => {
     include: {
       // สัญญา active ล่าสุด
       contracts: {
-        where: { status: { in: ["ACTIVE", "MOVE_OUT_NOTICE"] } },
+        where: { status: { in: ["ACTIVE", "MOVE_OUT_NOTICE", "ENDED"] } },
         include: {
           room: {
             include: {
@@ -23,7 +23,6 @@ export const getUserProfile = async (userId: string) => {
           },
         },
         orderBy: { startDate: "desc" },
-        take: 1,
       },
       // สรุปบิล
       bills: {

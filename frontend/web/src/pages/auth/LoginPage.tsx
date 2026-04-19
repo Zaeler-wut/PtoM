@@ -77,13 +77,6 @@ export default function LoginPage() {
             {errors.password && <p className="text-red-400 text-xs mt-1 ml-1">{errors.password.message}</p>}
           </div>
 
-          {/* Forgot */}
-          <div className="flex justify-end">
-            <span className="text-white/40 text-xs cursor-pointer hover:text-white/60 transition-colors">
-              Forgot Password?
-            </span>
-          </div>
-
           {/* API Error */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">

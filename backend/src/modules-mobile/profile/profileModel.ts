@@ -7,8 +7,8 @@ export interface ProfileResponse {
   phone: string | null
   role: string
 
-  // ห้องพักปัจจุบัน (null ถ้าไม่มีสัญญา active)
-  currentRoom: CurrentRoomInfo | null
+  // ห้องพักปัจจุบัน (array ว่างถ้าไม่มีสัญญา active)
+  currentRooms: CurrentRoomInfo[]
 
   // สรุปบิล
   billSummary: BillSummary
@@ -18,10 +18,11 @@ export interface CurrentRoomInfo {
   propertyName: string
   roomNumber: string
   roomType: string
-  startDate: string       // วันที่เข้าอยู่
-  monthlyRent: number     // ค่าเช่าห้อง + ค่าเฟอร์นิเจอร์
+  startDate: string
+  monthlyRent: number
   roomPrice: number
   furniturePrice: number | null
+  status: string
 }
 
 export interface BillSummary {
